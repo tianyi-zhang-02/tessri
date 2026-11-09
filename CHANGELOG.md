@@ -2,6 +2,18 @@
 
 Dates are the day a version was tagged.
 
+## Unreleased
+
+- `tessri integration install --agent claude-hooks` (or `codex-hooks`) puts Tessri into the agent's own loop. Two
+  hook groups go into `.claude/settings.json` or `.codex/hooks.json`, next to whatever is there, and run
+  `tessri hook`, a new command that reads the host's event on stdin and answers with the host's JSON or with
+  nothing: after an edit, what the edited code file can reach (the files that depend on it, the tests that reach
+  it, who maintains the code it reaches), once per file and session; when the agent stops, the warn and block
+  findings of `check --since HEAD` on the uncommitted work, once each, to the person as a message or, with
+  `stop_hook = "block"` in the configuration, to the agent first. A new receipt kind, `hooks`, finds the groups
+  again by their exact content, so `update` and `remove` never touch your own hooks; `integration status` names
+  the hooks file per host.
+
 ## 0.3.0 (2026-11-06)
 
 **On PyPI.** `pip install tessri`, `uvx tessri scan .` and `pipx run tessri` install the real package, and so do

@@ -15,8 +15,10 @@ faster than anyone can read it. One page per question, each with real output and
 - [Hand a change over: the review brief](brief.md): triage and check on one page, from one analysis, with the
   state the evidence describes and what the host ran kept apart from candidate tests.
 - [The HTML report](html-report.md): one offline page with the explorer.
-- [Integration: skills, AGENTS.md, MCP, configuration, CI](integration.md): every profile installed with a receipt, and
-  taken out again.
+- [Integration: skills, AGENTS.md, MCP, hooks, configuration, CI](integration.md): every profile installed with a
+  receipt, and taken out again.
+- [Hooks: Tessri while the agent works](hooks.md): what the agent hears after an edit and what you hear when it
+  stops, once each, and how the hosts guard it.
 - [MCP: Tessri as tools](mcp.md): `tessri mcp`, the eight tools, their arguments and errors, and the profiles that
   point each agent at the server.
 - [Configuration](configuration.md): `.tessri.toml` and `[tool.tessri]`.

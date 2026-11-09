@@ -749,16 +749,118 @@ class ServerProfilesTest(Project):
 
     def test_status_says_what_each_host_has_and_what_is_next(self):
         hosts = {h["host"]: h for h in status(self.root)["hosts"]}
-        self.assertEqual(hosts["Claude Code"], {"host": "Claude Code", "instructions": None, "server": None, "next": "tessri integration install --agent claude; tessri integration install --agent mcp"})
+        self.assertEqual(hosts["Claude Code"], {"host": "Claude Code", "instructions": None, "server": None, "next": "tessri integration install --agent claude; tessri integration install --agent mcp", "hooks": None})
         run(self.root, "install", ["claude", "agents", "mcp"])
         doc = status(self.root)
         hosts = {h["host"]: h for h in doc["hosts"]}
-        self.assertEqual(hosts["Claude Code"], {"host": "Claude Code", "instructions": SKILL, "server": self.MCP, "next": None})
+        self.assertEqual(hosts["Claude Code"], {"host": "Claude Code", "instructions": SKILL, "server": self.MCP, "next": None, "hooks": None})
+        self.assertNotIn("hooks", hosts["Copilot coding agent"])  # no hooks to install for a host that runs none
         self.assertEqual((hosts["Codex"]["instructions"], hosts["Codex"]["server"]), ("AGENTS.md", None))
         self.assertIn("run `codex mcp add tessri -- tessri mcp`", hosts["Codex"]["next"])
         self.assertIn('"tools": ["*"]', hosts["Copilot coding agent"]["next"])
         self.assertEqual(hosts["editors reading .vscode/mcp.json"]["next"], "tessri integration install --agent vscode")
         from tessri.integration import text
 
-        self.assertIn(f"Claude Code: instructions {SKILL}; server .mcp.json\n", text(doc))
-        self.assertIn("Codex: instructions AGENTS.md; server none; next: run `codex mcp add tessri -- tessri mcp`", text(doc))
+        self.assertIn(f"Claude Code: instructions {SKILL}; server .mcp.json; hooks none\n", text(doc))
+        self.assertIn("Codex: instructions AGENTS.md; server none; hooks none; next: run `codex mcp add tessri -- tessri mcp`", text(doc))
+
+
+class HookProfilesTest(Project):
+    """The `claude-hooks` and `codex-hooks` profiles add one matcher group per event to a hooks file a host reads."""
+
+    CLAUDE = ".claude/settings.json"
+    CODEX_HOOKS = ".codex/hooks.json"
+    MINE = {"matcher": "Bash", "hooks": [{"type": "command", "command": "echo mine"}]}
+    INSTALLED = {"hooks": {"PostToolUse": [{"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "tessri hook", "timeout": 60}]}], "Stop": [{"hooks": [{"type": "command", "command": "tessri hook", "timeout": 120}]}]}}
+
+    def read(self, rel: str) -> dict:
+        return json.loads((self.root / rel).read_text())
+
+    def test_install_into_an_empty_project_creates_both_files(self):
+        doc = run(self.root, "install", ["claude-hooks", "codex-hooks"])
+        self.assertEqual(self.actions(doc), {"claude-hooks": "create", "codex-hooks": "create"})
+        self.assertEqual(self.read(self.CLAUDE), self.INSTALLED)
+        self.assertEqual(self.read(self.CODEX_HOOKS), self.INSTALLED)
+        by = {t["profile"]: t for t in self.receipt()["targets"]}
+        self.assertEqual((by["claude-hooks"]["kind"], by["claude-hooks"]["created"], by["claude-hooks"]["dirs_created"]), ("hooks", True, [".claude"]))
+        self.assertEqual(json.loads(by["codex-hooks"]["span"]), templates.HOOKS)
+        self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"claude-hooks": "installed-current", "codex-hooks": "installed-current"})
+        self.assertTrue(doc["notes"][0].startswith("claude-hooks: Claude Code runs them from your next session"), doc["notes"])
+        self.assertTrue(doc["notes"][1].endswith("a changed hook has to be trusted again; the files being there does not prove a running host has seen them."), doc["notes"])
+
+    def test_your_settings_and_hooks_around_ours_are_kept_and_restored(self):
+        mine = {"permissions": {"allow": ["Bash(git *)"]}, "hooks": {"PostToolUse": [self.MINE]}}
+        write_tree(self.root, {self.CLAUDE: json.dumps(mine, indent=2) + "\n"})
+        doc = run(self.root, "install", ["claude-hooks"])
+        self.assertEqual(self.actions(doc), {"claude-hooks": "update"})
+        now = self.read(self.CLAUDE)
+        self.assertEqual(now["permissions"], mine["permissions"])
+        self.assertEqual(now["hooks"]["PostToolUse"], [self.MINE, templates.HOOKS["PostToolUse"]])
+        self.assertEqual(now["hooks"]["Stop"], [templates.HOOKS["Stop"]])
+        self.assertFalse(self.receipt()["targets"][0]["created"])
+        run(self.root, "remove", None)
+        self.assertEqual(self.read(self.CLAUDE), mine)
+        self.assertFalse((self.root / RECEIPT).exists())
+
+    def test_a_created_file_that_held_only_our_hooks_goes_with_its_directory(self):
+        run(self.root, "install", ["codex-hooks"])
+        run(self.root, "remove", None)
+        self.assertFalse((self.root / ".codex").exists())
+
+    def test_our_hooks_already_there_or_an_unreadable_file_are_conflicts(self):
+        write_tree(self.root, {self.CLAUDE: json.dumps({"hooks": {"Stop": [templates.HOOKS["Stop"]]}}) + "\n", self.CODEX_HOOKS: '{"hooks": {"Stop": "no"}}\n'})
+        doc = run(self.root, "install", ["claude-hooks", "codex-hooks"])
+        self.assertEqual(self.conflicts(doc), {"claude-hooks": "markers", "codex-hooks": "unmanaged"})
+        detail = next(c["detail"] for c in doc["conflicts"] if c["profile"] == "codex-hooks")
+        self.assertIn('add the hooks by hand: {"hooks": {"PostToolUse": [{"matcher": "Edit|Write"', detail)
+        self.assertFalse((self.root / RECEIPT).exists())
+        self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"claude-hooks": "unmanaged"})  # a hooks file without ours is nobody's business
+
+    def test_an_edited_group_is_yours(self):
+        run(self.root, "install", ["claude-hooks"])
+        doc = self.read(self.CLAUDE)
+        doc["hooks"]["Stop"][0]["hooks"][0]["timeout"] = 5
+        write_tree(self.root, {self.CLAUDE: json.dumps(doc) + "\n"})
+        self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"claude-hooks": "user-modified"})
+        self.assertEqual(self.conflicts(run(self.root, "update", None)), {"claude-hooks": "modified"})
+        self.assertEqual(self.conflicts(run(self.root, "remove", None)), {"claude-hooks": "modified"})
+        self.assertTrue((self.root / RECEIPT).exists())
+
+    def test_update_is_a_no_op_when_current_recreates_a_missing_file_and_refreshes_outdated_groups(self):
+        run(self.root, "install", ["codex-hooks"])
+        self.assertEqual(self.actions(run(self.root, "update", None)), {"codex-hooks": "unchanged"})
+        (self.root / self.CODEX_HOOKS).unlink()
+        self.assertEqual(self.actions(run(self.root, "update", None)), {"codex-hooks": "create"})
+        self.assertEqual(self.read(self.CODEX_HOOKS), self.INSTALLED)
+        doc = self.read(self.CODEX_HOOKS)
+        doc["hooks"]["PostToolUse"].insert(0, self.MINE)  # a group of your own next to ours is not an edit of ours
+        write_tree(self.root, {self.CODEX_HOOKS: json.dumps(doc) + "\n"})
+        newer = {"PostToolUse": {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "tessri hook", "timeout": 90}]}, "Stop": templates.HOOKS["Stop"]}
+        with mock.patch.object(templates, "HOOKS", newer):
+            self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"codex-hooks": "installed-outdated"})
+            self.assertEqual(self.actions(run(self.root, "update", None)), {"codex-hooks": "update"})
+            now = self.read(self.CODEX_HOOKS)
+            self.assertEqual(now["hooks"]["PostToolUse"], [self.MINE, newer["PostToolUse"]])
+            self.assertEqual(now["hooks"]["Stop"], [newer["Stop"]])
+            self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"codex-hooks": "installed-current"})
+        self.assertEqual({r["profile"]: r["state"] for r in status(self.root)["targets"]}, {"codex-hooks": "installed-outdated"})
+
+    def test_status_names_the_hooks_file_per_host(self):
+        run(self.root, "install", ["claude-hooks"])
+        hosts = {h["host"]: h for h in status(self.root)["hosts"]}
+        self.assertEqual(hosts["Claude Code"]["hooks"], self.CLAUDE)
+        self.assertIsNone(hosts["Codex"]["hooks"])
+        self.assertNotIn("hooks", hosts["editors reading .vscode/mcp.json"])
+        code, out, _ = run_cli("integration", "status", str(self.root))
+        self.assertEqual(code, 0)
+        self.assertIn("; hooks .claude/settings.json", out)
+        self.assertIn("Codex: instructions none; server none; hooks none", out)
+
+    def test_a_receipt_whose_hooks_do_not_match_their_hash_is_refused(self):
+        run(self.root, "install", ["codex-hooks"])
+        receipt = self.receipt()
+        receipt["targets"][0]["span"] = json.dumps({"Stop": templates.HOOKS["Stop"]})
+        (self.root / RECEIPT).write_text(json.dumps(receipt))
+        with self.assertRaises(IntegrationError) as caught:
+            status(self.root)
+        self.assertIn("does not match its hash", str(caught.exception))

@@ -16,6 +16,7 @@ and its text from one analysis.
 | On every pull request | `tessri integration install --agent review` | | the comment on the pull request, updated on every push |
 | Weekly | `tessri integration install --agent report` | | the run's summary; the JSON and the HTML page are its artifact |
 | Giving it to an agent | `tessri integration install --agent claude` (or `codex`, `agents`, `copilot`, `mcp`, `vscode`) | | `tessri integration status`, which says per host what it has and what is left |
+| While an agent edits | `tessri integration install --agent claude-hooks` (or `codex-hooks`) | | what the edited file reaches, after each edit; what the uncommitted work did to the structure, when the agent stops ([hooks](hooks.md)) |
 
 Three things hold across the table. Without `--since`, a branch is judged against the default branch (the one the
 remote declares, else `main` or `master`); on the default branch itself the change is the uncommitted work, and
