@@ -24,6 +24,8 @@ faster than anyone can read it. One page per question, each with real output and
 - [Configuration](configuration.md): `.tessri.toml` and `[tool.tessri]`.
 - [JSON output](json.md): the objects, `schema_version` and the `meta` block.
 - [Architecture](architecture.md): the pipeline, one view per command, and how to add a language.
+- [The backtest](backtest.md): how the order `triage` uses and the one-import review set were tested, the script that
+  runs the test on any repository, and its output on one.
 - [Limits](limits.md): what is static, what is invisible, and what to read with care.
 - [Formerly repolife](formerly-repolife.md): what to rename when upgrading from the old name.
 

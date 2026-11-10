@@ -13,6 +13,11 @@ Dates are the day a version was tagged.
   `stop_hook = "block"` in the configuration, to the agent first. A new receipt kind, `hooks`, finds the groups
   again by their exact content, so `update` and `remove` never touch your own hooks; `integration status` names
   the hooks file per host.
+- `tools/backtest.py` publishes the test behind the order `triage` uses and the review set `impact` draws. On any
+  repository's history it scores the files each change touched with what git knew when the change landed, against
+  the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
+  directory or unrelated change together. [The backtest](docs/guide/backtest.md) in the guide is its output on one
+  repository, and the wording of `triage` and the guide follows those numbers.
 
 ## 0.3.0 (2026-11-06)
 

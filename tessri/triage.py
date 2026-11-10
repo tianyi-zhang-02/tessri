@@ -1,11 +1,12 @@
 """Change triage: for a branch, a range or uncommitted work, which files deserve a human first, what else the
 change can ripple into, and who is able to look.
 
-The order is the one a backtest on one large repository found hard to beat: files that were committed to most in the
-last 90 days first, then by how much this change touches. Which of those commits were fixes added nothing, so fix
-history is shown but does not move a file; blast radius and ownership are shown too, and neither improved the
-prediction: they describe what a mistake would cost and who can catch it, not how likely one is. History is read up
-to the base of the change, so the change's own commits neither count as activity nor make their author an owner.
+The order is the one a backtest on one large repository found hard to beat (`tools/backtest.py`, which runs the
+test on any repository): files that were committed to most in the last 90 days first, then by how much this change
+touches. Which of those commits were fixes added nothing, so fix history is shown but does not move a file; the
+number of dependents ranked far below activity, so blast radius is shown as what a mistake would cost, and ownership
+as who can catch it, which no such score measures. History is read up to the base of the change, so the change's own
+commits neither count as activity nor make their author an owner.
 """
 
 from __future__ import annotations
@@ -24,7 +25,7 @@ from .model import SCHEMA_VERSION
 from .modules import assign
 from .ownership import LISTED_MIN, UNOWNED, owner_rows, rollup
 
-RIPPLE_HOPS = 2  # explicit imports predicted what changes together well at one hop and about as well as the same directory at two
+RIPPLE_HOPS = 2  # on one repository, files one import apart changed together 18 times as often as unrelated ones, two apart 9 times, the same directory twice (tools/backtest.py)
 TEST_HOPS = 3
 EXAMPLES = 3
 REVIEWERS_LISTED = 3
@@ -247,7 +248,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches. In a backtest on one large repository "
         "that predicted later fixes about as well as anything simple, and better than the size of the change alone; it says where trouble tends to be, not that this change is wrong. "
         "Fix and revert history is shown but does not reorder: it added nothing beyond activity.",
-        "Dependents, tests and owners are context: they show what a mistake could reach and who is able to look, and they did not improve the prediction. "
+        "Dependents, tests and owners are context: they show what a mistake could reach and who is able to look; dependents predicted later fixes far less well than activity, and ownership is not a prediction at all. "
         "Dependents are static imports; dynamic loading and consumers outside the repository are invisible.",
         "History is read up to the base of the change and under the name each file has now, so a moved file keeps its past, "
         "the change's own commits do not count as trouble and its authors do not count as owners.",
