@@ -7,7 +7,9 @@ active maintains. It is meant for the moment an agent (or a person) finishes a t
 
 The base is read from git objects into a scratch directory and analysed there; the repository itself is never
 touched. Ownership comes from history up to the base, so the change's own commits cannot make its author the owner
-of what they just changed. Everything is static imports: a change that is only wrong at run time shows nothing here.
+of what they just changed. Everything is static imports, with one exception that says so: a file the change deleted or
+moved that an untouched file still names in a string or a dynamic import is a warning for a person, because such a
+name may load the file at run time. Anything else that is only wrong at run time shows nothing here.
 """
 
 from __future__ import annotations
@@ -29,10 +31,12 @@ from .ownership import UNOWNED
 SEVERITIES = ("info", "warn", "block")  # least to most serious
 LISTED = 10  # files or edges named in one finding
 EXAMPLES = 3
+REACHED = ("import", "package", "config", "dynamic", "string", "unknown")  # how a stranded file's former links are listed: statements first, guesses last
 
 NOTES = [
-    "Dependencies are static imports between files of this repository. Dynamic loading, registries and consumers outside it are invisible, "
-    "so a clean result does not mean nothing else depends on the change.",
+    "Dependencies are static imports between files of this repository; a deleted or moved file that an untouched file still names in a string "
+    "or a dynamic import is a warning for a person, since such a name is a guess that the file is loaded at run time. Registries and consumers "
+    "outside the repository are invisible, so a clean result does not mean nothing else depends on the change.",
     "Orphans, cycles and imports are compared between the base of the change and the working tree with the same settings; modules are the same "
     "directories on both sides, and a file git sees as moved is one file under its new name on both sides.",
     "Ownership is read from history up to the base, so the author of the change does not count as having maintained what they changed.",
@@ -180,6 +184,11 @@ def _finding(kind: str, severity: str, key: str, title: str, detail: str, files:
     return {"id": f"{kind}:{key}", "kind": kind, "severity": severity, "title": title, "detail": detail, "files": files, "action": action, "needs_human": needs_human}
 
 
+def _link(path: str, kind: str) -> str:
+    """A file and, unless the link is an import statement, the kind of evidence behind it, marked as `why` marks it."""
+    return f"`{path}`" if kind == "import" else f"`{path}` ({kind})"
+
+
 def _edge_row(e: dict) -> dict:
     return {"from": e["from"], "to": e["to"], "imports": e["imports"], "files": e["files"], "examples": e["examples"][:EXAMPLES], "against_flow": e["cut"]}
 
@@ -204,8 +213,11 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
         how = "added" if path not in base_a.records else "stranded"
         row = {"path": path, "how": how, "code": head_a.records[path].code}
         if how == "stranded":
-            by_import = [s for s in base_a.graph.inbound.get(path, ()) if path in modules._imported(base_a, s)]
-            row["was_reached_from"] = sorted({*by_import, *base_a.graph.config_refs.get(path, ())})[:EXAMPLES]
+            links = {s: base_a.graph.kind(s, path) for s in base_a.graph.inbound.get(path, ())}
+            links.update({s: "config" for s in base_a.graph.config_refs.get(path, ())})
+            shown = sorted(links, key=lambda s: (REACHED.index(links[s]), s))[:EXAMPLES]
+            row["was_reached_from"] = shown
+            row["reached_kinds"] = {s: links[s] for s in shown}  # an import, a package file, a config, or a guess from a string or a dynamic import
         new_orphans.append(row)
     fixed_orphans = [
         {"path": p, "how": "removed" if p not in head_a.records else "wired"} for p in sorted(base_orphans - head_orphans)
@@ -228,7 +240,7 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
         findings.append(
             _finding(
                 "new-orphan", "warn", "stranded", f"{len(stranded)} file{'s' if len(stranded) != 1 else ''} nothing reaches any more",
-                "These were reachable before the change; it removed the last way to reach them. " + "; ".join(f"`{r['path']}` was reached from " + ", ".join(f"`{s}`" for s in r["was_reached_from"]) for r in stranded[:3] if r["was_reached_from"]),
+                "These were reachable before the change; it removed the last way to reach them. " + "; ".join(f"`{r['path']}` was reached from " + ", ".join(_link(s, r["reached_kinds"][s]) for s in r["was_reached_from"]) for r in stranded[:3] if r["was_reached_from"]),
                 [r["path"] for r in stranded][:LISTED], "Check whether they are meant to go too (delete them in this change) or whether the change cut a link it should not have.",
             )
         )
@@ -257,6 +269,41 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
                     "Untouched by this change, still importing it: " + ", ".join(f"`{u}`" for u in users[:LISTED]) + (f" and {len(users) - LISTED} more" if len(users) > LISTED else ""),
                     users[:LISTED],
                     "Update every importer to the new path in the same change." if change.origin else "Restore the file, or update every importer in the same change.",
+                )
+            )
+
+    # names of deleted or moved files in strings and dynamic imports of untouched files: a guess that the file is
+    # loaded at run time, so a warning for a person rather than a block
+    references = []
+    for path, change in sorted(changed.items()):
+        rec = base_a.records.get(path)
+        if change.state not in ("deleted", "moved") or rec is None or not rec.analyzer:
+            continue
+        referrers = sorted(
+            (s, base_a.graph.kind(s, path))
+            for s in base_a.graph.inbound.get(path, ())
+            if base_a.graph.kind(s, path) in modules.REFERENCE_KINDS
+            and path not in modules._imported(base_a, s)
+            and s in head_a.records
+            and s not in touched
+            and path not in head_a.graph.edges.get(s, ())
+        )
+        if referrers:
+            gone = change.origin or path
+            row = {"deleted": gone, "referrers": [{"path": s, "kind": k} for s, k in referrers]}
+            if change.origin:
+                row["moved_to"] = path
+            references.append(row)
+            listed = ", ".join(_link(s, k) for s, k in referrers[:LISTED]) + (f" and {len(referrers) - LISTED} more" if len(referrers) > LISTED else "")
+            findings.append(
+                _finding(
+                    "dangling-reference", "warn", gone,
+                    f"`{gone}` was moved to `{path}` but is still named by its old name" if change.origin else f"`{path}` was deleted but is still named in code",
+                    f"Untouched by this change, still naming it in a string or a dynamic import: {listed}. "
+                    "A name in a string is the analysis's guess that the file is loaded at run time, not a statement the code made.",
+                    [s for s, _ in referrers[:LISTED]],
+                    "Check whether the name loads the file at run time; if it does, update it in the same change or restore the file.",
+                    needs_human=True,
                 )
             )
 
@@ -343,6 +390,7 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
         "findings": findings,
         "orphans": {"new": new_orphans, "resolved": fixed_orphans},
         "dangling_imports": dangling,
+        "dangling_references": references,
         "cycles": {"new": cycles_new, "grown": cycles_grown, "resolved": cycles_resolved},
         "dependencies": {"new": new_deps, "removed": [{"from": a, "to": b} for a, b in gone_edges]},
         "unowned": unowned,
@@ -394,7 +442,7 @@ def check(root: Path, cfg: Config, since: str | None = None, now: float | None =
         "notes": NOTES,
     }
     if not code:
-        result.update({"findings": [], "orphans": {"new": [], "resolved": []}, "dangling_imports": [], "cycles": {"new": [], "grown": [], "resolved": []}, "dependencies": {"new": [], "removed": []}, "unowned": [], "modules_touched": []})
+        result.update({"findings": [], "orphans": {"new": [], "resolved": []}, "dangling_imports": [], "dangling_references": [], "cycles": {"new": [], "grown": [], "resolved": []}, "dependencies": {"new": [], "removed": []}, "unowned": [], "modules_touched": []})
         result["summary"]["findings"] = {s: 0 for s in SEVERITIES}
         return result
     if analyses is not None:

@@ -122,9 +122,23 @@ class OrphanTest(Branchy):
         self.commit(BASE)
         write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})
         r = self.check()
-        self.assertEqual([(o["path"], o["how"], o["was_reached_from"]) for o in r["orphans"]["new"]], [("util/helpers.py", "stranded", ["core/engine.py"])])
+        self.assertEqual([(o["path"], o["how"], o["was_reached_from"], o["reached_kinds"]) for o in r["orphans"]["new"]], [("util/helpers.py", "stranded", ["core/engine.py"], {"core/engine.py": "import"})])
         f = self.finding(r, "new-orphan:stranded")
         self.assertIn("`util/helpers.py` was reached from `core/engine.py`", f["detail"])
+
+    def test_a_stranded_file_says_what_kind_of_link_was_cut(self):
+        base = {
+            **BASE,
+            "app/main.py": "from app import loader\nfrom core import engine\n\nif __name__ == '__main__':\n    engine.run()\n",
+            "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n",
+            "core/engine.py": "def run():\n    return 1\n",
+        }
+        self.commit(base)
+        write_tree(self.root, {"app/loader.py": "def load():\n    return None\n"})  # the string was the last link to util/helpers.py
+        r = self.check()
+        rows = [(o["path"], o["how"], o["was_reached_from"], o["reached_kinds"]) for o in r["orphans"]["new"]]
+        self.assertEqual(rows, [("util/helpers.py", "stranded", ["app/loader.py"], {"app/loader.py": "string"})])
+        self.assertIn("`util/helpers.py` was reached from `app/loader.py` (string)", self.finding(r, "new-orphan:stranded")["detail"])
 
     def test_an_orphan_that_was_already_there_is_not_new(self):
         self.commit({**BASE, "core/old.py": "VALUE = 1\n"})
@@ -168,6 +182,36 @@ class DanglingTest(Branchy):
         self.commit(base)
         (self.root / "core/__init__.py").unlink()  # app imports core.engine, which only runs core/__init__ as a side effect
         self.assertEqual(self.check()["dangling_imports"], [])
+
+    def test_a_deleted_file_still_named_in_a_string_is_a_warning_for_a_person(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n"})
+        (self.root / "util/helpers.py").unlink()
+        write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})  # the importer is updated in the same change; the loader is not
+        r = self.check()
+        self.assertEqual(r["dangling_imports"], [])
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "app/loader.py", "kind": "string"}]}])
+        f = self.finding(r, "dangling-reference:util/helpers.py")
+        self.assertEqual((f["severity"], f["needs_human"], f["files"]), ("warn", True, ["app/loader.py"]))
+        self.assertEqual(f["title"], "`util/helpers.py` was deleted but is still named in code")
+        self.assertIn("`app/loader.py` (string)", f["detail"])
+        self.assertIn("A person has to decide this.", sinceview.markdown(r))
+
+    def test_a_moved_file_still_named_by_its_old_name(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n"})
+        git(self.root, "mv", "util/helpers.py", "util/aid.py")
+        write_tree(self.root, {"core/engine.py": "from util import aid\n\n\ndef run():\n    return aid.go()\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_imports"], [])
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "app/loader.py", "kind": "string"}], "moved_to": "util/aid.py"}])
+        self.assertEqual(self.finding(r, "dangling-reference:util/helpers.py")["title"], "`util/helpers.py` was moved to `util/aid.py` but is still named by its old name")
+
+    def test_a_name_that_still_fits_the_moved_file_is_not_dangling(self):
+        self.commit({**BASE, "app/loader.py": "PATH = 'helpers.py'\n"})
+        (self.root / "lib").mkdir()
+        git(self.root, "mv", "util/helpers.py", "lib/helpers.py")
+        write_tree(self.root, {"lib/__init__.py": "", "core/engine.py": "from lib import helpers\n\n\ndef run():\n    return helpers.go()\n"})
+        r = self.check()
+        self.assertEqual((r["dangling_imports"], r["dangling_references"]), ([], []))
 
 
 class CycleTest(Branchy):

@@ -285,4 +285,5 @@ class PythonAnalyzer(Analyzer):
             comment_lines={p: i.doc_lines for p, i in infos.items()},
             resolve_reference=resolve_reference,
             provenance=provenance,
+            ambiguous=dict(paths.ambiguous),
         )

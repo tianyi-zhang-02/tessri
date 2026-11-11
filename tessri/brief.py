@@ -35,8 +35,9 @@ NOTES = [
     "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in a backtest on "
     "one repository that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that "
     "this change is wrong, and a new file has no history, so it sorts by its size.",
-    "Dependents, candidate tests and findings rest on static imports between files of this repository: runtime wiring, dynamic loading "
-    "and consumers outside it are invisible, and no finding is proof that the rest is fine.",
+    "Dependents, candidate tests and findings rest on what the analyzers see between files of this repository, static imports above all; "
+    "a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, "
+    "registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.",
     "History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. "
     "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.",
     "Candidate tests are paths that reach the change, never executions; only what `--ran` records was run.",

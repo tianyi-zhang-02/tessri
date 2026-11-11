@@ -116,7 +116,9 @@ projects that have explicitly turned that gate on, not a default. `block` flags 
 `dangling-import` means a file the change deleted is still imported by files it did not touch, so restore it or
 update the importers. `warn` needs a decision: `new-cycle` and `cycle-grew` name the new dependency that closed the
 loop, `new-orphan` is a new file nothing reaches (`how: stranded` is a file the change cut the last link to, with
-`was_reached_from`), and `no-active-owner` is changed code nobody active maintains (`needs_human`: a person decides who
+`was_reached_from` and the kind of each link), `dangling-reference` is a deleted or moved file that an untouched file
+still names in a string or a dynamic import (a guess that it is loaded at run time: check the name, and update it or
+restore the file), and `no-active-owner` is changed code nobody active maintains (`needs_human`: a person decides who
 looks at it; do not pick a reviewer from its last maintainers, and do not stop on your own unless the team asks for
 that). `info` is the rest. Findings are bounded by static analysis and its language coverage; a clean result is not proof.
 

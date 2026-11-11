@@ -150,7 +150,7 @@ def build_report(a: Analysis, full: bool = False) -> dict:
         shared = sorted(a.graph.ambiguous.items(), key=lambda kv: (-kv[1], kv[0]))
         listed = ", ".join(f"`{name}` ({n})" for name, n in shared[:5]) + (f" and {len(shared) - 5} more" if len(shared) > 5 else "")
         caveats.append(
-            f"{len(shared)} name{'s' if len(shared) != 1 else ''} in configs or scripts fit{'s' if len(shared) == 1 else ''} several files each and "
+            f"{len(shared)} name{'s' if len(shared) != 1 else ''} in configs, scripts or code fit{'s' if len(shared) == 1 else ''} several files each and "
             f"so name{'s' if len(shared) == 1 else ''} none of them: {listed}. Give such a reference a directory, or list the files under `entry`."
         )
 

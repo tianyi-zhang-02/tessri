@@ -120,6 +120,9 @@ def build(
                 bucket[t].add(src)
 
     g.ambiguous = dict(paths.ambiguous)
+    for res in results:  # the analyzers resolve file names in code by the same rule and record the same misses
+        for token, n in res.ambiguous.items():
+            g.ambiguous[token] = max(g.ambiguous.get(token, 0), n)
     for target, sources in g.config_refs.items():
         g.roots.setdefault(target, []).append(f"config-ref: {sorted(sources)[0]}")
     for path in g.analyzed:
