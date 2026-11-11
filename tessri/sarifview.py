@@ -33,7 +33,7 @@ LOCATIONLESS = ("keep", "omit")  # what becomes of a finding with no usable file
 RULES = (
     ("new-orphan", "Files the change left unreachable", "New files that no entry point, test or config reference reaches, or files the change cut the last way to reach. As far as the static analysis can tell, they are dead."),
     ("dangling-import", "A deleted file is still imported", "The change deleted a file that files it did not touch still import. Restore the file or update the importers."),
-    ("dangling-reference", "A deleted file is still named in code", "The change deleted or moved a file that files it did not touch still name in a string or a dynamic import. Such a name is a guess that the file is loaded at run time: check it, and update it in the same change or restore the file."),
+    ("dangling-reference", "A deleted file is still named", "The change deleted or moved a file that files it did not touch still name: a config or a script (wiring that now points at nothing), a string or a dynamic import in code (a guess that the file is loaded at run time: check it), or only documentation (then a note). Update the name in the same change or restore the file."),
     ("new-cycle", "A new dependency cycle between modules", "The change made a set of modules depend on each other, so they can no longer be understood or released alone. The finding names the dependency that closed the loop."),
     ("cycle-grew", "An existing dependency cycle grew", "The change drew more modules into a cycle that already existed."),
     ("new-dependency", "New dependencies between modules", "Modules that now import modules they did not import before. An observation to read, not a failure."),

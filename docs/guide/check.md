@@ -19,7 +19,7 @@ structure. They answer different questions and work together.
 | Finding | Severity | What it means |
 |---|---|---|
 | `dangling-import` | block | a file the change deleted or moved is still imported by a file the change did not touch |
-| `dangling-reference` | warn | a file the change deleted or moved is still named in a string or a dynamic import by a file the change did not touch; such a name is a guess that the file is loaded at run time, so a person decides |
+| `dangling-reference` | warn | a file the change deleted or moved is still named by a file the change did not touch: in a config or a script (wiring that now points at nothing), in a string or a dynamic import (a guess that the file is loaded at run time, so a person decides), or in documentation (then only `info`; a changelog or release notes are left alone, since they name deleted files on purpose) |
 | `new-cycle`, `cycle-grew` | warn | modules that were not in a loop now are, or a cycle absorbed more modules; the new dependency that closed it is named |
 | `new-orphan` | warn | a new file nothing reaches, or a file the change cut the last link to (`stranded`, with what used to reach it and how: an import, a config, or a name in a string); under `scripts/`, `examples/` and the like it is only a note, since those are run by hand |
 | `no-active-owner` | warn | changed code nobody active maintains. History is read up to the base, so the author's own commits do not make them the owner |
@@ -71,14 +71,30 @@ make an old repository-wide problem look fixed when a later change simply did no
 meaning: with `block` the exit code is 1 and the document is still complete. Copyable shell and Python recipes for CI
 artifacts, test selection and gates are in [docs/workflow-recipes.md](../workflow-recipes.md).
 
-Only what static imports show is compared, apart from `dangling-reference`, which reads the names in strings and says
-so; a clean result is not proof that nothing else depends on the change, and a `block` is certain only for importers
-the change left untouched. Both sides are cut into modules the same way, so a
+How much the warning about a name left behind is worth was tried on a year of one repository's history with
+`tools/deletions.py`, which replays every change that deleted or moved a code file through `check` and follows each
+name it left behind through the later commits. Of 23 such changes, four left a name. A test-suite script still ran a
+deleted example (fixed the same day); a functional-test script still imports a module that was moved, and a design
+document still names a worker's old module path (both still do); and an actor registry's string still named a package
+whose `__init__.py` the change deleted while its modules stayed, which Python imports as a namespace package and the
+analysis does not model, so that one is the false alarm the warning's wording allows for. Two other false alarms the
+same trial showed, a module turned into a package and `setup.py` read as a dotted name, are gone. Four names on one
+repository is a small number, so run it on yours:
+
+```bash
+python3 tools/deletions.py path/to/repository --days 365
+```
+
+Only what static imports show is compared, apart from `dangling-reference`, which reads the names of files in configs,
+strings and documentation and says so; a clean result is not proof that nothing else depends on the change, and a
+`block` is certain only for importers the change left untouched. Both sides are cut into modules the same way, so a
 file added or removed cannot move a boundary and create a dependency that is not there. A file git sees as moved (its
 default similarity threshold) is one file under its new name on both sides: the summary counts it under `moved`, its
 row carries the old path as `from`, its lines are the edits made on the way, and a renamed package keeps its cycles,
 dependencies and orphans instead of reporting them gone and new again. A moved file that an untouched file still
-imports under its old name is a `dangling-import`, with `moved_to` beside the old path. A move git does not recognise,
+imports under its old name is a `dangling-import`, with `moved_to` beside the old path. A module turned into a
+package (`x.py` moved into `x/`, with an `x/__init__.py` that takes its place), or the reverse, keeps its import name,
+so the files that import or name `x` are not dangling. A move git does not recognise,
 or one not yet added to the index, is still a deletion and an addition. Files the analysis does not read (symlinks,
 submodules, anything above the size limit, anything excluded) are not part of either side.
 

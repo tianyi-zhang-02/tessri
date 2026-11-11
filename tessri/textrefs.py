@@ -31,6 +31,11 @@ _FILE_EXTS = frozenset(
 )
 
 
+def is_filename(token: str) -> bool:
+    """`config.yaml` or `setup.py` looks like module `config` + attribute `yaml`; it is a file name, not a dotted name."""
+    return re.split(r"[.:]", token)[-1].lower() in _FILE_EXTS
+
+
 # Configs that *enumerate* modules for a tool (type checker include lists, lint
 # per-file ignores, coverage omit lists). Naming a module there is not evidence
 # that anything uses it, so these files are not scanned at all.
@@ -74,7 +79,7 @@ def scan_text(text: str, weak: bool = False) -> TextScan:
     scan = TextScan(weak=weak)
     for m in DOTTED.finditer(text):
         token = m.group()
-        if re.split(r"[.:]", token)[-1].lower() not in _FILE_EXTS:
+        if not is_filename(token):
             scan.dotted.add(token)
     scan.paths.update(CODEPATH.findall(text))
     return scan
