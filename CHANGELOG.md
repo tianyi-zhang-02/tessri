@@ -30,8 +30,8 @@ Dates are the day a version was tagged.
   `"setup.py"`, is a path, not the dotted name `setup.py`, so it no longer links the file to a top-level module `setup`.
 - `tools/deletions.py` replays every change of a repository's history that deleted or moved a code file through
   `check` and says what became of each name left behind: removed, restored, or still there, and after how long. On
-  one repository's last year three of the four names it reported were real loose ends and the fourth a package Python
-  still imports without its `__init__.py`; the two false alarms it exposed are the fixes above.
+  one repository's last year three of the four names it reported were real loose ends and the fourth an `__init__.py`
+  run on the way to a module the string still names (a limit, listed); the two false alarms it exposed are the fixes above.
 
 ## 0.3.0 (2026-11-06)
 

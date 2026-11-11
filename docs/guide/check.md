@@ -75,9 +75,9 @@ How much the warning about a name left behind is worth was tried on a year of on
 `tools/deletions.py`, which replays every change that deleted or moved a code file through `check` and follows each
 name it left behind through the later commits. Of 23 such changes, four left a name. A test-suite script still ran a
 deleted example (fixed the same day); a functional-test script still imports a module that was moved, and a design
-document still names a worker's old module path (both still do); and an actor registry's string still named a package
-whose `__init__.py` the change deleted while its modules stayed, which Python imports as a namespace package and the
-analysis does not model, so that one is the false alarm the warning's wording allows for. Two other false alarms the
+document still names a worker's old module path (both still do); and an actor registry's string named a worker module
+whose package `__init__.py` the change deleted while the module stayed, so the name still resolves and the `__init__.py`
+run on the way only counted as named: a false alarm, listed under limits. Two other false alarms the
 same trial showed, a module turned into a package and `setup.py` read as a dotted name, are gone. Four names on one
 repository is a small number, so run it on yours:
 

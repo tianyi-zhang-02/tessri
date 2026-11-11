@@ -24,10 +24,11 @@ What the analysis cannot see, it says it cannot see. This is the list.
   names files in strings links itself to them: a string `scripts/run.py` in a module is an edge to that file whether
   or not the module runs it. A bare name that several files share is not resolved, wherever it was found, and the report's caveats list it;
   the bare `__init__.py` and `__main__.py` (and the `if __name__ == "__main__"` idiom) make no edge.
-- A directory without an `__init__.py` is not a package to the analysis, although Python imports one as a namespace
-  package: its modules carry short names, and a dotted name that reaches them through the directory resolves to
-  nothing. Deleting a package's `__init__.py` while its modules stay therefore looks like deleting the package, and
-  `check` may call a string that still names it a `dangling-reference`.
+- A string that names `a.b.c` depends on `a/b/c.py` and on the `a/__init__.py` and `a/b/__init__.py` Python runs on
+  the way, all marked `string`, and a config that names the module does the same. Deleting one of those `__init__.py`
+  files while the module stays therefore makes `check` call the string or the config a `dangling-reference`, although
+  the name still resolves: a directory without `__init__.py` is a namespace package to Python, and the analysis reads
+  the full path through it.
 - Review load counts lines changed, not effort: a generated file that is not excluded, or a mechanical rename of one
   symbol, weighs as much as careful work. It cannot see who reviewed, and it does not see branches that never
   reached the history it reads.
