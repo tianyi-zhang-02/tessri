@@ -267,6 +267,20 @@ class DanglingTest(Branchy):
         self.assertEqual(r["dangling_imports"], [])  # `from util import helpers` in core/engine.py now reaches the package
         self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "Makefile", "kind": "config"}], "moved_to": "util/helpers/impl.py"}])  # the script path is gone; the dotted name is not
 
+    def test_a_package_initializer_run_on_the_way_to_a_module_that_stays_is_not_dangling(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n", "pyproject.toml": "[project]\nname = 'demo'\n\n[project.scripts]\ngo = 'util.helpers:go'\n"})
+        (self.root / "util/__init__.py").unlink()  # util/ is a namespace package now; util.helpers still resolves
+        r = self.check()
+        self.assertEqual((r["dangling_imports"], r["dangling_references"]), ([], []))
+
+    def test_a_deleted_package_is_reported_through_its_module_not_its_initializer(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n", "pyproject.toml": "[project]\nname = 'demo'\n\n[project.scripts]\ngo = 'util.helpers:go'\n"})
+        (self.root / "util/__init__.py").unlink()
+        (self.root / "util/helpers.py").unlink()
+        write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "pyproject.toml", "kind": "config"}, {"path": "app/loader.py", "kind": "string"}]}])  # one row, for the module the name names
+
 
 class CycleTest(Branchy):
     def test_a_dependency_that_closes_a_loop(self):
