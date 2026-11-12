@@ -97,6 +97,13 @@ landing page, the stylesheet and the icon, and `.github/workflows/site.yml` depl
 python3 tools/build_site.py --out _site && python3 -m http.server --directory _site
 ```
 
+A release is a tag. Bump `version` in `pyproject.toml` and `tessri/__init__.py`, head the changelog section with the
+version and the day, then `git tag v0.3.0 && git push origin v0.3.0`: `.github/workflows/release.yml` checks that the
+tag is the version the code states, builds the sdist and the wheel, installs the wheel on 3.11 and 3.12 and runs it,
+publishes to PyPI through trusted publishing (nothing secret in the repository; once, on PyPI, the project's trusted
+publisher is set to this repository's `release.yml` with environment `pypi`), and creates the GitHub release with the
+changelog section and the files.
+
 ## License
 
 MIT
