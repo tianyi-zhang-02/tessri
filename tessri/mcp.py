@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
-from . import __version__, brief, config, gitlog, graphview, modules, since, sinceview
+from . import __version__, brief, config, gitlog, graphview, modules, runs, since, sinceview
 from .analyze import Analysis, analyze
 from .explain import TargetError, explain, why_json
 from .gitlog import _git_line as git_line  # one-line probes, as the history reader runs them
@@ -160,10 +160,11 @@ def _why(server: Server, args: dict) -> tuple[str, dict]:
 
 
 def _impact(server: Server, args: dict) -> tuple[str, dict]:
-    _, a = server.analysis(args)
+    root, a = server.analysis(args)
     try:
-        found = modules.impact(a, args["target"], None, hops=args.get("hops"), edges=args.get("edges", "all"))
-    except TargetError as exc:
+        report = runs.load(args["report"], set(a.records), root) if args.get("report") else None
+        found = modules.impact(a, args["target"], None, hops=args.get("hops"), edges=args.get("edges", "all"), report=report)
+    except (TargetError, runs.RunsError) as exc:
         raise Mistake(str(exc)) from exc
     return graphview.impact_text(found), found
 
@@ -197,12 +198,13 @@ def _check(server: Server, args: dict) -> tuple[str, dict]:
 def _brief(server: Server, args: dict) -> tuple[str, dict]:
     root, cfg = server.configured(args)
     try:
-        result = brief.compute(root, cfg, args.get("since"), ran=args.get("ran") or [])
+        result = brief.compute(root, cfg, args.get("since"), ran=args.get("ran") or [], reports=args.get("report") or [], report_base=root)
     except brief.BriefError as exc:
         raise Mistake(str(exc)) from exc
     return brief.markdown(result), result
 
 
+_REPORT = {"type": "array", "items": {"type": "string"}, "default": [], "description": "test reports the host wrote, as JUnit XML (pytest --junitxml, jest-junit and the like), paths relative to the root: the candidate tests are held against what ran"}
 _SINCE = {"type": "string", "description": "a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work. Absent: the default branch (origin/HEAD, else origin/main, origin/master, main or master; HEAD when none exists). HEAD: only uncommitted work"}
 
 TOOLS: tuple[Tool, ...] = (
@@ -232,6 +234,7 @@ TOOLS: tuple[Tool, ...] = (
             "target": {"type": "string", "description": "a file or directory, repository-relative, or a dotted package name"},
             "edges": {"type": "string", "enum": ["all", "imports"], "default": "all", "description": "all: recognized dependency syntax, package files and references found in strings or dynamic loading; imports: syntax and package files only"},
             "hops": {"type": ["integer", "null"], "minimum": 1, "default": None, "description": "follow edges at most this many steps away (null: any number)"},
+            "report": _REPORT,
         },
         ("target",),
         _impact,
@@ -266,6 +269,7 @@ TOOLS: tuple[Tool, ...] = (
             "root": ROOT,
             "since": _SINCE,
             "ran": {"type": "array", "items": {"type": "string"}, "default": [], "description": "the checks the host actually ran, one string each with the command, its result and exit code, recorded verbatim; without it the brief says that none was recorded"},
+            "report": _REPORT,
         },
         (),
         _brief,

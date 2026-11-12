@@ -282,7 +282,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         "areas": [{"path": k, **v} for k, v in sorted(areas.items(), key=lambda kv: (-kv[1]["lines"], kv[0]))],
         "ripple": [{"module": k, **v} for k, v in sorted(by_module.items(), key=lambda kv: (-(kv[1]["direct"] + kv[1]["second"]), kv[0]))],
         "ripple_examples": sorted(ripple, key=lambda p: (ripple[p], p))[: 2 * LISTED],
-        "tests": {"count": len(tests), "nearest": nearest[:LISTED]},
+        "tests": {"count": len(tests), "nearest": nearest[:LISTED], "paths": nearest},
         "reviewers": reviewers,
         "nobody_else_can_look": sorted(nobody_else)[:LISTED],
         "inactive_days": own.inactive_days,

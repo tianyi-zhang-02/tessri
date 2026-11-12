@@ -145,6 +145,17 @@ def dot(graph: dict, min_imports: int | None = None) -> str:
     return "\n".join(out) + "\n"
 
 
+def _report(held: dict) -> str:
+    """The candidate tests against the report the host wrote: how many ran and how they fared, how many did not."""
+    ran = len(held["ran"])
+    parts = [f"{_n(held['passed'])} passed", f"{_n(len(held['failed']))} failed"] + ([f"{_n(held['skipped'])} skipped"] if held["skipped"] else [])
+    sources = ", ".join(f"`{s}`" for s in held["sources"])
+    text = f"in the report ({sources}): {_n(ran)} of them ran, {', '.join(parts)}; {_n(len(held['not_run']))} did not run"
+    if held["unmatched"]["cases"]:
+        text += f" (the report also has {_n(held['unmatched']['cases'])} cases of no file in this repository)"
+    return text
+
+
 def impact_text(imp: dict) -> str:
     d, t = imp["dependents"], imp["tests"]
     what = f"{imp['target']}  ({imp['files']} file{'s' if imp['files'] != 1 else ''}, {_n(imp['code'])} code lines)"
@@ -157,6 +168,8 @@ def impact_text(imp: dict) -> str:
             f"{_n(d['direct'])} of them directly (one followed edge away)"
         )
         out.append(f"- **{_many(t['files'], 'test file')}** reaching it (candidates to run, not runs), {_n(t['direct'])} directly")
+        if t.get("report"):
+            out.append("- " + _report(t["report"]))
         if len(d['by_distance']) > 1:
             out.append("- code files by number of followed edges away: " + ", ".join(f"{n}: {_n(c)}" for n, c in enumerate(d['by_distance'], 1)))
     if imp.get("edges"):
@@ -177,7 +190,8 @@ def impact_text(imp: dict) -> str:
     if imp.get("owners"):
         out += ["People who maintain the affected code (tell them, or ask them to review): " + _owners(imp["owners"], imp["inactive_days"], imp["contributors"]), ""]
     if t["paths"]:
-        shown = ", ".join(f"`{p}`" for p in t["paths"][:10])
+        held = t.get("report")
+        shown = ", ".join(f"`{p}`" + (f" ({held['ran'].get(p, 'not run')})" if held else "") for p in t["paths"][:10])
         out += [f"Tests that reach it, nearest first: {shown}" + (f" and {t['files'] - 10} more" if t["files"] > 10 else ""), ""]
     if imp["depends_on"]:
         out += ["It depends on: " + ", ".join(f"`{r['module']}` ({r['files']})" for r in imp["depends_on"][:10]), ""]

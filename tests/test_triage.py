@@ -155,7 +155,7 @@ class TriageTest(Repo):
         a = self.by["core/a.py"]
         self.assertEqual(a["dependents"], {"direct": 1, "within_2": 1})  # core/b.py, which is itself in the change
         self.assertEqual(self.t["summary"]["ripple"], {"direct": 0, "second": 0})  # nothing outside the change imports it
-        self.assertEqual(self.t["tests"], {"count": 1, "nearest": ["tests/test_a.py"]})
+        self.assertEqual(self.t["tests"], {"count": 1, "nearest": ["tests/test_a.py"], "paths": ["tests/test_a.py"]})
 
     def test_who_can_look_excludes_the_author_and_the_gone(self):
         self.assertEqual([r["name"] for r in self.t["reviewers"]], ["Alice Adams"])

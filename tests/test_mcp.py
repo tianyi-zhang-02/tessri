@@ -148,6 +148,21 @@ class ToolsTest(Repo):
                 self.assertEqual(untimed(answer["content"][0]["text"]), untimed(self.cli(*text_argv)))
                 self.assertEqual(unstamped(answer["structuredContent"]), unstamped(json.loads(self.cli(*json_argv))))
 
+    def test_a_test_report_is_read_under_the_root_or_by_its_full_path(self):
+        write_tree(self.root, {"pkg/test_util.py": "import pkg.util\n"})  # uncommitted too, so it is in the tree the server reads
+        (self.root / "junit.xml").write_text('<testsuites><testsuite name="s"><testcase classname="pkg.test_util" name="test_x"/></testsuite></testsuites>')
+        answer = call(self.server, "tessri_impact", {"target": "pkg/util.py", "report": ["junit.xml"]})["result"]
+        self.assertFalse(answer["isError"], answer)
+        held = answer["structuredContent"]["tests"]["report"]
+        self.assertEqual((held["sources"], held["ran"]), ([str(self.root / "junit.xml")], {"pkg/test_util.py": "passed"}))
+        self.assertEqual(unstamped(answer["structuredContent"]), unstamped(json.loads(self.cli("impact", "pkg/util.py", "--report", str(self.root / "junit.xml"), "--format", "json"))))
+        answer = call(self.server, "tessri_brief", {"report": [str(self.root / "junit.xml")]})["result"]
+        self.assertFalse(answer["isError"], answer)
+        self.assertEqual(answer["structuredContent"]["validation"]["report"]["cases"], 1)
+        answer = call(self.server, "tessri_brief", {"report": ["nowhere.xml"]})["result"]
+        self.assertTrue(answer["isError"])
+        self.assertIn("nowhere.xml", answer["content"][0]["text"])
+
     def test_every_object_says_what_it_is(self):
         for name, arguments in (("tessri_scan", {}), ("tessri_why", {"path": "pkg/core.py"}), ("tessri_impact", {"target": "pkg"}), ("tessri_graph", {}), ("tessri_triage", {}), ("tessri_check", {}), ("tessri_brief", {}), ("tessri_repos", {})):
             with self.subTest(name):

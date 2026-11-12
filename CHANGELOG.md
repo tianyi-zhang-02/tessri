@@ -34,6 +34,11 @@ Dates are the day a version was tagged.
   `check` and says what became of each name left behind: removed, restored, or still there, and after how long. On
   one repository's last year every name it reports is a real loose end; the three false alarms it exposed are the fixes
   above.
+- `brief --report FILE` and `impact --report FILE` (and `report` on the MCP tools) read a test report the host wrote,
+  JUnit XML as pytest `--junitxml`, jest-junit and most CI systems produce it, and hold the candidate tests against
+  it: each is passed, failed, skipped or not run, the page says how many of the candidates ran, and a failed or
+  missing candidate is an item for a person. Nothing is inferred: a candidate the report does not mention did not
+  run, as far as the report says. Triage's JSON carries every candidate path under `tests.paths`.
 
 ## 0.3.0 (2026-11-06)
 
