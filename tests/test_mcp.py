@@ -163,6 +163,17 @@ class ToolsTest(Repo):
         self.assertTrue(answer["isError"])
         self.assertIn("nowhere.xml", answer["content"][0]["text"])
 
+    def test_a_coverage_report_is_read_under_the_root(self):
+        (self.root / "coverage.json").write_text(json.dumps({"files": {"pkg/core.py": {"executed_lines": [1], "missing_lines": []}}}))
+        answer = call(self.server, "tessri_brief", {"coverage": ["coverage.json"]})["result"]
+        self.assertFalse(answer["isError"], answer)
+        held = answer["structuredContent"]["validation"]["coverage"]
+        self.assertEqual((held["sources"], held["measured"]), ([str(self.root / "coverage.json")], 1))
+        self.assertEqual(unstamped(answer["structuredContent"]), unstamped(json.loads(self.cli("brief", "--coverage", str(self.root / "coverage.json"), "--format", "json"))))
+        answer = call(self.server, "tessri_brief", {"coverage": ["nowhere.json"]})["result"]
+        self.assertTrue(answer["isError"])
+        self.assertIn("nowhere.json", answer["content"][0]["text"])
+
     def test_every_object_says_what_it_is(self):
         for name, arguments in (("tessri_scan", {}), ("tessri_why", {"path": "pkg/core.py"}), ("tessri_impact", {"target": "pkg"}), ("tessri_graph", {}), ("tessri_triage", {}), ("tessri_check", {}), ("tessri_brief", {}), ("tessri_repos", {})):
             with self.subTest(name):

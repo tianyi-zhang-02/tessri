@@ -168,7 +168,7 @@ def _cmd_brief(args: argparse.Namespace) -> int:
     root = _root(_root_given(args))
     cfg = _config_for(root, args)
     try:
-        result = brief.compute(root, cfg, args.since, ran=args.ran, limit=args.limit, reports=args.report)
+        result = brief.compute(root, cfg, args.since, ran=args.ran, limit=args.limit, reports=args.report, coverage_reports=args.coverage)
     except brief.BriefError as exc:
         print(f"tessri: {exc}", file=sys.stderr)
         return 2
@@ -288,6 +288,7 @@ def build_parser() -> argparse.ArgumentParser:
     briefp.add_argument("--limit", type=int, default=brief.LISTED, metavar="N", help=f"files in the look-first table (default {brief.LISTED}); the JSON always carries them all")
     briefp.add_argument("--ran", action="append", default=[], metavar="TEXT", help="a check the host actually ran, with its result and exit code, recorded verbatim (repeatable); without it the brief says that none was recorded")
     briefp.add_argument("--report", action="append", default=[], metavar="FILE", help="a test report the host wrote (JUnit XML: pytest --junitxml, jest-junit and the like; repeatable): the candidate tests are held against what ran")
+    briefp.add_argument("--coverage", action="append", default=[], metavar="FILE", help="a coverage report the host wrote (Cobertura or Clover XML, lcov, or coverage.py's JSON; repeatable): the lines the change adds or changes are held against the statements that ran")
     briefp.add_argument("--out", metavar="FILE", help="write the brief to FILE instead of stdout")
     _add_analysis_options(briefp)
     briefp.set_defaults(func=_cmd_brief)

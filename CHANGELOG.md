@@ -39,6 +39,12 @@ Dates are the day a version was tagged.
   it: each is passed, failed, skipped or not run, the page says how many of the candidates ran, and a failed or
   missing candidate is an item for a person. Nothing is inferred: a candidate the report does not mention did not
   run, as far as the report says. Triage's JSON carries every candidate path under `tests.paths`.
+- `brief --coverage FILE` (and `coverage` on the MCP tool) reads a coverage report the host wrote, Cobertura or Clover
+  XML, lcov or coverage.py's JSON, and holds the lines the change added or changed against it: of the changed lines in
+  the code files the analyzers read, tests left out, how many the report has a statement on, how many of those ran
+  under the recorded tests and which did not, line by line, and which changed files the report does not measure at
+  all. The ones that did not run, and the files not measured, are items for a person. A test report's case now also
+  finds its file through the suite it is in when the suite is named after the file, as jest-junit's `{filepath}` is.
 
 ## 0.3.0 (2026-11-06)
 

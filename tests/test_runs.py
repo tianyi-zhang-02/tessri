@@ -58,6 +58,12 @@ class ReadTest(unittest.TestCase):
         self.assertEqual(r["files"], {"src/app.test.ts": {"passed": 2, "failed": 0, "skipped": 0}})  # the suite's absolute path, the case's relative one
         self.assertEqual(r["unmatched"], {"cases": 1, "named": ["lone case"]})
 
+    def test_a_suite_named_after_its_file_places_cases_that_carry_none(self):
+        text = '<testsuites><testsuite name="src/app.test.ts"><testcase classname="app renders" name="renders"/></testsuite><testsuite name="lone"><testcase classname="lone case" name="runs"/></testsuite></testsuites>'
+        r = runs.read(self.report("jest-filepath.xml", text), FILES)
+        self.assertEqual(r["files"], {"src/app.test.ts": {"passed": 1, "failed": 0, "skipped": 0}})  # jest-junit's `suiteNameTemplate: "{filepath}"`, no file attribute
+        self.assertEqual(r["unmatched"], {"cases": 1, "named": ["lone case"]})
+
     def test_a_single_suite_root_is_a_report_too(self):
         r = runs.read(self.report("one.xml", '<testsuite name="s" file="tests/test_engine.py"><testcase name="a"/></testsuite>'), FILES)
         self.assertEqual(r["files"], {"tests/test_engine.py": {"passed": 1, "failed": 0, "skipped": 0}})

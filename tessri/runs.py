@@ -21,8 +21,9 @@ class RunsError(ValueError):
     pass
 
 
-def _locate(token: str, files: Collection[str]) -> str | None:
-    """The repository file a report's `file` attribute names: as written, or the longest suffix that is a file."""
+def locate(token: str, files: Collection[str]) -> str | None:
+    """The repository file a report names: as written, or the longest suffix that is a file; backslashes read as
+    separators, so a path from another machine or another system still finds its file."""
     parts = [p for p in token.replace("\\", "/").split("/") if p not in ("", ".")]
     for i in range(len(parts)):
         candidate = "/".join(parts[i:])
@@ -37,7 +38,7 @@ def _from_classname(classname: str, files: Collection[str]) -> str | None:
     for i in range(len(parts), 0, -1):
         stem = "/".join(parts[:i])
         for candidate in (stem + ".py", stem + "/__init__.py"):
-            found = _locate(candidate, files)
+            found = locate(candidate, files)
             if found:
                 return found
     return None
@@ -65,9 +66,12 @@ def read(path: Path, files: Collection[str]) -> dict:
         suite = parents.get(case)
         while not token and suite is not None:  # the suite's file, when the cases carry none
             token, suite = suite.get("file"), parents.get(suite)
-        found = _locate(token, files) if token else None
+        found = locate(token, files) if token else None
         if found is None and case.get("classname"):
             found = _from_classname(case.get("classname", ""), files)
+        suite = parents.get(case)
+        while found is None and suite is not None:  # a suite named after its file, as jest-junit's `{filepath}` does
+            found, suite = (locate(suite.get("name", ""), files) if suite.get("name") else None), parents.get(suite)
         if found is None:
             name = token or case.get("classname") or case.get("name") or "?"
             unmatched[name] = unmatched.get(name, 0) + 1

@@ -124,10 +124,10 @@ class CompositionTest(Repo):
 
     def test_what_the_host_ran_is_recorded_verbatim_or_said_to_be_missing(self):
         b = self.brief()
-        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "ran": [], "report": None})
+        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "ran": [], "report": None, "coverage": None})
         text = brief.markdown(b)
         self.assertIn("Candidate tests, nearest first: `tests/test_engine.py`. They reach the changed files; they are paths, not results.", text)
-        self.assertIn('Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report`.', text)
+        self.assertIn('Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report` or a coverage report with `--coverage`.', text)
         self.assertIn("no-checks-recorded", [item["kind"] for item in b["open"]])
         b = self.brief(ran=["python -m unittest tests/test_engine.py: 1 test OK (exit 0)", "mypy: not run"])
         text = brief.markdown(b)
@@ -149,7 +149,7 @@ class CompositionTest(Repo):
             self.assertIn("Candidate tests, nearest first: `tests/test_engine.py` (passed). They reach the changed files; they are paths, not results.", text)
             self.assertIn("Against the report: 1 of the 1 ran, 1 passed, 0 failed; 0 did not run.", text)
             self.assertIn(f"Checks the host ran, as recorded:\n\n- test report `{passing}`: 2 cases\n", text)
-            self.assertIn("or a test report the host wrote and `--report` reads, was run", text)
+            self.assertIn("or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run", text)
             b = self.brief(reports=[other, failing])  # two reports as one: the candidate failed in one and is in neither as a pass
             held = b["validation"]["report"]
             self.assertEqual((held["sources"], held["cases"], held["ran"], held["failed"], held["unmatched"]), ([str(other), str(failing)], 2, {"tests/test_engine.py": "failed"}, ["tests/test_engine.py"], {"cases": 1, "named": ["tests.test_other"]}))
@@ -163,6 +163,36 @@ class CompositionTest(Repo):
             self.assertEqual((code, err), (0, ""))
             self.assertEqual(json.loads(out)["validation"]["report"]["ran"], {"tests/test_engine.py": "passed"})
             code, out, err = run_cli("brief", "--since", "main", "--repo", str(self.root), "--report", str(Path(tmp, "missing.xml")))
+            self.assertEqual((code, out), (2, ""))
+            self.assertTrue(err.startswith("tessri: ") and "missing.xml" in err, err)
+
+    def test_a_coverage_report_the_host_wrote_is_held_against_the_changed_lines(self):
+        # The change: core/engine.py gains `def carol()` (lines 12-13), util/helpers.py changes line 2, app/main.py changes
+        # line 4 (uncommitted), core/extra.py is new, svc/main.go has no analyzer and README.md is not code.
+        hits = {"core/engine.py": {1: 1, 4: 1, 5: 1, 8: 1, 9: 1, 12: 1, 13: 0}, "util/helpers.py": {1: 1, 2: 1}, "app/main.py": {1: 1, 3: 1, 4: 0}, "tests/test_engine.py": {1: 1, 4: 1, 5: 1}}
+        with tempfile.TemporaryDirectory() as tmp:
+            cov = Path(tmp, "coverage.json")
+            cov.write_text(json.dumps({"files": {p: {"executed_lines": [n for n, h in lines.items() if h], "missing_lines": [n for n, h in lines.items() if not h]} for p, lines in hits.items()}}))
+            b = self.brief(coverage_reports=[cov])
+            held = b["validation"]["coverage"]
+            self.assertEqual(held["files"], {
+                "app/main.py": {"changed": 1, "statements": 1, "ran": 0, "not_run": 1, "not_run_ranges": [[4, 4]]},
+                "core/engine.py": {"changed": 4, "statements": 2, "ran": 1, "not_run": 1, "not_run_ranges": [[13, 13]]},
+                "util/helpers.py": {"changed": 1, "statements": 1, "ran": 1, "not_run": 0, "not_run_ranges": []},
+            })
+            self.assertEqual({k: held[k] for k in ("sources", "measured", "not_measured", "changed", "statements", "ran", "not_run")}, {"sources": [str(cov)], "measured": 4, "not_measured": {"core/extra.py": 1}, "changed": 7, "statements": 4, "ran": 2, "not_run": 2})
+            kinds = {item["kind"]: item for item in b["open"]}
+            self.assertNotIn("no-checks-recorded", kinds)
+            self.assertEqual(kinds["changed-lines-not-run"], {"kind": "changed-lines-not-run", "text": "Changed statements no recorded test executed: `app/main.py` line 4; `core/engine.py` line 13. Run tests that reach them, or say why they need none.", "files": ["app/main.py", "core/engine.py"]})
+            self.assertEqual(kinds["changed-files-not-measured"], {"kind": "changed-files-not-measured", "text": "`core/extra.py` is not in the coverage report: none of its changed lines was measured. Run tests that load it, or say why it needs none.", "files": ["core/extra.py"]})
+            text = brief.markdown(b)
+            self.assertIn("Against the coverage report: of the 7 lines this change adds or changes in 4 code files (tests left out), the report has a statement on 4; 2 ran under the recorded tests, 2 did not (`app/main.py` line 4; `core/engine.py` line 13). Not in the report: `core/extra.py` (1 line), so nothing there was measured.", text)
+            self.assertIn(f"Checks the host ran, as recorded:\n\n- coverage report `{cov}`: 4 files measured\n", text)
+            self.assertIn("A coverage report says which statements ran, not what any test asserted about them", text)
+            code, out, err = run_cli("brief", "--since", "main", "--repo", str(self.root), "--coverage", str(cov), "--format", "json")
+            self.assertEqual((code, err), (0, ""))
+            self.assertEqual(json.loads(out)["validation"]["coverage"]["not_measured"], {"core/extra.py": 1})
+            code, out, err = run_cli("brief", "--since", "main", "--repo", str(self.root), "--coverage", str(Path(tmp, "missing.xml")))
             self.assertEqual((code, out), (2, ""))
             self.assertTrue(err.startswith("tessri: ") and "missing.xml" in err, err)
 
