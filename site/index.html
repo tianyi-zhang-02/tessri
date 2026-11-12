@@ -48,6 +48,7 @@
   </div>
   <div class="visual" aria-hidden="true">{{mark}}<canvas class="liquid"></canvas></div>
 </section>
+{{demo_head}}
 </div>
 
 <main class="wrap">
@@ -57,6 +58,21 @@
     <span class="label">What it answers</span>
     <h2>Four questions, answered from one picture of the code and its history, and one page that hands a change over.</h2>
     <div class="questions">
+      <article class="lead">
+        <span class="tile">{{icon:scroll-text}}</span>
+        <h3>One page that hands a change over.</h3>
+        <p>Where to look first, who is able to look, what the change did to the structure, which tests reach it and which checks ran, and what needs a person: from one analysis of the base and one of the working tree, with the evidence for every line.</p>
+        <div class="page" aria-hidden="true">
+          <div class="page-bar"><i></i><i></i><i></i><span>tessri brief --since main</span></div>
+          <div class="page-body">
+            <section><b>Look first</b><span class="row"><i style="width:26%"></i><i style="width:34%"></i><i style="width:18%"></i></span><span class="row"><i style="width:30%"></i><i style="width:24%"></i><i style="width:22%"></i></span><span class="row"><i style="width:22%"></i><i style="width:38%"></i><i style="width:16%"></i></span></section>
+            <section><b>What it did to the structure</b><span class="line" style="width:72%"></span><span class="line" style="width:54%"></span></section>
+            <section><b>Validation</b><span class="line" style="width:64%"></span></section>
+            <section><b>Open for a person</b><span class="line" style="width:46%"></span><span class="line" style="width:58%"></span></section>
+          </div>
+        </div>
+        <span class="cmd"><code>tessri brief --since main</code></span>
+      </article>
       <article>
         <span class="tile">{{icon:network}}</span>
         <h3>How does the system fit together?</h3>
@@ -100,6 +116,9 @@
     <span class="label">How does it work?</span>
     <h2>One pass over the files and the history, then one view per question.</h2>
     <div class="how">
+      <div class="lead">
+        <p>No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
+      </div>
       <div>
         <div class="head"><span class="tile">{{icon:file-search}}</span><span class="step">01</span></div>
         <h3>Read</h3>
@@ -116,7 +135,6 @@
         <p>Each command is one view of that picture: reachability, ownership, module graph, impact, triage and the check of a change.</p>
       </div>
     </div>
-    <p class="intro">No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
   </section>
 
   <section class="band" id="evidence">

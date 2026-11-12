@@ -515,6 +515,7 @@ def landing(demo: dict | None) -> str:
         .replace("{{notices}}", NOTICES)
         .replace("{{theme_button}}", theme_button())
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
+        .replace("{{demo_head}}", demo_head(demo) if demo else "")
         .replace("{{demo}}", demo_section(demo) if demo else "")
         .replace("{{example}}", example)
         .replace("{{foot}}", foot(0))
@@ -586,8 +587,16 @@ def _what(change: dict) -> str:
     return f'the commit \u201c{title}\u201d (<code>{change["sha"][:9]}</code>)'
 
 
+def demo_head(demo: dict) -> str:
+    """The band's tail on the landing page: the demo's heading, in the band's ink, above the panel that straddles the edge."""
+    return (
+        '<div class="wrap demo-head">\n  <span class="label">See it on this repository</span>\n'
+        '  <h2>A change is done. This is the page the person it goes to gets.</h2>\n</div>\n'
+    )
+
+
 def demo_section(demo: dict) -> str:
-    """The landing page's opening section: the brief's first sections (scope, commits, look first) as a panel."""
+    """The landing page's first section: the brief's first sections (scope, commits, look first) as the glass panel, then its caption."""
     page = demo["brief"]
     cut = page.find("\n## What it did to the structure")
     excerpt = page[:cut] if cut != -1 else page
@@ -596,13 +605,12 @@ def demo_section(demo: dict) -> str:
     _, body = render_markdown(excerpt)
     return (
         '  <section class="band" id="demo">\n'
-        '    <span class="label">See it on this repository</span>\n'
-        '    <h2>A change is done. This is the page the person it goes to gets.</h2>\n'
-        f'    <p class="intro">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections here, '
-        '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'
-        '    <div class="example">\n      <div class="panel">\n'
+        '    <div class="example">\n      <div class="panel glass">\n'
         f'{cmdline("tessri brief --since " + demo["base"])}\n<div class="output prose">\n{_demote(body)}\n</div>\n'
-        '      </div>\n    </div>\n  </section>\n'
+        '      </div>\n'
+        f'      <p class="after">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections above, '
+        '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'
+        '    </div>\n  </section>\n'
     )
 
 

@@ -38,6 +38,7 @@
   --band-selection: rgba(212, 245, 90, 0.4);
   --band-dots: rgba(255, 255, 255, 0.2);
   --band-deep: #251c66;
+  --glass: rgba(255, 255, 255, 0.74);
   --mark: #ffffff;
   --dot: #d4f55a;
 
@@ -82,6 +83,7 @@
     --cta-text: #0f0d1a;
     --selection: rgba(176, 160, 255, 0.3);
     --shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    --glass: rgba(21, 18, 34, 0.76);
     color-scheme: dark;
   }
 }
@@ -105,6 +107,7 @@
   --cta-text: #0f0d1a;
   --selection: rgba(176, 160, 255, 0.3);
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --glass: rgba(21, 18, 34, 0.76);
   color-scheme: dark;
 }
 
@@ -286,15 +289,15 @@ p { margin: 0; }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 48px;
-  align-items: center;
-  padding-top: 56px;
-  padding-bottom: 80px;
+  align-items: start;
+  padding-top: 44px;
+  padding-bottom: 32px;
 }
 
 /* The mark, as liquid metal when WebGL is there (liquid.js adds `live`), still otherwise. */
-.visual { position: relative; width: 420px; height: 420px; justify-self: end; }
+.visual { position: relative; width: 340px; height: 340px; justify-self: end; margin-top: 44px; }
 .visual::before {
   content: "";
   position: absolute;
@@ -312,7 +315,7 @@ p { margin: 0; }
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0 0 28px;
+  margin: 0 0 24px;
   padding: 0;
   list-style: none;
 }
@@ -362,7 +365,7 @@ p { margin: 0; }
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 40px;
+  margin-top: 30px;
   padding: 12px 10px 12px 16px;
   border: 1px solid var(--band-line);
   border-radius: 12px;
@@ -397,6 +400,20 @@ p { margin: 0; }
 .hero .note { margin-top: 14px; font-size: 14px; line-height: 20px; color: var(--band-ink-2); max-width: 680px; }
 .hero .note code { display: inline-block; white-space: nowrap; max-width: 100%; color: var(--band-ink); background: rgba(255, 255, 255, 0.1); border-color: var(--band-line); }
 
+/* The band's tail: the demo's heading in the band's ink, then room for the panel that straddles the edge. The panel
+   is the page's one glass layer: over the band it shows the gradient and the dots through, over the ground it is the
+   panel; without backdrop filters it is the panel throughout. */
+.demo-head { padding-top: 4px; padding-bottom: 148px; }
+.demo-head .label { color: var(--band-ink-2); }
+.demo-head h2 { color: var(--band-ink); margin-top: 12px; max-width: 640px; }
+
+#demo { position: relative; z-index: 1; margin-top: -112px; padding-top: 0; }
+#demo .example { margin-top: 0; }
+#demo .panel.glass { background: var(--glass); -webkit-backdrop-filter: blur(20px) saturate(1.3); backdrop-filter: blur(20px) saturate(1.3); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #demo .panel.glass { background: var(--panel); }
+}
+
 section.band { padding: 80px 0 0; }
 section.band + section.band { margin-top: 16px; }
 
@@ -427,10 +444,37 @@ section.band + section.band { margin-top: 16px; }
 
 .questions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-top: 40px;
 }
+
+/* Card size is the weight of the thing: the page that hands a change over is the large card, its four sources the small ones. */
+.questions .lead { grid-column: span 2; grid-row: span 2; background: linear-gradient(165deg, var(--bg-2), var(--panel) 70%); }
+.questions .lead h3 { font-size: 24px; line-height: 31px; letter-spacing: -0.02em; }
+.questions .lead p { font-size: 16px; }
+
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 22px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.page-bar { display: flex; align-items: center; gap: 5px; padding: 9px 12px; background: var(--band); color: var(--band-ink-2); font-family: var(--mono); font-size: 11px; line-height: 14px; }
+.page-bar i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.3); }
+.page-bar i:first-child { background: var(--dot); }
+.page-bar span { margin-left: 6px; }
+.page-body { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 10px; padding: 14px 16px; }
+.page-body section { display: grid; gap: 7px; }
+.page-body b { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-2); }
+.page-body .line { display: block; height: 6px; border-radius: 3px; background: var(--tile); }
+.page-body .row { display: flex; gap: 8px; }
+.page-body .row i { display: block; height: 6px; border-radius: 3px; background: var(--tile); }
+.page-body .row:first-of-type i { background: var(--line); }
 
 .questions article {
   display: flex;
@@ -480,6 +524,8 @@ section.band + section.band { margin-top: 16px; }
 }
 
 .how > div { padding: 26px 26px 24px; border: 1px solid var(--line-soft); border-radius: 18px; background: var(--bg-2); }
+.how .lead { grid-column: 1 / -1; background: var(--panel); border-color: var(--line); }
+.how .lead p { margin: 0; font-size: 17px; line-height: 27px; max-width: 820px; }
 .how .head { display: flex; align-items: center; justify-content: space-between; }
 .how .step { color: var(--accent-text); font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; }
 .how h3 { margin-top: 18px; }
@@ -582,10 +628,18 @@ footer.foot a { color: var(--ink-2); }
 
 /* Small screens */
 
+@media (max-width: 1040px) {
+  .questions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .questions .lead { grid-row: auto; }
+}
+
 @media (max-width: 880px) {
-  .questions, .how { grid-template-columns: minmax(0, 1fr); }
-  .hero { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .visual { order: -1; width: 200px; height: 200px; margin: -12px 0 4px -20px; justify-self: start; }
+  .how { grid-template-columns: minmax(0, 1fr); }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 0; padding-bottom: 8px; }
+  .visual { order: 1; width: 180px; height: 180px; margin: 20px 0 0 -14px; justify-self: start; }
+  .demo-head { padding-top: 24px; padding-bottom: 36px; }
+  #demo { margin-top: 0; }
+  #demo .panel.glass { background: var(--panel); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .guide { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 16px; }
   .demo-page { padding-top: 16px; }
   .guide-nav { position: static; }
@@ -607,6 +661,8 @@ footer.foot a { color: var(--ink-2); }
   h1 { font-size: 32px; line-height: 38px; }
   h2 { font-size: 24px; line-height: 30px; }
   section.band { padding-top: 56px; }
+  .questions { grid-template-columns: minmax(0, 1fr); }
+  .questions .lead { grid-column: auto; }
   .questions article, .how > div { padding: 22px 20px 20px; }
   .install { flex-direction: column; align-items: stretch; }
   .install code { white-space: normal; overflow-wrap: anywhere; }
