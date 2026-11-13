@@ -157,14 +157,26 @@ class BuildTest(unittest.TestCase):
         index = self.pages[self.out / "index.html"]
         demo = self.pages[self.out / "demo" / "index.html"]
         report = self.pages[self.out / "demo" / "report.html"]
-        self.assertIn('<section class="band" id="demo">', index)
+        self.assertIn('<section class="wrap hero grid with-handoff">', index)
+        self.assertIn('<div class="handoff">', index)
         self.assertIn('<a href="demo/">Demo</a>', index)
         self.assertIn("$ <b>tessri brief --since ", index)
-        self.assertIn('<h3 id="look-first">Look first</h3>', index)  # the brief's first sections, one heading level down
-        self.assertIn('<h3 id="look-first">Look first</h3>\n<p class="annot">ranked by history', index)
-        self.assertIn('<div class="example with-drawing">', index)
+        self.assertIn('<p class="scope">', index)
+        self.assertIn('<div class="steps-bar" role="tablist" aria-label="The brief, step by step">', index)
+        self.assertEqual(index.count('role="tab" type="button"'), 3)
+        self.assertEqual(index.count('role="tabpanel"'), 3)
+        self.assertIn('id="tab-look-first" aria-controls="step-look-first" aria-selected="true"><span class="n">1</span>Look first</button>', index)
+        self.assertIn('id="tab-validation" aria-controls="step-validation" aria-selected="false" tabindex="-1"><span class="n">3</span>Validation</button>', index)
+        self.assertIn('<section class="step-panel" role="tabpanel" id="step-what-changed" aria-labelledby="tab-what-changed">\n<h3 class="step-name">What it did to the structure</h3>', index)
+        self.assertIn('<span class="tag guess">Candidates</span>', index)
+        self.assertIn('<span class="tag fact">Ran</span>Checks the host ran', index)
+        self.assertIn('<a class="button quiet" href="demo/">Open the full demo ', index)
+        self.assertNotIn('id="demo"', index)
+        self.assertIn('<div class="example grid with-drawing">', index)
         self.assertIn('<figure class="drawing">', index)
+        self.assertIn('<p class="key"><span class="k-import">', index)
         self.assertIn('>graph.py</text>', index)
+        self.assertLess(index.index('<div class="handoff">'), index.index('id="questions"'))  # the handoff is the first thing after the pitch
         self.assertIn('<h1 id="tessri-on-itself">Tessri on itself</h1>', demo)
         self.assertIn('<h2 id="review-brief-', demo)
         self.assertIn('<h3 id="read-this-with-care">Read this with care</h3>', demo)
@@ -232,10 +244,79 @@ class DrawingTest(unittest.TestCase):
             self.assertIn(f'">{label}</text>', svg)
         self.assertEqual(svg.count('class="bp-edge kind-import"'), 2)
         self.assertEqual(svg.count('class="bp-edge kind-string"'), 1)
-        self.assertIn("<b>3 test files reach it</b>, candidates to run, not runs: <code>test_app.py</code>, <code>test_run.py</code>, <code>test_cli.py</code>.", svg)
+        self.assertIn('<span class="tag guess">Candidates</span><b>3 test files reach it</b>, paths to run, not runs: <code>test_app.py</code>, <code>test_run.py</code>, <code>test_cli.py</code>.', svg)
+        self.assertIn('<p class="key"><span class="k-import">an import statement</span><span class="k-guess">', svg)
         many = build_site.reach(self.graph(), "pkg/core.py")
         many["second"] = [f"pkg/m{i}.py" for i in range(12)]
         self.assertIn(">+3 more</text>", build_site.drawing(many))
+
+
+BRIEF = """# Review brief: demo
+
+`main` (base 6081a02cb) to the working tree: HEAD 9ef0fcdb0. 2 code files changed (0 added, 2 modified, 0 deleted), **21** lines.
+
+1 commit on the way, by Carol Chen, in their words:
+
+- `9ef0fcdb0` feat: gross (Carol Chen)
+
+## Look first
+
+| # | File | Why | This change | Owners | Flags |
+|---:|---|---|---|---|---|
+| 1 | `billing/tax.py` | 2 commits in 90 days | +4 -0 | Alice Adams 100% | - |
+
+## What it did to the structure
+
+**1 warn.**
+
+## Validation
+
+Candidate tests, nearest first: `tests/test_tax.py`. They reach the changed files; they are paths, not results.
+
+Checks the host ran, as recorded:
+
+- python -m pytest tests/test_tax.py: 2 passed (exit 0)
+
+## Open for a person
+
+- Nothing this analysis can name.
+"""
+
+
+class HandoffTest(unittest.TestCase):
+    def test_the_brief_splits_into_its_sections(self):
+        parts = build_site.sections(BRIEF)
+        self.assertEqual(list(parts), ["", "Look first", "What it did to the structure", "Validation", "Open for a person"])
+        self.assertTrue(parts[""].startswith("# Review brief: demo\n\n`main` (base 6081a02cb)"))
+        self.assertEqual(parts["What it did to the structure"], "**1 warn.**")
+
+    def test_the_candidates_and_the_recorded_runs_get_their_labels(self):
+        _, body = build_site.render_markdown(build_site.sections(BRIEF)["Validation"])
+        tagged = build_site._tag_validation(body)
+        self.assertIn('<p class="val guess"><span class="tag guess">Candidates</span>Candidate tests, nearest first:', tagged)
+        self.assertIn('<p class="val fact"><span class="tag fact">Ran</span>Checks the host ran, as recorded:</p>', tagged)
+        none = build_site._tag_validation("<p>No test file reaches the changed code, as far as static imports show.</p>\n<p>Checks the host ran: none recorded.</p>")
+        self.assertIn('<span class="tag guess">Candidates</span>No test file reaches', none)
+        self.assertIn('<span class="tag fact">Ran</span>Checks the host ran: none recorded.', none)
+
+    def test_the_handoff_is_three_steps_under_the_command_with_the_way_to_the_whole_page(self):
+        demo = {"brief": BRIEF, "base": "6081a02cb", "change": {"sha": "9ef0fcdb0abc", "pr": 7, "title": "feat: gross"}}
+        out = build_site.handoff(demo)
+        self.assertIn("$ <b>tessri brief --since 6081a02cb</b>", out)
+        self.assertIn('<p class="scope"><code>main</code> (base 6081a02cb) to the working tree: HEAD 9ef0fcdb0. 2 code files changed (0 added, 2 modified, 0 deleted), <strong>21</strong> lines.</p>', out)
+        self.assertNotIn("Review brief: demo", out)
+        self.assertNotIn("1 commit on the way", out)  # the scope only; the commits are on the whole page
+        self.assertEqual(re.findall(r'role="tab" type="button" id="([^"]+)"', out), ["tab-look-first", "tab-what-changed", "tab-validation"])
+        self.assertEqual(out.count('aria-selected="true"'), 1)
+        self.assertEqual(out.count('tabindex="-1"'), 2)
+        self.assertIn('<section class="step-panel" role="tabpanel" id="step-look-first" aria-labelledby="tab-look-first">\n<h3 class="step-name">Look first</h3>\n<p class="caption">Ranked by history:', out)
+        self.assertIn('<td><code>billing/tax.py</code></td>', out)
+        self.assertIn('<span class="tag fact">Ran</span>', out)
+        self.assertIn('pull request <a href="https://github.com/tianyi-zhang-02/tessri/pull/7">#7</a>', out)
+        self.assertIn('<a href="demo/">the whole page</a>', out)
+        self.assertIn('<a class="button quiet" href="demo/">Open the full demo <svg class="icon icon-arrow-right"', out)
+        with self.assertRaises(build_site.BuildError):
+            build_site.handoff({"brief": "# x\n\n## Look first\n\nnothing\n", "base": "a", "change": demo["change"]})
 
 
 class AssetsTest(unittest.TestCase):
