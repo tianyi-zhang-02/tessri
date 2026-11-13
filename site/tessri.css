@@ -423,6 +423,8 @@ p { margin: 0; }
 }
 .handoff a { color: var(--accent-text); }
 .handoff a:focus-visible, .handoff button:focus-visible { outline-color: var(--accent-text); }
+.handoff:focus { outline: none; }
+.handoff:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 4px; }
 .handoff ::selection { background: var(--selection); }
 .handoff .body { padding: 18px 22px 20px; }
 .handoff .scope { font-size: 14px; line-height: 21px; color: var(--ink-2); }
@@ -799,6 +801,7 @@ footer.foot a { color: var(--ink-2); }
    for less motion, and nothing waits on it: without script every section is visible and the handoff is complete. */
 
 @media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
   .button, .copy, .theme, .step { transition: opacity 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms ease, background-color 120ms ease; }
   .button:hover { transform: translateY(-1px); }
   .questions article, .how > div { transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease; }

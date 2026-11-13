@@ -158,7 +158,8 @@ class BuildTest(unittest.TestCase):
         demo = self.pages[self.out / "demo" / "index.html"]
         report = self.pages[self.out / "demo" / "report.html"]
         self.assertIn('<section class="wrap hero grid with-handoff">', index)
-        self.assertIn('<div class="handoff">', index)
+        self.assertIn('<div class="handoff" id="brief" tabindex="-1">', index)
+        self.assertIn('<a class="button quiet jump" href="#brief">Jump to the brief <svg class="icon icon-arrow-down"', index)
         self.assertIn('<a href="demo/">Demo</a>', index)
         self.assertIn("$ <b>tessri brief --since ", index)
         self.assertIn('<p class="scope">', index)
@@ -176,7 +177,7 @@ class BuildTest(unittest.TestCase):
         self.assertIn('<figure class="drawing">', index)
         self.assertIn('<p class="key"><span class="k-import">', index)
         self.assertIn('>graph.py</text>', index)
-        self.assertLess(index.index('<div class="handoff">'), index.index('id="questions"'))  # the handoff is the first thing after the pitch
+        self.assertLess(index.index('<div class="handoff" id="brief"'), index.index('id="questions"'))  # the handoff is the first thing after the pitch
         self.assertIn('<h1 id="tessri-on-itself">Tessri on itself</h1>', demo)
         self.assertIn('<h2 id="review-brief-', demo)
         self.assertIn('<h3 id="read-this-with-care">Read this with care</h3>', demo)
@@ -185,8 +186,18 @@ class BuildTest(unittest.TestCase):
         self.assertIn("<title>Tessri: ", report)
         self.assertIn('<a href="../demo/">Demo</a>', self.pages[self.out / "guide" / "brief.html"])
         change = build_site.latest_change()
-        self.assertEqual(set(change), {"sha", "pr", "title"})
+        self.assertEqual(set(change), {"sha", "pr", "title", "branch"})
         self.assertIn(html.escape(change["title"]), demo)
+        for page in (index, demo):  # the caption says what was analysed: main's latest change on main, this checkout's branch and commit anywhere else
+            self.assertIn(f'<code>{change["sha"][:9]}</code>', page)
+            if change["branch"] == "main":
+                self.assertIn("The latest change on Tessri's own <code>main</code> is", page)
+            else:
+                self.assertIn(f'This build analysed {"a detached checkout" if change["branch"] == "HEAD" else "<code>" + html.escape(change["branch"]) + "</code>"} at <code>{change["sha"][:9]}</code>', page)
+                self.assertNotIn("latest change on Tessri's own <code>main</code>", page)
+        if change["branch"] != "main":
+            self.assertIn("built from that checkout as a preview", demo)
+            self.assertNotIn("every push to <code>main</code> rebuilds it", demo)
 
     def test_the_type_the_icons_and_their_notices_ship_with_the_pages(self):
         names = {p.relative_to(self.out.resolve()).as_posix() for p in self.written}
@@ -300,23 +311,37 @@ class HandoffTest(unittest.TestCase):
         self.assertIn('<span class="tag fact">Ran</span>Checks the host ran: none recorded.', none)
 
     def test_the_handoff_is_three_steps_under_the_command_with_the_way_to_the_whole_page(self):
-        demo = {"brief": BRIEF, "base": "6081a02cb", "change": {"sha": "9ef0fcdb0abc", "pr": 7, "title": "feat: gross"}}
+        demo = {"brief": BRIEF, "base": "6081a02cb", "change": {"sha": "9ef0fcdb0abc", "pr": 7, "title": "feat: gross", "branch": "main"}}
         out = build_site.handoff(demo)
+        self.assertIn('<div class="handoff" id="brief" tabindex="-1">', out)
         self.assertIn("$ <b>tessri brief --since 6081a02cb</b>", out)
         self.assertIn('<p class="scope"><code>main</code> (base 6081a02cb) to the working tree: HEAD 9ef0fcdb0. 2 code files changed (0 added, 2 modified, 0 deleted), <strong>21</strong> lines.</p>', out)
         self.assertNotIn("Review brief: demo", out)
         self.assertNotIn("1 commit on the way", out)  # the scope only; the commits are on the whole page
         self.assertEqual(re.findall(r'role="tab" type="button" id="([^"]+)"', out), ["tab-look-first", "tab-what-changed", "tab-validation"])
         self.assertEqual(out.count('aria-selected="true"'), 1)
-        self.assertEqual(out.count('tabindex="-1"'), 2)
+        self.assertEqual(out.count('aria-selected="false" tabindex="-1"'), 2)  # the two unselected tabs; the panel itself takes focus as the jump's target
         self.assertIn('<section class="step-panel" role="tabpanel" id="step-look-first" aria-labelledby="tab-look-first">\n<h3 class="step-name">Look first</h3>\n<p class="caption">Ranked by history:', out)
         self.assertIn('<td><code>billing/tax.py</code></td>', out)
         self.assertIn('<span class="tag fact">Ran</span>', out)
-        self.assertIn('pull request <a href="https://github.com/tianyi-zhang-02/tessri/pull/7">#7</a>', out)
+        self.assertIn("The latest change on Tessri's own <code>main</code> is pull request <a href=\"https://github.com/tianyi-zhang-02/tessri/pull/7\">#7</a>, \u201cfeat: gross\u201d, merged as <code>9ef0fcdb0</code>. Three of the page's five sections;", out)
         self.assertIn('<a href="demo/">the whole page</a>', out)
         self.assertIn('<a class="button quiet" href="demo/">Open the full demo <svg class="icon icon-arrow-right"', out)
         with self.assertRaises(build_site.BuildError):
             build_site.handoff({"brief": "# x\n\n## Look first\n\nnothing\n", "base": "a", "change": demo["change"]})
+
+    def test_a_build_off_main_names_its_branch_and_commit_instead_of_claiming_main(self):
+        on_branch = {"brief": BRIEF, "base": "6081a02cb", "change": {"sha": "9ef0fcdb0abc", "pr": None, "title": "feat: <gross>", "branch": "site/preview"}}
+        out = build_site.handoff(on_branch)
+        self.assertIn("This build analysed <code>site/preview</code> at <code>9ef0fcdb0</code>, \u201cfeat: &lt;gross&gt;\u201d, against its parent <code>6081a02cb</code>; the deployed site builds from <code>main</code>. Three of the page's five sections;", out)
+        self.assertNotIn("latest change", out)
+        detached = dict(on_branch, change=dict(on_branch["change"], branch="HEAD"))
+        self.assertIn("This build analysed a detached checkout at <code>9ef0fcdb0</code>,", build_site.handoff(detached))
+        page = build_site.demo_page(on_branch)
+        self.assertIn("This build analysed <code>site/preview</code> at <code>9ef0fcdb0</code>", page)
+        self.assertIn("the change compared with its parent (<code>6081a02cb</code>), built from that checkout as a preview.", page)
+        self.assertNotIn("every push to <code>main</code> rebuilds it", page)
+        self.assertIn("every push to <code>main</code> rebuilds it", build_site.demo_page(dict(on_branch, change=dict(on_branch["change"], branch="main"))))
 
 
 class AssetsTest(unittest.TestCase):

@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 GUIDE = ROOT / "docs" / "guide"
 REPO = "https://github.com/tianyi-zhang-02/tessri"
+DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other checkout is a preview and says so
 BLOB = f"{REPO}/blob/main/"
 TREE = f"{REPO}/tree/main/"
 MARKER = ".tessri-site"
@@ -126,6 +127,15 @@ SCRIPTS = """<script>
     });
     var asked = location.hash && panels.indexOf(document.getElementById(location.hash.slice(1)));
     select(asked > 0 ? asked : 0, false);
+    var jump = document.querySelector(".jump");
+    if (jump && box) {
+      jump.addEventListener("click", function () {
+        setTimeout(function () {
+          var on = list.querySelector('[role="tab"][aria-selected="true"]');
+          if (on) { on.focus({ preventScroll: true }); }
+        }, 0);
+      });
+    }
   });
   if (!motion || !("IntersectionObserver" in window)) { return; }
   var below = Array.prototype.filter.call(document.querySelectorAll("main .band"), function (s) { return s.getBoundingClientRect().top > innerHeight * 0.9; });
@@ -637,6 +647,7 @@ def landing(demo: dict | None) -> str:
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
         .replace("{{handoff}}", handoff(demo) if demo else "")
         .replace("{{hero_class}}", " with-handoff" if demo else "")
+        .replace("{{jump}}", f'<a class="button quiet jump" href="#brief">Jump to the brief {icon("arrow-down")}</a>' if demo else "")
         .replace("{{example}}", example)
         .replace("{{drawing}}", drawing(demo["reach"]) if demo else "")
         .replace("{{drawing_class}}", " with-drawing" if demo else "")
@@ -719,13 +730,13 @@ def handoff(demo: dict) -> str:
             f'<h3 class="step-name">{html.escape(heading)}</h3>\n<p class="caption">{html.escape(caption)}</p>\n<div class="output prose">\n{body}\n</div>\n</section>'
         )
     return (
-        '  <div class="handoff">\n'
+        '  <div class="handoff" id="brief" tabindex="-1">\n'
         f'{cmdline("tessri brief --since " + demo["base"])}\n'
         '<div class="body">\n'
         f"{scope_html}\n"
         f'<div class="steps-bar" role="tablist" aria-label="The brief, step by step">{"".join(tabs)}</div>\n'
         + "\n".join(panels)
-        + f'\n<div class="more"><p>The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Three of the page\'s five sections; '
+        + f'\n<div class="more"><p>{_analysed(demo)}. Three of the page\'s five sections; '
         '<a href="demo/">the whole page</a> adds the commits, what needs a person and the caveats, and <a href="demo/report.html">the HTML report</a> has the module graph and the impact explorer.</p>'
         f'<a class="button quiet" href="demo/">Open the full demo {icon("arrow-right")}</a></div>\n'
         "</div>\n  </div>\n"
@@ -751,10 +762,11 @@ def latest_change() -> dict:
     if len(lines) < 2:
         raise BuildError("the demo needs a git checkout with a commit")
     sha, subject, body = lines[0], lines[1], [line for line in lines[2:] if line.strip()]
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "HEAD"  # "HEAD" when detached, as on a pull request's merge ref
     merged = re.match(r"Merge pull request #(\d+)", subject)
     if merged:
-        return {"sha": sha, "pr": int(merged.group(1)), "title": body[0] if body else subject}
-    return {"sha": sha, "pr": None, "title": subject}
+        return {"sha": sha, "pr": int(merged.group(1)), "title": body[0] if body else subject, "branch": branch}
+    return {"sha": sha, "pr": None, "title": subject, "branch": branch}
 
 
 def demo_content() -> dict:
@@ -793,14 +805,30 @@ def _what(change: dict) -> str:
     return f'the commit \u201c{title}\u201d (<code>{change["sha"][:9]}</code>)'
 
 
+def _analysed(demo: dict) -> str:
+    """The sentence that says what the brief is of. A build on the default branch has the latest change there; a build
+    anywhere else names its branch (or a detached checkout) and commit, so a preview never passes for the deployed site."""
+    change = demo["change"]
+    if change["branch"] == DEFAULT_BRANCH:
+        return f"The latest change on Tessri's own <code>{DEFAULT_BRANCH}</code> is {_what(change)}"
+    where = "a detached checkout" if change["branch"] == "HEAD" else f'<code>{html.escape(change["branch"])}</code>'
+    return (
+        f'This build analysed {where} at <code>{change["sha"][:9]}</code>, \u201c{html.escape(change["title"])}\u201d, against its parent <code>{html.escape(demo["base"])}</code>; '
+        f"the deployed site builds from <code>{DEFAULT_BRANCH}</code>"
+    )
+
+
 def demo_page(demo: dict) -> str:
     """`demo/index.html`: the whole brief, under a heading that says what it is."""
     _, body = render_markdown(demo["brief"])
     base = html.escape(demo["base"])
+    if demo["change"]["branch"] == DEFAULT_BRANCH:
+        built = f'the change compared with <code>{DEFAULT_BRANCH}</code> as it was before it (<code>{base}</code>), built when the site was deployed, and every push to <code>{DEFAULT_BRANCH}</code> rebuilds it. '
+    else:
+        built = f"the change compared with its parent (<code>{base}</code>), built from that checkout as a preview. "
     intro = (
         '<h1 id="tessri-on-itself">Tessri on itself</h1>\n'
-        f'<p>The latest change on this repository\'s <code>main</code> is {_what(demo["change"])}. Below is the page <code>tessri brief --since {base}</code> hands a person for it: '
-        f'the change compared with <code>main</code> as it was before it (<code>{base}</code>), built when the site was deployed, and every push to <code>main</code> rebuilds it. '
+        f'<p>{_analysed(demo)}. Below is the page <code>tessri brief --since {base}</code> hands a person for it: {built}'
         '<a href="report.html">The HTML report of the repository</a>, with the module graph and the impact explorer, is what <code>tessri scan . --format html</code> writes, built the same way.</p>\n'
     )
     article = (
