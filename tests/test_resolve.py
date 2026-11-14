@@ -99,6 +99,12 @@ class ReachabilityTest(TempRepo):
         self.assertNotIn("pkg/__main__.py", a.graph.edges.get("pkg/main.py", set()))
         self.assertEqual(a.graph.kind("pkg/main.py", "pkg/__main__.py"), "unknown")  # no edge, so no kind
 
+    def test_a_file_name_in_a_string_is_a_path_not_a_dotted_name(self):
+        write_tree(self.root, {"a/setup.py": "print('build')\n", "b/setup.py": "print('build')\n", "pkg/build.py": "SCRIPT = 'setup.py'\n"})
+        a = self.scan()
+        self.assertEqual(a.graph.edges.get("pkg/build.py", set()), set())  # two files fit the name, so it names none; and `setup`, a top-level module twice over, is not what it means
+        self.assertEqual(a.graph.ambiguous.get("setup.py"), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

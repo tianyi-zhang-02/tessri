@@ -213,6 +213,60 @@ class DanglingTest(Branchy):
         r = self.check()
         self.assertEqual((r["dangling_imports"], r["dangling_references"]), ([], []))
 
+    def test_a_deleted_file_still_named_in_a_config_is_a_warning_with_no_decision_in_it(self):
+        self.commit({**BASE, ".github/workflows/ci.yml": "jobs:\n  warm:\n    steps:\n      - run: python util/helpers.py\n"})
+        (self.root / "util/helpers.py").unlink()
+        write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_imports"], [])
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": ".github/workflows/ci.yml", "kind": "config"}]}])
+        f = self.finding(r, "dangling-reference:util/helpers.py")
+        self.assertEqual((f["severity"], f["needs_human"], f["files"]), ("warn", False, [".github/workflows/ci.yml"]))
+        self.assertEqual(f["title"], "`util/helpers.py` was deleted but is still named in a config")
+        self.assertIn("`.github/workflows/ci.yml` (config)", f["detail"])
+        self.assertIn("wiring", f["detail"])
+        self.assertEqual(f["action"], "Update the name in the same change, or restore the file.")
+
+    def test_a_deleted_file_named_only_in_documentation_is_a_note_and_a_changelog_is_left_alone(self):
+        self.commit({**BASE, "README.md": "Run `python util/helpers.py` first.\n", "CHANGELOG.md": "## 0.1\n\n- added util/helpers.py\n"})
+        (self.root / "util/helpers.py").unlink()
+        write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "README.md", "kind": "doc"}]}])
+        f = self.finding(r, "dangling-reference:util/helpers.py")
+        self.assertEqual((f["severity"], f["needs_human"], f["files"]), ("info", False, ["README.md"]))
+        self.assertEqual(f["title"], "`util/helpers.py` was deleted but is still named in documentation")
+        self.assertEqual(f["action"], "Update the documentation in the same change.")
+        self.assertNotIn("A person has to decide this.", sinceview.markdown(r))
+
+    def test_a_file_named_in_a_config_and_in_code_lists_the_config_first(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n", "Makefile": "warm:\n\tpython util/helpers.py\n"})
+        (self.root / "util/helpers.py").unlink()
+        write_tree(self.root, {"core/engine.py": "def run():\n    return 1\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "Makefile", "kind": "config"}, {"path": "app/loader.py", "kind": "string"}]}])
+        f = self.finding(r, "dangling-reference:util/helpers.py")
+        self.assertEqual((f["severity"], f["needs_human"], f["files"]), ("warn", True, ["Makefile", "app/loader.py"]))
+        self.assertEqual(f["title"], "`util/helpers.py` was deleted but is still named in a config and in code")
+        self.assertIn("so check it first", f["action"])
+
+    def test_a_moved_file_whose_old_path_a_config_still_names(self):
+        self.commit({**BASE, "Makefile": "warm:\n\tpython util/helpers.py\n"})
+        git(self.root, "mv", "util/helpers.py", "util/aid.py")
+        write_tree(self.root, {"core/engine.py": "from util import aid\n\n\ndef run():\n    return aid.go()\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "Makefile", "kind": "config"}], "moved_to": "util/aid.py"}])
+        self.assertEqual(self.finding(r, "dangling-reference:util/helpers.py")["severity"], "warn")
+
+    def test_a_module_turned_into_a_package_keeps_its_name(self):
+        self.commit({**BASE, "app/loader.py": "import importlib\n\n\ndef load():\n    return importlib.import_module('util.helpers')\n", "Makefile": "warm:\n\tpython util/helpers.py\n"})
+        (self.root / "util/helpers").mkdir()
+        git(self.root, "mv", "util/helpers.py", "util/helpers/impl.py")
+        write_tree(self.root, {"util/helpers/__init__.py": "from .impl import go\n"})
+        r = self.check()
+        self.assertEqual(r["dangling_imports"], [])  # `from util import helpers` in core/engine.py now reaches the package
+        self.assertEqual(r["dangling_references"], [{"deleted": "util/helpers.py", "referrers": [{"path": "Makefile", "kind": "config"}], "moved_to": "util/helpers/impl.py"}])  # the script path is gone; the dotted name is not
+
 
 class CycleTest(Branchy):
     def test_a_dependency_that_closes_a_loop(self):

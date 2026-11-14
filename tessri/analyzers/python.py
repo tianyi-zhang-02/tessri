@@ -10,7 +10,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Collection, Mapping
 
-from ..textrefs import DOTTED_FULL, PYPATH, PathIndex
+from ..textrefs import DOTTED_FULL, PYPATH, PathIndex, is_filename
 from . import Analyzer, LanguageResult, Repo, note
 
 # Files that something outside the repository runs or imports by convention.
@@ -98,7 +98,7 @@ def _parse(path: str, text: str) -> _Info | None:
             s = node.value
             if len(s) > 300:
                 continue
-            if DOTTED_FULL.fullmatch(s):
+            if DOTTED_FULL.fullmatch(s) and not is_filename(s):  # "setup.py" is a path (below), not the module `setup`
                 info.dotted.add(s)
             elif s.endswith(".") and DOTTED_FULL.fullmatch(s[:-1]):
                 info.dotted.add(s[:-1])  # prefix of a name built at runtime: "pkg.mod." + name, f"pkg.mod.{name}"

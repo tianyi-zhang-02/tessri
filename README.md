@@ -159,6 +159,13 @@ assumed. The test runs on any repository, and [the backtest](docs/guide/backtest
 python3 tools/backtest.py path/to/repository --months 12
 ```
 
+The warning `check` gives about a name a deletion left behind is tried the same way, on every deletion in a
+repository's history, with what later commits did about each name:
+
+```bash
+python3 tools/deletions.py path/to/repository --days 365
+```
+
 ## License
 
 MIT

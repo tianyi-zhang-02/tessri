@@ -18,11 +18,20 @@ Dates are the day a version was tagged.
   the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
   directory or unrelated change together. [The backtest](docs/guide/backtest.md) in the guide is its output on one
   repository, and the wording of `triage` and the guide follows those numbers.
-- `check` reads the names of files in strings for one finding and says so: a file the change deleted or moved that an
-  untouched file still names in a string or a dynamic import is a `dangling-reference`, a warning for a person, since
-  such a name is a guess that the file is loaded at run time (`dangling_references` in the JSON, a rule in the SARIF).
-  A stranded file now lists every link the change cut, with its kind. The report's caveat about names that fit several
-  files now covers the names the analyzers found in code, not only those in configs and scripts.
+- `check` reads the names of files outside import statements for one finding and says so: a file the change deleted
+  or moved that an untouched file still names is a `dangling-reference`, with the kind of every name: in a config or a
+  script (a warning: wiring that now points at nothing), in a string or a dynamic import (a warning for a person, since
+  such a name is a guess that the file is loaded at run time), or in documentation (a note; changelogs and release
+  notes are left alone, since they name deleted files on purpose). `dangling_references` in the JSON, a rule in the
+  SARIF. A stranded file now lists every link the change cut, with its kind. The report's caveat about names that fit
+  several files now covers the names the analyzers found in code, not only those in configs and scripts.
+- A module turned into a package (`x.py` moved into `x/`, with an `x/__init__.py` in its place), or the reverse, keeps
+  its import name, so `check` no longer reports its importers as dangling. A file name in a string of Python code,
+  `"setup.py"`, is a path, not the dotted name `setup.py`, so it no longer links the file to a top-level module `setup`.
+- `tools/deletions.py` replays every change of a repository's history that deleted or moved a code file through
+  `check` and says what became of each name left behind: removed, restored, or still there, and after how long. On
+  one repository's last year three of the four names it reported were real loose ends and the fourth an `__init__.py`
+  run on the way to a module the string still names (a limit, listed); the two false alarms it exposed are the fixes above.
 
 ## 0.3.0 (2026-11-06)
 

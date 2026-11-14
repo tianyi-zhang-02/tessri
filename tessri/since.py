@@ -8,8 +8,9 @@ active maintains. It is meant for the moment an agent (or a person) finishes a t
 The base is read from git objects into a scratch directory and analysed there; the repository itself is never
 touched. Ownership comes from history up to the base, so the change's own commits cannot make its author the owner
 of what they just changed. Everything is static imports, with one exception that says so: a file the change deleted or
-moved that an untouched file still names in a string or a dynamic import is a warning for a person, because such a
-name may load the file at run time. Anything else that is only wrong at run time shows nothing here.
+moved that an untouched config, script or document still names, or that untouched code still names in a string or a
+dynamic import, is reported with the kind of each name; the name in a string is a guess that the file is loaded at run
+time, so that one is for a person. Anything else that is only wrong at run time shows nothing here.
 """
 
 from __future__ import annotations
@@ -31,12 +32,20 @@ from .ownership import UNOWNED
 SEVERITIES = ("info", "warn", "block")  # least to most serious
 LISTED = 10  # files or edges named in one finding
 EXAMPLES = 3
-REACHED = ("import", "package", "config", "dynamic", "string", "unknown")  # how a stranded file's former links are listed: statements first, guesses last
+REACHED = ("import", "package", "config", "dynamic", "string", "unknown", "doc")  # how the links a change cut are listed: statements first, then guesses, then mentions
+RECORDS = frozenset({"changelog", "changes", "history", "news", "releases", "release-notes", "release_notes", "releasenotes", "whatsnew"})  # documents that name deleted files on purpose
+WHERE = {"config": "in a config", "code": "in code", "doc": "in documentation"}  # where a deleted file is still named, by class of referrer
+MEANS = {
+    "config": "A name in a config or a script is wiring, and it now points at a file that is gone.",
+    "code": "A name in a string is the analysis's guess that the file is loaded at run time, not a statement the code made.",
+    "doc": "A name in documentation is a sentence that is now wrong.",
+}
 
 NOTES = [
-    "Dependencies are static imports between files of this repository; a deleted or moved file that an untouched file still names in a string "
-    "or a dynamic import is a warning for a person, since such a name is a guess that the file is loaded at run time. Registries and consumers "
-    "outside the repository are invisible, so a clean result does not mean nothing else depends on the change.",
+    "Dependencies are static imports between files of this repository. A deleted or moved file that an untouched config, script or document "
+    "still names, or that untouched code still names in a string or a dynamic import, is reported with the kind of each name; a name in a string "
+    "is a guess that the file is loaded at run time, so that one is for a person. Registries and consumers outside the repository are invisible, "
+    "so a clean result does not mean nothing else depends on the change.",
     "Orphans, cycles and imports are compared between the base of the change and the working tree with the same settings; modules are the same "
     "directories on both sides, and a file git sees as moved is one file under its new name on both sides.",
     "Ownership is read from history up to the base, so the author of the change does not count as having maintained what they changed.",
@@ -189,6 +198,46 @@ def _link(path: str, kind: str) -> str:
     return f"`{path}`" if kind == "import" else f"`{path}` ({kind})"
 
 
+def _record(path: str) -> bool:
+    """A changelog, release notes or a history names deleted files on purpose: a name there is a record, not a stale mention."""
+    return any(part.lower().split(".")[0] in RECORDS for part in path.split("/"))
+
+
+def _same_name(path: str) -> set[str]:
+    """The files the import name of `path` reaches once `path` is gone: `x/__init__.py` for `x.py` (a module turned into a
+    package) and `x.py` for `x/__init__.py` (the reverse), `x/index.js` for `x.js` likewise. What imports or names `x`
+    is not dangling while one of them is there."""
+    head, _, ext = path.rpartition(".")
+    folder, _, stem = head.rpartition("/")
+    if not ext or not head:
+        return set()
+    if stem in ("__init__", "index"):
+        return {f"{folder}.{ext}"} if folder else set()
+    return {f"{head}/__init__.{ext}", f"{head}/index.{ext}"}
+
+
+def _classes(kinds: set[str]) -> list[str]:
+    """The classes of referrer among `kinds`, strongest first: a config or script, code (a string or a dynamic import), documentation."""
+    return [c for c, hit in (("config", "config" in kinds), ("code", bool(kinds & modules.REFERENCE_KINDS)), ("doc", "doc" in kinds)) if hit]
+
+
+def _where(classes: list[str]) -> str:
+    said = [WHERE[c] for c in classes]
+    return said[0] if len(said) == 1 else ", ".join(said[:-1]) + " and " + said[-1]
+
+
+def _mend(classes: list[str], many: bool) -> str:
+    """What to do about a deleted file's remaining names: certain for a config or a document, a check first for a string."""
+    names = "names" if many else "name"
+    if classes == ["doc"]:
+        return "Update the documentation in the same change."
+    if "code" not in classes:
+        return f"Update the {names} in the same change, or restore the file."
+    if classes == ["code"]:
+        return f"Check whether the {names} load{'' if many else 's'} the file at run time; if so, update {'them' if many else 'it'} in the same change or restore the file."
+    return f"Update the {names} in the same change, or restore the file; a name in a string loads the file only if the analysis guessed right, so check it first."
+
+
 def _edge_row(e: dict) -> dict:
     return {"from": e["from"], "to": e["to"], "imports": e["imports"], "files": e["files"], "examples": e["examples"][:EXAMPLES], "against_flow": e["cut"]}
 
@@ -251,13 +300,14 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
         rec = base_a.records.get(path)
         if change.state not in ("deleted", "moved") or rec is None or not rec.analyzer:
             continue
+        gone = change.origin or path
+        still = {path} | _same_name(gone)  # the file under its new name, or the package (or module) its old name now reaches
         users = sorted(
             s
             for s in base_a.graph.inbound.get(path, ())
-            if path in modules._imported(base_a, s) and s in head_a.records and s not in touched and path not in modules._imported(head_a, s)
+            if path in modules._imported(base_a, s) and s in head_a.records and s not in touched and not still & modules._imported(head_a, s)
         )
         if users:
-            gone = change.origin or path
             row = {"deleted": gone, "importers": users}
             if change.origin:
                 row["moved_to"] = path
@@ -272,24 +322,37 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
                 )
             )
 
-    # names of deleted or moved files in strings and dynamic imports of untouched files: a guess that the file is
-    # loaded at run time, so a warning for a person rather than a block
+    # names of deleted or moved files that untouched files still carry: a config or a script (wiring that now points at
+    # nothing), a string or a dynamic import (a guess that the file is loaded at run time, so a person decides), or
+    # documentation (a sentence that is now wrong, so only a note; a changelog names such files on purpose)
     references = []
     for path, change in sorted(changed.items()):
         rec = base_a.records.get(path)
         if change.state not in ("deleted", "moved") or rec is None or not rec.analyzer:
             continue
-        referrers = sorted(
+
+        gone = change.origin or path
+        still = {path} | _same_name(gone)
+
+        def untouched(s: str) -> bool:
+            return s in head_a.records and s not in touched
+
+        def names_it(s: str, bucket: dict[str, set[str]]) -> bool:  # still names the file, under its new name or by what its old name now reaches
+            return any(s in bucket.get(t, ()) for t in still)
+
+        referrers = [
             (s, base_a.graph.kind(s, path))
             for s in base_a.graph.inbound.get(path, ())
             if base_a.graph.kind(s, path) in modules.REFERENCE_KINDS
             and path not in modules._imported(base_a, s)
-            and s in head_a.records
-            and s not in touched
-            and path not in head_a.graph.edges.get(s, ())
-        )
+            and untouched(s)
+            and not still & head_a.graph.edges.get(s, set())
+        ]
+        referrers += [(s, "config") for s in base_a.graph.config_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.config_refs)]
+        referrers += [(s, "doc") for s in base_a.graph.doc_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.doc_refs) and not _record(s)]
+        referrers.sort(key=lambda r: (REACHED.index(r[1]), r[0]))
         if referrers:
-            gone = change.origin or path
+            classes = _classes({k for _, k in referrers})
             row = {"deleted": gone, "referrers": [{"path": s, "kind": k} for s, k in referrers]}
             if change.origin:
                 row["moved_to"] = path
@@ -297,13 +360,12 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
             listed = ", ".join(_link(s, k) for s, k in referrers[:LISTED]) + (f" and {len(referrers) - LISTED} more" if len(referrers) > LISTED else "")
             findings.append(
                 _finding(
-                    "dangling-reference", "warn", gone,
-                    f"`{gone}` was moved to `{path}` but is still named by its old name" if change.origin else f"`{path}` was deleted but is still named in code",
-                    f"Untouched by this change, still naming it in a string or a dynamic import: {listed}. "
-                    "A name in a string is the analysis's guess that the file is loaded at run time, not a statement the code made.",
+                    "dangling-reference", "info" if classes == ["doc"] else "warn", gone,
+                    f"`{gone}` was moved to `{path}` but is still named by its old name" if change.origin else f"`{path}` was deleted but is still named {_where(classes)}",
+                    f"Untouched by this change, still naming it: {listed}. " + " ".join(MEANS[c] for c in classes),
                     [s for s, _ in referrers[:LISTED]],
-                    "Check whether the name loads the file at run time; if it does, update it in the same change or restore the file.",
-                    needs_human=True,
+                    _mend(classes, len(referrers) > 1),
+                    needs_human="code" in classes,
                 )
             )
 

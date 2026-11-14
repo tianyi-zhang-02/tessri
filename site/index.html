@@ -113,7 +113,7 @@
     <div class="evidence">
       <blockquote><b>17 test files</b> reaching it (candidates to run, not runs)<span class="src">tessri impact</span></blockquote>
       <blockquote>13 names in configs, scripts or code fit several files each and so name none of them: <b>utils.py (15)</b>, config.py (12), …<span class="src">tessri scan, caveats</span></blockquote>
-      <blockquote>Dependencies are static imports between files of this repository; a deleted or moved file that an untouched file still names in a string or a dynamic import is a warning for a person, since such a name is a guess that the file is loaded at run time. Registries and consumers outside the repository are invisible, so a clean result does <b>not</b> mean nothing else depends on the change.<span class="src">tessri check</span></blockquote>
+      <blockquote>Dependencies are static imports between files of this repository. A deleted or moved file that an untouched config, script or document still names, or that untouched code still names in a string or a dynamic import, is reported with the kind of each name; a name in a string is a guess that the file is loaded at run time, so that one is for a person. Registries and consumers outside the repository are invisible, so a clean result does <b>not</b> mean nothing else depends on the change.<span class="src">tessri check</span></blockquote>
     </div>
   </section>
 
