@@ -383,6 +383,96 @@ def render_markdown(text: str) -> tuple[str, str]:
     return title, "\n".join(out)
 
 
+# --- The reach of one file, drawn -------------------------------------------------------------------------------------
+
+EXAMPLE_TARGET = re.compile(r"tessri impact (\S+)")
+NOTES_IN_BRIEF = {"look-first": "ranked by history: commits in 90 days, fixes and reverts, and who went quiet"}
+
+
+def reach(g, target: str) -> dict:
+    """What depends on `target`, by distance: the code files that import it, the code one step further, the tests that
+    reach it at any distance (nearest first), and the kind of evidence behind every edge drawn."""
+    inbound = g.inbound
+    direct = sorted(p for p in inbound.get(target, ()) if p not in g.tests)
+    second = sorted({q for p in direct for q in inbound.get(p, ()) if q not in g.tests and q != target and q not in direct})
+    kinds = {f"{p}>{target}": g.kind(p, target) for p in direct}
+    kinds.update({f"{q}>{p}": g.kind(q, p) for p in direct for q in inbound.get(p, ()) if q in second})
+    distance = {target: 0}
+    queue = [target]
+    tests: list[str] = []
+    for p in queue:
+        for q in sorted(inbound.get(p, ())):
+            if q not in distance:
+                distance[q] = distance[p] + 1
+                queue.append(q)
+                if q in g.tests:
+                    tests.append(q)
+    return {"target": target, "direct": direct, "second": second, "tests": tests, "kinds": kinds}
+
+
+def _short(path: str, limit: int = 18) -> str:
+    name = path.rsplit("/", 1)[-1]
+    return name if len(name) <= limit else name[: limit - 1] + "…"
+
+
+def drawing(r: dict, limit: int = 9) -> str:
+    """The reach as a blueprint: the file, what imports it, what imports those, with each edge drawn in the kind of
+    evidence behind it (dashed when no import statement makes it), and under it the tests that reach the file."""
+    direct, second = r["direct"][:limit], r["second"][:limit]
+    dmore, smore = len(r["direct"]) - len(direct), len(r["second"]) - len(second)
+    rows = max(1, len(direct) + bool(dmore), len(second) + bool(smore))
+    top, step, xs = 48, 24, (12, 170, 322)
+    height = top + rows * step + 8
+
+    def y(i: float) -> float:
+        return top + i * step + 8
+
+    def width(path: str) -> float:
+        return 14 + len(_short(path)) * 6.9
+
+    out = [f'<svg class="blueprint" viewBox="0 0 460 {height}" role="img" aria-label="The reach of {html.escape(r["target"])}: {len(r["direct"])} files import it, {len(r["second"])} more import those, {len(r["tests"])} tests reach it.">']
+    for text, n, x in (("the file", None, xs[0]), ("imports it", len(r["direct"]), xs[1]), ("one step further", len(r["second"]), xs[2])):
+        out.append(f'<text class="bp-head" x="{x}" y="16">{text}</text>')
+        if n is not None:
+            out.append(f'<text class="bp-count" x="{x}" y="32">{n} file{"s" if n != 1 else ""}</text>')
+    ty = y((rows - 1) / 2)
+    tx_end = xs[0] + width(r["target"])
+    for i, p in enumerate(direct):
+        kind = r["kinds"].get(f"{p}>{r['target']}", "unknown")
+        out.append(f'<path class="bp-edge kind-{kind}" d="M{xs[1] - 6},{y(i)} C{xs[1] - 50},{y(i)} {tx_end + 40},{ty} {tx_end},{ty}"/>')
+    for j, q in enumerate(second):
+        for i, p in enumerate(direct):
+            kind = r["kinds"].get(f"{q}>{p}")
+            if kind:
+                out.append(f'<path class="bp-edge kind-{kind}" d="M{xs[2] - 6},{y(j)} C{xs[2] - 50},{y(j)} {xs[1] + width(p) + 40},{y(i)} {xs[1] + width(p)},{y(i)}"/>')
+
+    def node(x: float, yy: float, path: str, cls: str = "") -> str:
+        return f'<g class="bp-file{cls}"><rect class="bp-node" x="{x}" y="{yy - 3.5}" width="7" height="7" rx="1.5"/><text class="bp-label" x="{x + 13}" y="{yy + 4}">{html.escape(_short(path))}</text></g>'
+
+    out.append(node(xs[0], ty, r["target"], " bp-target"))
+    for i, p in enumerate(direct):
+        out.append(node(xs[1], y(i), p))
+    if dmore:
+        out.append(f'<text class="bp-more" x="{xs[1] + 13}" y="{y(len(direct)) + 4}">+{dmore} more</text>')
+    for j, q in enumerate(second):
+        out.append(node(xs[2], y(j), q))
+    if smore:
+        out.append(f'<text class="bp-more" x="{xs[2] + 13}" y="{y(len(second)) + 4}">+{smore} more</text>')
+    out.append("</svg>")
+    tests = r["tests"]
+    if tests:
+        named = ", ".join(f"<code>{html.escape(_short(t, 40))}</code>" for t in tests[:5])
+        rest = f", and {len(tests) - 5} more" if len(tests) > 5 else ""
+        line = f'<p class="tests"><b>{len(tests)} test file{"s" if len(tests) != 1 else ""} reach it</b>, candidates to run, not runs: {named}{rest}.</p>'
+    else:
+        line = '<p class="tests"><b>No test file reaches it</b> through the imports the analysis can see.</p>'
+    return (
+        f'<figure class="drawing">\n<figcaption>The reach of <code>{html.escape(r["target"])}</code>, drawn from this build\'s analysis: solid edges are import statements, dashed ones the names that are only a guess.</figcaption>\n'
+        + "\n".join(out)
+        + f"\n{line}\n</figure>"
+    )
+
+
 # --- Pages -----------------------------------------------------------------------------------------------------------
 
 
@@ -518,6 +608,8 @@ def landing(demo: dict | None) -> str:
         .replace("{{demo_head}}", demo_head(demo) if demo else "")
         .replace("{{demo}}", demo_section(demo) if demo else "")
         .replace("{{example}}", example)
+        .replace("{{drawing}}", drawing(demo["reach"]) if demo else "")
+        .replace("{{drawing_class}}", " with-drawing" if demo else "")
         .replace("{{foot}}", foot(0))
         .replace("{{scripts}}", SCRIPTS)
     )
@@ -572,7 +664,17 @@ def demo_content() -> dict:
         page = brief.markdown(brief.compute(ROOT, cfg, base))
     except brief.BriefError as exc:
         raise BuildError(f"the demo brief: {exc}") from exc
-    return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base}
+    found = EXAMPLE_TARGET.search(readme_example().partition("\n")[0])
+    if not found:
+        raise BuildError("the README example should be a `tessri impact <path>` command, for the drawing beside it")
+    return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base, "reach": reach(analysis.graph, found.group(1))}
+
+
+def _annotate(body: str) -> str:
+    """A sketch note under the headings of the brief that the landing page explains: the heading stays as it is."""
+    for slug_, note in NOTES_IN_BRIEF.items():
+        body = re.sub(rf'(<h3 id="{slug_}">[^<]*</h3>)', rf'\1\n<p class="annot">{html.escape(note)}</p>', body, count=1)
+    return body
 
 
 def _demote(body: str) -> str:
@@ -606,7 +708,7 @@ def demo_section(demo: dict) -> str:
     return (
         '  <section class="band" id="demo">\n'
         '    <div class="example">\n      <div class="panel glass">\n'
-        f'{cmdline("tessri brief --since " + demo["base"])}\n<div class="output prose">\n{_demote(body)}\n</div>\n'
+        f'{cmdline("tessri brief --since " + demo["base"])}\n<div class="output prose">\n{_annotate(_demote(body))}\n</div>\n'
         '      </div>\n'
         f'      <p class="after">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections above, '
         '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'

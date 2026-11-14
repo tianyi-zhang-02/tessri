@@ -72,20 +72,21 @@ What can a change to one file affect? On this repository:
 
 ```text
 $ tessri impact tessri/graph.py
-Changing tessri/graph.py  (1 file, 110 code lines) can affect:
+Changing tessri/graph.py  (1 file, 113 code lines) can affect:
 
-- **14 code files** in **1 module** (40.0% of the code), 1 of them directly (one followed edge away)
-- **20 test files** reaching it (candidates to run, not runs), 0 directly
-- code files by number of followed edges away: 1: 1, 2: 11, 3: 2
-- edges followed, any number of steps: recognized dependency syntax, package files, and 0 references found in strings, dynamic loading or unclassified evidence; syntax and package files alone reach 14 code files and 20 test files
+- **19 code files** in **2 modules** (46.3% of the code), 1 of them directly (one followed edge away)
+- **25 test files** reaching it (candidates to run, not runs), 1 directly
+- code files by number of followed edges away: 1: 1, 2: 14, 3: 4
+- edges followed, any number of steps: recognized dependency syntax, package files, and 3 references found in strings, dynamic loading or unclassified evidence (for example `tests/test_site.py` → `tessri/cli.py`, string); syntax and package files alone reach 19 code files and 25 test files
 
 | Affected module | Files | Direct | Owners | State |
 |---|---:|---:|---|---|
-| `tessri` | 14 | 1 | Tianyi Zhang 100% | owned |
+| `tessri` | 16 | 1 | Tianyi Zhang 100% | owned |
+| `tools` | 3 | 0 | Tianyi Zhang 100% | owned |
 
 People who maintain the affected code (tell them, or ask them to review): Tianyi Zhang 100%
 
-Tests that reach it, nearest first: `tests/test_htmlreport.py`, `tests/test_javascript.py`, `tests/test_markup.py`, `tests/test_meta.py`, `tests/test_modules.py`, `tests/test_moves.py`, `tests/test_ownership.py`, `tests/test_provenance.py`, `tests/test_renames.py`, `tests/test_resolve.py` and 10 more
+Tests that reach it, nearest first: `tests/test_site.py`, `tests/test_htmlreport.py`, `tests/test_javascript.py`, `tests/test_markup.py`, `tests/test_meta.py`, `tests/test_modules.py`, `tests/test_moves.py`, `tests/test_ownership.py`, `tests/test_provenance.py`, `tests/test_renames.py` and 15 more
 
 It depends on: `tessri` (2), `tessri/analyzers` (1)
 

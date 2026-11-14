@@ -161,6 +161,10 @@ class BuildTest(unittest.TestCase):
         self.assertIn('<a href="demo/">Demo</a>', index)
         self.assertIn("$ <b>tessri brief --since ", index)
         self.assertIn('<h3 id="look-first">Look first</h3>', index)  # the brief's first sections, one heading level down
+        self.assertIn('<h3 id="look-first">Look first</h3>\n<p class="annot">ranked by history', index)
+        self.assertIn('<div class="example with-drawing">', index)
+        self.assertIn('<figure class="drawing">', index)
+        self.assertIn('>graph.py</text>', index)
         self.assertIn('<h1 id="tessri-on-itself">Tessri on itself</h1>', demo)
         self.assertIn('<h2 id="review-brief-', demo)
         self.assertIn('<h3 id="read-this-with-care">Read this with care</h3>', demo)
@@ -201,6 +205,37 @@ class BuildTest(unittest.TestCase):
             self.assertEqual(build_site.main(["--out", str(Path(tmp) / "out")]), 0)
             self.assertTrue((Path(tmp) / "out" / "guide" / "index.html").exists())
         self.assertRegex(out.getvalue(), r"^\d+ files written to ")
+
+
+class DrawingTest(unittest.TestCase):
+    def graph(self):
+        from tessri import graph as g
+
+        made = g.Graph()
+        made.inbound = {"pkg/core.py": {"pkg/app.py", "tools/run.py"}, "pkg/app.py": {"pkg/cli.py", "tests/test_app.py"}, "tools/run.py": {"tests/test_run.py"}, "pkg/cli.py": {"tests/test_cli.py"}}
+        made.tests = {"tests/test_app.py", "tests/test_run.py", "tests/test_cli.py"}
+        made.provenance = {"pkg/app.py": {"pkg/core.py": "import"}, "tools/run.py": {"pkg/core.py": "string"}, "pkg/cli.py": {"pkg/app.py": "import"}}
+        return made
+
+    def test_the_reach_by_distance_with_the_kind_of_each_edge(self):
+        r = build_site.reach(self.graph(), "pkg/core.py")
+        self.assertEqual(r["direct"], ["pkg/app.py", "tools/run.py"])
+        self.assertEqual(r["second"], ["pkg/cli.py"])
+        self.assertEqual(r["tests"], ["tests/test_app.py", "tests/test_run.py", "tests/test_cli.py"])  # nearest first
+        self.assertEqual(r["kinds"], {"pkg/app.py>pkg/core.py": "import", "tools/run.py>pkg/core.py": "string", "pkg/cli.py>pkg/app.py": "import"})
+
+    def test_the_drawing_draws_every_file_and_edge_and_names_the_tests(self):
+        svg = build_site.drawing(build_site.reach(self.graph(), "pkg/core.py"))
+        self.assertIn('<figure class="drawing">', svg)
+        self.assertIn('<g class="bp-file bp-target"><rect class="bp-node"', svg)
+        for label in ("core.py", "app.py", "run.py", "cli.py"):
+            self.assertIn(f'">{label}</text>', svg)
+        self.assertEqual(svg.count('class="bp-edge kind-import"'), 2)
+        self.assertEqual(svg.count('class="bp-edge kind-string"'), 1)
+        self.assertIn("<b>3 test files reach it</b>, candidates to run, not runs: <code>test_app.py</code>, <code>test_run.py</code>, <code>test_cli.py</code>.", svg)
+        many = build_site.reach(self.graph(), "pkg/core.py")
+        many["second"] = [f"pkg/m{i}.py" for i in range(12)]
+        self.assertIn(">+3 more</text>", build_site.drawing(many))
 
 
 class AssetsTest(unittest.TestCase):
