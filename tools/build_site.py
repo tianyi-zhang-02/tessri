@@ -5,8 +5,8 @@ guide page is Markdown rendered by the small converter below (headings, paragrap
 links, code spans, bold and italic are all the guide uses). Links between guide pages become links between the
 rendered pages; links out of the guide point at the repository on GitHub. With `--demo`, the package in this
 checkout runs on the checkout itself: `demo/report.html` is the HTML report, and `demo/` the brief of the latest
-commit against its first parent, which on `main` is the last merged pull request; the landing page then opens with
-the first sections of that brief.
+commit against its first parent, which on `main` is the last merged pull request; the landing page's hero then
+carries that brief, read in three steps.
 
     python tools/build_site.py --out _site --demo
     python -m http.server --directory _site
@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 GUIDE = ROOT / "docs" / "guide"
 REPO = "https://github.com/tianyi-zhang-02/tessri"
+DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other checkout is a preview and says so
 BLOB = f"{REPO}/blob/main/"
 TREE = f"{REPO}/tree/main/"
 MARKER = ".tessri-site"
@@ -97,14 +98,53 @@ SCRIPTS = """<script>
     }, { rootMargin: "0px 0px -70% 0px" });
     Object.keys(byId).forEach(function (id) { var h = document.getElementById(id); if (h) { follow.observe(h); } });
   }
+  Array.prototype.forEach.call(document.querySelectorAll('[role="tablist"]'), function (list) {
+    var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
+    var panels = tabs.map(function (t) { return document.getElementById(t.getAttribute("aria-controls")); });
+    var box = list.closest(".handoff");
+    if (box) { box.classList.add("js"); }
+    function select(i, focus) {
+      tabs.forEach(function (t, j) {
+        var on = j === i;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        t.tabIndex = on ? 0 : -1;
+        if (panels[j]) { panels[j].hidden = !on; }
+      });
+      if (focus) { tabs[i].focus(); }
+    }
+    tabs.forEach(function (t, i) {
+      t.addEventListener("click", function () { select(i, false); });
+      t.addEventListener("keydown", function (e) {
+        var n = tabs.length, j;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") { j = (i + 1) % n; }
+        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { j = (i - 1 + n) % n; }
+        else if (e.key === "Home") { j = 0; }
+        else if (e.key === "End") { j = n - 1; }
+        else { return; }
+        e.preventDefault();
+        select(j, true);
+      });
+    });
+    var asked = location.hash && panels.indexOf(document.getElementById(location.hash.slice(1)));
+    select(asked > 0 ? asked : 0, false);
+    var jump = document.querySelector(".jump");
+    if (jump && box) {
+      jump.addEventListener("click", function () {
+        setTimeout(function () {
+          var on = list.querySelector('[role="tab"][aria-selected="true"]');
+          if (on) { on.focus({ preventScroll: true }); }
+        }, 0);
+      });
+    }
+  });
   if (!motion || !("IntersectionObserver" in window)) { return; }
   var below = Array.prototype.filter.call(document.querySelectorAll("main .band"), function (s) { return s.getBoundingClientRect().top > innerHeight * 0.9; });
   var arrive = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); arrive.unobserve(e.target); } });
   }, { rootMargin: "0px 0px -10% 0px" });
   below.forEach(function (s) { s.classList.add("reveal"); arrive.observe(s); });
-  var cmd = document.querySelector(".example .cmdline b");
-  var output = document.querySelector(".example .output");
+  var cmd = document.querySelector(".handoff .cmdline b");
+  var output = document.querySelector(".handoff .body");
   if (cmd && output) {
     var text = cmd.textContent;
     var caret = document.createElement("span");
@@ -386,7 +426,6 @@ def render_markdown(text: str) -> tuple[str, str]:
 # --- The reach of one file, drawn -------------------------------------------------------------------------------------
 
 EXAMPLE_TARGET = re.compile(r"tessri impact (\S+)")
-NOTES_IN_BRIEF = {"look-first": "ranked by history: commits in 90 days, fixes and reverts, and who went quiet"}
 
 
 def reach(g, target: str) -> dict:
@@ -463,11 +502,12 @@ def drawing(r: dict, limit: int = 9) -> str:
     if tests:
         named = ", ".join(f"<code>{html.escape(_short(t, 40))}</code>" for t in tests[:5])
         rest = f", and {len(tests) - 5} more" if len(tests) > 5 else ""
-        line = f'<p class="tests"><b>{len(tests)} test file{"s" if len(tests) != 1 else ""} reach it</b>, candidates to run, not runs: {named}{rest}.</p>'
+        line = f'<p class="tests"><span class="tag guess">Candidates</span><b>{len(tests)} test file{"s" if len(tests) != 1 else ""} reach it</b>, paths to run, not runs: {named}{rest}.</p>'
     else:
         line = '<p class="tests"><b>No test file reaches it</b> through the imports the analysis can see.</p>'
     return (
-        f'<figure class="drawing">\n<figcaption>The reach of <code>{html.escape(r["target"])}</code>, drawn from this build\'s analysis: solid edges are import statements, dashed ones the names that are only a guess.</figcaption>\n'
+        f'<figure class="drawing">\n<figcaption>The reach of <code>{html.escape(r["target"])}</code>, drawn from this build\'s analysis, each edge in the kind of evidence behind it.</figcaption>\n'
+        '<p class="key"><span class="k-import">an import statement</span><span class="k-guess">a name in a string, a config or a dynamic import: a guess</span></p>\n'
         + "\n".join(out)
         + f"\n{line}\n</figure>"
     )
@@ -605,8 +645,9 @@ def landing(demo: dict | None) -> str:
         .replace("{{notices}}", NOTICES)
         .replace("{{theme_button}}", theme_button())
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
-        .replace("{{demo_head}}", demo_head(demo) if demo else "")
-        .replace("{{demo}}", demo_section(demo) if demo else "")
+        .replace("{{handoff}}", handoff(demo) if demo else "")
+        .replace("{{hero_class}}", " with-handoff" if demo else "")
+        .replace("{{jump}}", f'<a class="button quiet jump" href="#brief">Jump to the brief {icon("arrow-down")}</a>' if demo else "")
         .replace("{{example}}", example)
         .replace("{{drawing}}", drawing(demo["reach"]) if demo else "")
         .replace("{{drawing_class}}", " with-drawing" if demo else "")
@@ -619,6 +660,87 @@ def landing(demo: dict | None) -> str:
     if left:
         raise BuildError(f"unfilled placeholders in site/index.html: {', '.join(sorted(set(left)))}")
     return filled
+
+
+# --- The handoff: the brief, read in three steps --------------------------------------------------------------------
+
+# (slug, the brief's heading, the step's name, what the step rests on)
+STEPS = (
+    ("look-first", "Look first", "Look first", "Ranked by history: commits in 90 days, fixes and reverts, and who went quiet. The owners are the people who changed the file, up to the base."),
+    ("what-changed", "What it did to the structure", "What changed", "What the change did to the import graph, from one analysis of the base and one of the working tree: orphans, cycles, dangling imports, changed code nobody active maintains, and what outside the change imports it."),
+    ("validation", "Validation", "Validation", "The candidate tests are paths that reach the change; a check counts as run only when the host recorded it. Nothing here claims that a test passed."),
+)
+# The two kinds of line the validation section writes: a candidate is a path, a run is a record.
+VALIDATION_TAGS = (
+    (("Candidate tests", "No test file reaches"), "guess", "Candidates"),
+    (("Checks the host ran",), "fact", "Ran"),
+)
+
+
+def sections(page: str) -> dict[str, str]:
+    """The brief's level-two sections by heading, and under "" the text before the first of them."""
+    out: dict[str, str] = {}
+    name = ""
+    body: list[str] = []
+    for line in page.splitlines():
+        if line.startswith("## "):
+            out[name] = "\n".join(body).strip()
+            name, body = line[3:].strip(), []
+        else:
+            body.append(line)
+    out[name] = "\n".join(body).strip()
+    return out
+
+
+def _tag_validation(body: str) -> str:
+    """The validation section's HTML with a label on each kind of line: the candidates, and what the host recorded as run."""
+    for starts, cls, label in VALIDATION_TAGS:
+        for start in starts:
+            marker = f"<p>{start}"
+            if marker in body:
+                body = body.replace(marker, f'<p class="val {cls}"><span class="tag {cls}">{label}</span>{start}', 1)
+                break
+    return body
+
+
+def handoff(demo: dict) -> str:
+    """The hero's artifact: the brief of the latest change under its command line, its scope, then three of its sections
+    as steps (tabs with script, stacked without), and the way to the whole page and the report."""
+    parts = sections(demo["brief"])
+    pre = parts.get("", "")
+    if pre.startswith("# "):
+        pre = pre.partition("\n")[2]  # the panel has a command line instead of the page's title
+    scope = pre.strip().split("\n\n")[0]
+    _, scope_html = render_markdown(scope)
+    scope_html = scope_html.replace("<p>", '<p class="scope">', 1)
+    tabs: list[str] = []
+    panels: list[str] = []
+    for i, (slug_, heading, name, caption) in enumerate(STEPS):
+        if heading not in parts:
+            raise BuildError(f"the demo brief has no section named {heading!r}")
+        _, body = render_markdown(parts[heading])
+        if slug_ == "validation":
+            body = _tag_validation(body)
+        first = i == 0
+        selected = "true" if first else "false"
+        extra = "" if first else ' tabindex="-1"'
+        tabs.append(f'<button class="step" role="tab" type="button" id="tab-{slug_}" aria-controls="step-{slug_}" aria-selected="{selected}"{extra}><span class="n">{i + 1}</span>{html.escape(name)}</button>')
+        panels.append(
+            f'<section class="step-panel" role="tabpanel" id="step-{slug_}" aria-labelledby="tab-{slug_}">\n'
+            f'<h3 class="step-name">{html.escape(heading)}</h3>\n<p class="caption">{html.escape(caption)}</p>\n<div class="output prose">\n{body}\n</div>\n</section>'
+        )
+    return (
+        '  <div class="handoff" id="brief" tabindex="-1">\n'
+        f'{cmdline("tessri brief --since " + demo["base"])}\n'
+        '<div class="body">\n'
+        f"{scope_html}\n"
+        f'<div class="steps-bar" role="tablist" aria-label="The brief, step by step">{"".join(tabs)}</div>\n'
+        + "\n".join(panels)
+        + f'\n<div class="more"><p>{_analysed(demo)}. Three of the page\'s five sections; '
+        '<a href="demo/">the whole page</a> adds the commits, what needs a person and the caveats, and <a href="demo/report.html">the HTML report</a> has the module graph and the impact explorer.</p>'
+        f'<a class="button quiet" href="demo/">Open the full demo {icon("arrow-right")}</a></div>\n'
+        "</div>\n  </div>\n"
+    )
 
 
 # --- The demo: Tessri on this checkout --------------------------------------------------------------------------
@@ -640,10 +762,11 @@ def latest_change() -> dict:
     if len(lines) < 2:
         raise BuildError("the demo needs a git checkout with a commit")
     sha, subject, body = lines[0], lines[1], [line for line in lines[2:] if line.strip()]
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "HEAD"  # "HEAD" when detached, as on a pull request's merge ref
     merged = re.match(r"Merge pull request #(\d+)", subject)
     if merged:
-        return {"sha": sha, "pr": int(merged.group(1)), "title": body[0] if body else subject}
-    return {"sha": sha, "pr": None, "title": subject}
+        return {"sha": sha, "pr": int(merged.group(1)), "title": body[0] if body else subject, "branch": branch}
+    return {"sha": sha, "pr": None, "title": subject, "branch": branch}
 
 
 def demo_content() -> dict:
@@ -670,13 +793,6 @@ def demo_content() -> dict:
     return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base, "reach": reach(analysis.graph, found.group(1))}
 
 
-def _annotate(body: str) -> str:
-    """A sketch note under the headings of the brief that the landing page explains: the heading stays as it is."""
-    for slug_, note in NOTES_IN_BRIEF.items():
-        body = re.sub(rf'(<h3 id="{slug_}">[^<]*</h3>)', rf'\1\n<p class="annot">{html.escape(note)}</p>', body, count=1)
-    return body
-
-
 def _demote(body: str) -> str:
     """Every heading one level down, so a rendered page sits under the page's own heading."""
     return re.sub(r"<(/?)h([1-5])\b", lambda m: f"<{m.group(1)}h{int(m.group(2)) + 1}", body)
@@ -689,30 +805,16 @@ def _what(change: dict) -> str:
     return f'the commit \u201c{title}\u201d (<code>{change["sha"][:9]}</code>)'
 
 
-def demo_head(demo: dict) -> str:
-    """The band's tail on the landing page: the demo's heading, in the band's ink, above the panel that straddles the edge."""
+def _analysed(demo: dict) -> str:
+    """The sentence that says what the brief is of. A build on the default branch has the latest change there; a build
+    anywhere else names its branch (or a detached checkout) and commit, so a preview never passes for the deployed site."""
+    change = demo["change"]
+    if change["branch"] == DEFAULT_BRANCH:
+        return f"The latest change on Tessri's own <code>{DEFAULT_BRANCH}</code> is {_what(change)}"
+    where = "a detached checkout" if change["branch"] == "HEAD" else f'<code>{html.escape(change["branch"])}</code>'
     return (
-        '<div class="wrap demo-head">\n  <span class="label">See it on this repository</span>\n'
-        '  <h2>A change is done. This is the page the person it goes to gets.</h2>\n</div>\n'
-    )
-
-
-def demo_section(demo: dict) -> str:
-    """The landing page's first section: the brief's first sections (scope, commits, look first) as the glass panel, then its caption."""
-    page = demo["brief"]
-    cut = page.find("\n## What it did to the structure")
-    excerpt = page[:cut] if cut != -1 else page
-    if excerpt.startswith("# "):
-        excerpt = excerpt.split("\n", 1)[1]  # the panel has a command line instead of the page's title
-    _, body = render_markdown(excerpt)
-    return (
-        '  <section class="band" id="demo">\n'
-        '    <div class="example">\n      <div class="panel glass">\n'
-        f'{cmdline("tessri brief --since " + demo["base"])}\n<div class="output prose">\n{_annotate(_demote(body))}\n</div>\n'
-        '      </div>\n'
-        f'      <p class="after">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections above, '
-        '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'
-        '    </div>\n  </section>\n'
+        f'This build analysed {where} at <code>{change["sha"][:9]}</code>, \u201c{html.escape(change["title"])}\u201d, against its parent <code>{html.escape(demo["base"])}</code>; '
+        f"the deployed site builds from <code>{DEFAULT_BRANCH}</code>"
     )
 
 
@@ -720,10 +822,13 @@ def demo_page(demo: dict) -> str:
     """`demo/index.html`: the whole brief, under a heading that says what it is."""
     _, body = render_markdown(demo["brief"])
     base = html.escape(demo["base"])
+    if demo["change"]["branch"] == DEFAULT_BRANCH:
+        built = f'the change compared with <code>{DEFAULT_BRANCH}</code> as it was before it (<code>{base}</code>), built when the site was deployed, and every push to <code>{DEFAULT_BRANCH}</code> rebuilds it. '
+    else:
+        built = f"the change compared with its parent (<code>{base}</code>), built from that checkout as a preview. "
     intro = (
         '<h1 id="tessri-on-itself">Tessri on itself</h1>\n'
-        f'<p>The latest change on this repository\'s <code>main</code> is {_what(demo["change"])}. Below is the page <code>tessri brief --since {base}</code> hands a person for it: '
-        f'the change compared with <code>main</code> as it was before it (<code>{base}</code>), built when the site was deployed, and every push to <code>main</code> rebuilds it. '
+        f'<p>{_analysed(demo)}. Below is the page <code>tessri brief --since {base}</code> hands a person for it: {built}'
         '<a href="report.html">The HTML report of the repository</a>, with the module graph and the impact explorer, is what <code>tessri scan . --format html</code> writes, built the same way.</p>\n'
     )
     article = (

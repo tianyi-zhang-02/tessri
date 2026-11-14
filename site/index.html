@@ -27,8 +27,9 @@
     {{theme_button}}
   </nav>
 </header>
-<section class="wrap hero">
+<section class="wrap hero grid{{hero_class}}">
   <div class="pitch">
+    <div class="visual" aria-hidden="true">{{mark}}<canvas class="liquid"></canvas></div>
     <ul class="facts" aria-label="In short">
       <li>{{icon:box}} Zero dependencies</li>
       <li>{{icon:folder-git-2}} Offline, reads git</li>
@@ -39,6 +40,7 @@
     <div class="actions">
       <a class="button cta" href="guide/getting-started.html">Get started {{icon:arrow-right}}</a>
       <a class="button quiet" href="guide/">Read the guide</a>
+      {{jump}}
     </div>
     <div class="install">
       <code><span class="prompt">$ </span>pip install tessri</code>
@@ -46,31 +48,27 @@
     </div>
     <p class="note">Python 3.11 or newer, no dependencies. To run it once without installing: <code>uvx tessri scan .</code></p>
   </div>
-  <div class="visual" aria-hidden="true">{{mark}}<canvas class="liquid"></canvas></div>
+{{handoff}}
 </section>
-{{demo_head}}
 </div>
 
 <main class="wrap">
 
-{{demo}}
   <section class="band" id="questions">
     <span class="label">What it answers</span>
     <h2>Four questions, answered from one picture of the code and its history, and one page that hands a change over.</h2>
-    <div class="questions">
+    <div class="questions grid">
       <article class="lead">
         <span class="tile">{{icon:scroll-text}}</span>
         <h3>One page that hands a change over.</h3>
         <p>Where to look first, who is able to look, what the change did to the structure, which tests reach it and which checks ran, and what needs a person: from one analysis of the base and one of the working tree, with the evidence for every line.</p>
-        <div class="page" aria-hidden="true">
-          <div class="page-bar"><i></i><i></i><i></i><span>tessri brief --since main</span></div>
-          <div class="page-body">
-            <section><b>Look first</b><span class="row"><i style="width:26%"></i><i style="width:34%"></i><i style="width:18%"></i></span><span class="row"><i style="width:30%"></i><i style="width:24%"></i><i style="width:22%"></i></span><span class="row"><i style="width:22%"></i><i style="width:38%"></i><i style="width:16%"></i></span></section>
-            <section><b>What it did to the structure</b><span class="line" style="width:72%"></span><span class="line" style="width:54%"></span></section>
-            <section><b>Validation</b><span class="line" style="width:64%"></span></section>
-            <section><b>Open for a person</b><span class="line" style="width:46%"></span><span class="line" style="width:58%"></span></section>
-          </div>
-        </div>
+        <ol class="sections" aria-label="The sections of the page">
+          <li><b>Look first</b><span>The changed files, ranked by history: commits in 90 days, fixes and reverts, and who went quiet.</span></li>
+          <li><b>What it did to the structure</b><span>New orphans, cycles, dangling imports, changed code nobody active maintains, and what outside the change imports it.</span></li>
+          <li><b>Validation</b><span>The tests that reach the change, kept apart from the checks the host recorded as run.</span></li>
+          <li><b>Open for a person</b><span>What the analysis cannot settle: a decision, a second reader, a check nobody ran.</span></li>
+          <li><b>Read this with care</b><span>What every line rests on, and what it cannot see.</span></li>
+        </ol>
         <span class="cmd"><code>tessri brief --since main</code></span>
       </article>
       <article>
@@ -104,7 +102,7 @@
     <span class="label">A complete example</span>
     <h2>What can a change to one file affect?</h2>
     <p class="intro">Real output on Tessri's own repository, as the Markdown renders.</p>
-    <div class="example{{drawing_class}}">
+    <div class="example grid{{drawing_class}}">
       <div class="panel">
 {{example}}
       </div>
@@ -121,17 +119,17 @@
         <p>No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
       </div>
       <div>
-        <div class="head"><span class="tile">{{icon:file-search}}</span><span class="step">01</span></div>
+        <div class="head"><span class="tile">{{icon:file-search}}</span><span class="num">01</span></div>
         <h3>Read</h3>
         <p>Lists the files, parses Python with Python's own parser and JavaScript and TypeScript with its own scanner, and reads configs, scripts and docs for the files they name.</p>
       </div>
       <div>
-        <div class="head"><span class="tile">{{icon:git-merge}}</span><span class="step">02</span></div>
+        <div class="head"><span class="tile">{{icon:git-merge}}</span><span class="num">02</span></div>
         <h3>Join</h3>
         <p>Builds the import graph with the kind of evidence behind every edge, and reads from git who changed what, following files through renames.</p>
       </div>
       <div>
-        <div class="head"><span class="tile">{{icon:message-square-text}}</span><span class="step">03</span></div>
+        <div class="head"><span class="tile">{{icon:message-square-text}}</span><span class="num">03</span></div>
         <h3>Answer</h3>
         <p>Each command is one view of that picture: reachability, ownership, module graph, impact, triage and the check of a change.</p>
       </div>
