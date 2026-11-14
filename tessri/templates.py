@@ -34,6 +34,11 @@ CONFIG = """\
 # Commit authors that never own code, matched against name or email, ignoring case.
 # Bots such as dependabot are ignored already. A .mailmap merges one person's addresses.
 # ignore_authors = ["release-script*", "*@ci.example.com"]
+
+# Agent hooks (`tessri integration install --agent claude-hooks` or `codex-hooks`): where the
+# findings of `check` on the uncommitted work go when the agent stops. "inform" shows them to
+# you; "block" hands them to the agent first, once, and to you after that.
+# stop_hook = "inform"
 """
 
 SKILL = """\
@@ -60,6 +65,11 @@ Pick the query by the task, and do not start every task with a full scan:
 When Tessri is connected as an MCP server (`tessri mcp`), the same questions are the tools `tessri_scan`,
 `tessri_why`, `tessri_impact`, `tessri_graph`, `tessri_triage`, `tessri_check` and `tessri_brief`; each returns the command's
 JSON as structured content and its text as content, and `tessri_repos` lists the checkouts the server reads.
+
+When the project's hooks are installed (`tessri integration install --agent claude-hooks` or `codex-hooks`),
+what a code file can reach arrives by itself after you edit it, once per file, and what the uncommitted work
+did to the structure when you stop; what arrives that way needs no command. Without them, ask with the
+commands above.
 
 ## Run it
 
@@ -260,6 +270,13 @@ VSCODE_SERVER = {"type": "stdio", "command": "tessri", "args": ["mcp"]}  # `.vsc
 # Copilot's coding agent takes its servers from the repository's settings page; this is the JSON to paste there.
 COPILOT_AGENT_SERVERS = {"mcpServers": {"tessri": {"command": "tessri", "args": ["mcp"], "tools": ["*"]}}}
 CODEX_MCP_COMMAND = "codex mcp add tessri -- tessri mcp"  # Codex keeps MCP servers in the user's configuration, not the project's
+
+# The lifecycle hooks Claude Code (`.claude/settings.json`) and Codex (`.codex/hooks.json`) run. Both read this shape:
+# one matcher group per event, each running `tessri hook`, which answers with the host's JSON or with nothing.
+HOOKS = {
+    "PostToolUse": {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "tessri hook", "timeout": 60}]},
+    "Stop": {"hooks": [{"type": "command", "command": "tessri hook", "timeout": 120}]},
+}
 
 REPORT_WORKFLOW = """\
 # Tessri's weekly report: the scan of the whole repository, as JSON and as one HTML page, kept as a workflow artifact

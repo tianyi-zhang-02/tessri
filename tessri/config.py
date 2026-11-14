@@ -8,6 +8,7 @@ from pathlib import Path
 
 _INT_KEYS = ("active_days", "dormant_days", "owner_inactive_days", "review_days", "depth", "top")
 _LIST_KEYS = ("keep", "exclude", "entry", "ignore_authors")
+_CHOICE_KEYS = {"stop_hook": ("inform", "block")}
 
 
 class ConfigError(ValueError):
@@ -26,6 +27,7 @@ class Config:
     exclude: list[str] = field(default_factory=list)  # globs skipped entirely
     entry: list[str] = field(default_factory=list)  # extra entry points: module names or paths
     ignore_authors: list[str] = field(default_factory=list)  # globs on commit author name or email that never own code (bots are ignored already)
+    stop_hook: str = "inform"  # agent hooks: when the agent stops, the findings go to the person ("inform") or to the agent first ("block")
 
 
 def _read(path: Path) -> dict:
@@ -45,6 +47,10 @@ def _apply(cfg: Config, data: dict, origin: str) -> None:
             if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
                 raise ConfigError(f"{origin}: `{key}` must be a list of strings")
             getattr(cfg, key).extend(v for v in value if v not in getattr(cfg, key))
+        elif key in _CHOICE_KEYS:
+            if value not in _CHOICE_KEYS[key]:
+                raise ConfigError(f"{origin}: `{key}` must be one of {', '.join(repr(c) for c in _CHOICE_KEYS[key])}")
+            setattr(cfg, key, value)
         else:
             raise ConfigError(f"{origin}: unknown option `{key}`")
 

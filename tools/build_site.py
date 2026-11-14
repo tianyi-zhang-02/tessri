@@ -41,7 +41,7 @@ GROUPS = [
     ("Questions", ["scan", "ownership", "review-load", "graph", "impact"]),
     ("Changes", ["triage", "check", "brief"]),
     ("Output", ["html-report", "json"]),
-    ("Setup", ["integration", "mcp", "configuration"]),
+    ("Setup", ["integration", "hooks", "mcp", "configuration"]),
     ("Reference", ["architecture", "limits", "formerly-repolife"]),
 ]
 

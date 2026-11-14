@@ -1,4 +1,4 @@
-"""Command line entry point: `tessri scan | why | graph | impact | triage | check | brief | integration | mcp`."""
+"""Command line entry point: `tessri scan | why | graph | impact | triage | check | brief | hook | integration | mcp`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, brief, config, graphview, htmlreport, integration, modules, sarifview, since, sinceview
+from . import __version__, brief, config, graphview, hook, htmlreport, integration, modules, sarifview, since, sinceview
 from .analyze import analyze
 from .explain import TargetError, explain, why_json
 from .render import markdown
@@ -188,6 +188,10 @@ def _cmd_impact(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_hook(args: argparse.Namespace) -> int:
+    return hook.run(sys.stdin.read(), args.repo)
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     from .mcp import Server
 
@@ -285,11 +289,15 @@ def build_parser() -> argparse.ArgumentParser:
     _add_analysis_options(briefp)
     briefp.set_defaults(func=_cmd_brief)
 
+    hookp = sub.add_parser("hook", help="answer a coding agent's lifecycle hook: the host's event on stdin, the host's JSON on stdout, nothing when there is nothing to add; after an edit, what the edited file can reach; when the agent stops, what the uncommitted work did to the structure (installed by `integration install --agent claude-hooks` or `codex-hooks`)")
+    _add_root(hookp)
+    hookp.set_defaults(func=_cmd_hook)
+
     mcp = sub.add_parser("mcp", help="serve the questions as Model Context Protocol tools over stdin/stdout, for an agent that starts it as a subprocess")
     mcp.add_argument("--root", action="append", metavar="PATH", help="a checkout to serve (repeatable; default: the current directory); with several, every tool names one with `root`")
     mcp.set_defaults(func=_cmd_mcp)
 
-    integ = sub.add_parser("integration", help="install, update, inspect or remove the project integration (agent skills, AGENTS.md block, MCP configuration, a starter configuration file, the report and review workflows) with a receipt, reversibly")
+    integ = sub.add_parser("integration", help="install, update, inspect or remove the project integration (agent skills, AGENTS.md block, MCP configuration, lifecycle hooks, a starter configuration file, the report and review workflows) with a receipt, reversibly")
     ops = integ.add_subparsers(dest="op", required=True, metavar="{install,update,status,remove}")
     for op, text in (
         ("install", "write the skill or block for each --agent and record a receipt; an existing file is a conflict, never claimed"),
@@ -301,7 +309,7 @@ def build_parser() -> argparse.ArgumentParser:
         _add_root(p, positional=True)
         p.add_argument("--format", choices=("text", "json"), default="text")
         if op != "status":
-            p.add_argument("--agent", action="append", choices=tuple(integration.PROFILES), metavar="{" + ",".join(integration.PROFILES) + "}", help="profile to act on, repeatable (an agent's instructions, a host's server entry, `config` for a starter .tessri.toml, `report` for a weekly scan workflow, `review` for the brief on every pull request); install needs at least one, update and remove default to every recorded profile")
+            p.add_argument("--agent", action="append", choices=tuple(integration.PROFILES), metavar="{" + ",".join(integration.PROFILES) + "}", help="profile to act on, repeatable (an agent's instructions, a host's server entry, `claude-hooks` or `codex-hooks` for the hooks a host runs, `config` for a starter .tessri.toml, `report` for a weekly scan workflow, `review` for the brief on every pull request); install needs at least one, update and remove default to every recorded profile")
             p.add_argument("--dry-run", action="store_true", help="show the plan without writing anything")
         p.set_defaults(func=_cmd_integration)
     return parser

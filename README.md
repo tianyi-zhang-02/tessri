@@ -109,15 +109,17 @@ real history, and the composite risk score we tried did not beat its parts, so t
    `tessri brief` to hand it over on one page; without `--since`, a branch is judged against the default branch.
 3. `tessri integration install --agent claude` (or `codex`, `agents`, `copilot`) installs the agent's
    instructions with a receipt, `--agent mcp` points a host at `tessri mcp`, the same questions as MCP tools,
-   `--agent config` writes a starter `.tessri.toml`, `--agent report` a weekly report workflow and
-   `--agent review` the brief as a comment on every pull request; `tessri integration remove` takes it all out again.
+   `--agent claude-hooks` or `codex-hooks` puts Tessri into the agent's loop (what an edited file reaches, after
+   each edit; what the uncommitted work did to the structure, when it stops), `--agent config` writes a starter
+   `.tessri.toml`, `--agent report` a weekly report workflow and `--agent review` the brief as a comment on every
+   pull request; `tessri integration remove` takes it all out again.
 
 ## Read more
 
 - [Guide](docs/guide/README.md): every question Tessri answers, one page each, with real output, and
   [which command, when](docs/guide/when.md).
 - [Demo](https://tianyi-zhang-02.github.io/tessri/demo/): Tessri on itself, rebuilt on every push.
-- [Integration](docs/guide/integration.md): skills, AGENTS.md and CI, with copyable recipes in
+- [Integration](docs/guide/integration.md): skills, AGENTS.md, [hooks](docs/guide/hooks.md) and CI, with copyable recipes in
   [workflow-recipes.md](docs/workflow-recipes.md); [MCP](docs/guide/mcp.md): the questions as tools for any agent
   that speaks the protocol.
 - [Configuration](docs/guide/configuration.md), [JSON output](docs/guide/json.md),
