@@ -1,4 +1,4 @@
-# A version tag publishes the package. `git tag v0.3.0 && git push origin v0.3.0` checks that the tag is the version
+# A version tag publishes the package. `git tag v0.4.0 && git push origin v0.4.0` checks that the tag is the version
 # the code states and that CHANGELOG.md has that version's dated section, builds the sdist and the wheel, installs
 # the wheel on every supported Python and runs it on this repository, publishes to PyPI through trusted publishing
 # (no token anywhere in the repository), and creates the GitHub release with the changelog section and the files.

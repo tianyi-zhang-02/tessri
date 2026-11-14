@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tessri"
-version = "0.3.0"
+version = "0.4.0"
 description = "Keep code understandable. How a codebase fits together, what a change can reach, who can review it and what nobody maintains, with the evidence for every claim. Zero dependencies."
 readme = "README.md"
 requires-python = ">=3.11"
