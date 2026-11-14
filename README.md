@@ -168,6 +168,13 @@ repository's history, with what later commits did about each name:
 python3 tools/deletions.py path/to/repository --days 365
 ```
 
+The brief's *who can look* is held against who actually reviewed, on a repository's own pull requests through the
+GitHub command line, and [the reviewer match](docs/guide/reviewer-match.md) in the guide is its output on one:
+
+```bash
+python3 tools/reviewer_match.py collect owner/name path/to/checkout --out pulls.json && python3 tools/reviewer_match.py score pulls.json path/to/checkout
+```
+
 ## License
 
 MIT
