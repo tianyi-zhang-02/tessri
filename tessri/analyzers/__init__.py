@@ -70,7 +70,8 @@ class LanguageResult:
     unparsed: set[str] = field(default_factory=set)
     comment_lines: dict[str, set[int]] = field(default_factory=dict)  # extra lines to count as comments (docstrings)
     resolve_reference: Callable[[str], set[str]] = lambda ref: set()
-    provenance: dict[str, dict[str, str]] = field(default_factory=dict)  # file -> target -> kind, see KINDS; last, so positional callers keep working
+    provenance: dict[str, dict[str, str]] = field(default_factory=dict)  # file -> target -> kind, see KINDS
+    ambiguous: dict[str, int] = field(default_factory=dict)  # a file name in a string that fits several files -> how many; it named none, and the report lists it. Last, so positional callers keep working
 
 
 class Analyzer(ABC):

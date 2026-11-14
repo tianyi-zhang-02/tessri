@@ -18,6 +18,11 @@ Dates are the day a version was tagged.
   the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
   directory or unrelated change together. [The backtest](docs/guide/backtest.md) in the guide is its output on one
   repository, and the wording of `triage` and the guide follows those numbers.
+- `check` reads the names of files in strings for one finding and says so: a file the change deleted or moved that an
+  untouched file still names in a string or a dynamic import is a `dangling-reference`, a warning for a person, since
+  such a name is a guess that the file is loaded at run time (`dangling_references` in the JSON, a rule in the SARIF).
+  A stranded file now lists every link the change cut, with its kind. The report's caveat about names that fit several
+  files now covers the names the analyzers found in code, not only those in configs and scripts.
 
 ## 0.3.0 (2026-11-06)
 

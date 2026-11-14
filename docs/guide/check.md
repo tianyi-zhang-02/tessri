@@ -19,8 +19,9 @@ structure. They answer different questions and work together.
 | Finding | Severity | What it means |
 |---|---|---|
 | `dangling-import` | block | a file the change deleted or moved is still imported by a file the change did not touch |
+| `dangling-reference` | warn | a file the change deleted or moved is still named in a string or a dynamic import by a file the change did not touch; such a name is a guess that the file is loaded at run time, so a person decides |
 | `new-cycle`, `cycle-grew` | warn | modules that were not in a loop now are, or a cycle absorbed more modules; the new dependency that closed it is named |
-| `new-orphan` | warn | a new file nothing reaches, or a file the change cut the last link to (`stranded`, with what used to reach it); under `scripts/`, `examples/` and the like it is only a note, since those are run by hand |
+| `new-orphan` | warn | a new file nothing reaches, or a file the change cut the last link to (`stranded`, with what used to reach it and how: an import, a config, or a name in a string); under `scripts/`, `examples/` and the like it is only a note, since those are run by hand |
 | `no-active-owner` | warn | changed code nobody active maintains. History is read up to the base, so the author's own commits do not make them the owner |
 | `new-dependency`, `orphan-resolved`, `cycle-resolved` | info | the other differences, the good ones too |
 
@@ -46,7 +47,7 @@ $ tessri check --since main
 
 `--fail-on block` exits 1 for `dangling-import` only; `--fail-on warn` also for the warnings; the default never fails.
 `--format json` gives the same findings with their evidence (`orphans`, `cycles`, `dependencies`, `dangling_imports`,
-`unowned`, `changed_files`; `kind` is `change-check`) for an agent to act on.
+`dangling_references`, `unowned`, `changed_files`; `kind` is `change-check`) for an agent to act on.
 
 `--format sarif` writes the same check as a [SARIF 2.1.0](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 log, for editors and services that already read that format. It is a rendering, not a second analysis: one finding
@@ -70,8 +71,9 @@ make an old repository-wide problem look fixed when a later change simply did no
 meaning: with `block` the exit code is 1 and the document is still complete. Copyable shell and Python recipes for CI
 artifacts, test selection and gates are in [docs/workflow-recipes.md](../workflow-recipes.md).
 
-Only what static imports show is compared, so a clean result is not proof that nothing else depends on the change, and
-a `block` is certain only for importers the change left untouched. Both sides are cut into modules the same way, so a
+Only what static imports show is compared, apart from `dangling-reference`, which reads the names in strings and says
+so; a clean result is not proof that nothing else depends on the change, and a `block` is certain only for importers
+the change left untouched. Both sides are cut into modules the same way, so a
 file added or removed cannot move a boundary and create a dependency that is not there. A file git sees as moved (its
 default similarity threshold) is one file under its new name on both sides: the summary counts it under `moved`, its
 row carries the old path as `from`, its lines are the edits made on the way, and a renamed package keeps its cycles,

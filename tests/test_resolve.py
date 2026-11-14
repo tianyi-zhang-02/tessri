@@ -86,6 +86,14 @@ class ReachabilityTest(TempRepo):
         self.assertIn("`entry`", caveat[0])
         self.assertEqual(self.scan(entry=["utils.py"]).graph.ambiguous, {"utils.py": 2})  # the config reference is still ambiguous; the entry is not
 
+    def test_a_shared_name_in_code_is_listed_with_the_config_ones(self):
+        (self.root / ".github/workflows/ci.yml").unlink()
+        write_tree(self.root, {"pkg/loader.py": "FILES = ['utils.py', 'sub/utils.py']\n"})
+        a = self.scan()
+        self.assertEqual(a.graph.ambiguous, {"utils.py": 2})  # recorded by the Python analyzer; no config names it now
+        self.assertEqual(a.graph.edges.get("pkg/loader.py", set()), {"pkg/sub/utils.py"})  # the suffix that fits one file names it; the shared one names none
+        self.assertIn("in configs, scripts or code", [c for c in build_report(a)["caveats"] if "several files" in c][0])
+
     def test_a_bare_package_file_name_in_code_makes_no_edge(self):
         a = self.scan()
         self.assertNotIn("pkg/__main__.py", a.graph.edges.get("pkg/main.py", set()))
