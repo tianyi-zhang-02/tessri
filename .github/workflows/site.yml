@@ -1,17 +1,12 @@
 # The site (site/ plus docs/guide/, built by tools/build_site.py with nothing installed) to GitHub Pages, on every
-# push to main that touches it. One-time setup in the repository: Settings → Pages → Build and deployment → Source:
+# push to main: the demo pages are Tessri on this repository (the HTML report, and the brief of the latest change),
+# so every merge rebuilds them. One-time setup in the repository: Settings → Pages → Build and deployment → Source:
 # GitHub Actions. Until then the build job fails at its configure-pages step and nothing else is affected.
 name: site
 
 on:
   push:
     branches: [main]
-    paths:
-      - site/**
-      - docs/guide/**
-      - README.md
-      - tools/build_site.py
-      - .github/workflows/site.yml
   workflow_dispatch:
 
 permissions:
@@ -28,11 +23,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the demo reads the history: ownership, activity, and the latest change against its base
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Build the site
-        run: python tools/build_site.py --out _site
+        run: python tools/build_site.py --out _site --demo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

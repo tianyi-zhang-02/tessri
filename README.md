@@ -2,14 +2,21 @@
 
 **Keep code understandable.**
 
-Tessri reads a codebase and its git history, offline and with nothing else installed, and lets you:
+Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history,
+offline and with nothing else installed, and tells the person a change is handed to where to look first, who is
+able to look, what the change did to the structure and what nobody maintains, with the evidence for every claim.
 
-- See how the system fits together: the modules, the cycles, and the few dependencies that would break them.
+- Hand a change over on one page: the files to look at first and why, who can look, what it did to the structure,
+  the candidate tests kept apart from what actually ran, and what needs a person. On every pull request, if you want.
 - See what a change can reach, the tests that reach it, and who is able to review it.
+- See how the system fits together: the modules, the cycles, and the few dependencies that would break them.
 - Find what nothing reaches and what nobody maintains.
 - Check what a change did to the structure, as Markdown, JSON or SARIF, with an exit code for CI.
 
-Every claim can be traced to its evidence, and what the analysis cannot see it says it cannot see.
+What the analysis cannot see, it says it cannot see. See it on this repository, rebuilt on every push to `main`:
+[the brief of the latest change](https://tianyi-zhang-02.github.io/tessri/demo/) and
+[the HTML report](https://tianyi-zhang-02.github.io/tessri/demo/report.html) with the module graph and the
+impact explorer.
 
 ## Install
 
@@ -18,6 +25,46 @@ pip install tessri
 ```
 
 Python 3.11 or newer, no dependencies. To run it once without installing: `uvx tessri scan .`
+
+## The hand-off
+
+A change is done, by an agent or by a person. `tessri brief --since <base>` is the page the reviewer gets; this one
+is from [a pull request of this repository](https://github.com/tianyi-zhang-02/tessri/pull/13), where the `review`
+workflow posted it as a comment, shortened here to the first sections:
+
+```text
+`origin/release-0.3.0` (base 922381dac) to HEAD 788f979b5. 6 code files changed (0 added, 6 modified, 0 deleted), **186** lines; 5 other files (122 lines of config, docs and the like).
+
+1 commit on the way, by Tianyi Zhang, in their words:
+
+- `788f979b5` The review brief on every pull request: `tessri integration install --agent review` (Tianyi Zhang)
+
+## Look first
+
+| # | File | Why | This change | Owners | Flags |
+|---:|---|---|---|---|---|
+| 1 | `tessri/cli.py` | 15 commits in 90 days | +2 -2 | Tianyi Zhang 100% | - |
+| 2 | `tessri/templates.py` | 12 commits in 90 days | +81 -3 | Tianyi Zhang 100% | - |
+| 3 | `tests/test_integration.py` | 5 commits in 90 days | +83 -1 | Tianyi Zhang 100% | test file |
+| 4 | `tessri/integration.py` | 5 commits in 90 days | +3 -2 | Tianyi Zhang 100% | - |
+
+Nobody other than the authors maintains the changed files, as far as history shows.
+
+## What it did to the structure
+
+No structural findings: the change adds no orphan, cycle, dangling import or unowned code that this analysis can see.
+
+Code outside the change that imports it: **1 file** directly, 0 files through one more step (by area: `tessri` 1).
+
+## Validation
+
+Candidate tests, nearest first: `tests/test_brief.py`, `tests/test_htmlreport.py`, `tests/test_integration.py`, `tests/test_mcp.py`, `tests/test_meta.py` and 3 more (15 in all). They reach the changed files; they are paths, not results.
+
+Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`.
+```
+
+The page goes on with what is open for a person and what to read with care; the JSON carries the whole `triage`
+and `check` objects, so a list shortened on the page hides nothing there.
 
 ## A complete example
 
@@ -67,7 +114,9 @@ real history, and the composite risk score we tried did not beat its parts, so t
 
 ## Read more
 
-- [Guide](docs/guide/README.md): every question Tessri answers, one page each, with real output.
+- [Guide](docs/guide/README.md): every question Tessri answers, one page each, with real output, and
+  [which command, when](docs/guide/when.md).
+- [Demo](https://tianyi-zhang-02.github.io/tessri/demo/): Tessri on itself, rebuilt on every push.
 - [Integration](docs/guide/integration.md): skills, AGENTS.md and CI, with copyable recipes in
   [workflow-recipes.md](docs/workflow-recipes.md); [MCP](docs/guide/mcp.md): the questions as tools for any agent
   that speaks the protocol.
@@ -94,8 +143,11 @@ The site is built from this README and `docs/guide/` by a script with no depende
 landing page, the stylesheet and the icon, and `.github/workflows/site.yml` deploys it to GitHub Pages:
 
 ```bash
-python3 tools/build_site.py --out _site && python3 -m http.server --directory _site
+python3 tools/build_site.py --out _site --demo && python3 -m http.server --directory _site
 ```
+
+`--demo` adds the pages that run Tessri on this checkout: the HTML report, and the brief of the latest commit
+against its first parent.
 
 ## License
 

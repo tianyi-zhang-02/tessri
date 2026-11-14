@@ -88,7 +88,7 @@ class BuildTest(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.out = Path(cls.tmp.name) / "site"
-        cls.written = build_site.build(cls.out)
+        cls.written = build_site.build(cls.out, demo=True)
         cls.pages = {p: p.read_text(encoding="utf-8") for p in cls.out.rglob("*.html")}
 
     @classmethod
@@ -131,7 +131,8 @@ class BuildTest(unittest.TestCase):
         for page, text in self.pages.items():
             self.assertNotRegex(text, r"[\w.+-]+@[\w-]+\.[\w.]+", page.name)
             self.assertEqual(re.findall(r'<(?:link|script|img|iframe)\b[^>]*\s(?:href|src)="(https?://[^"]+)"', text), [], page.name)  # nothing loaded from elsewhere: no fonts, scripts, images, trackers
-            self.assertIn('<link rel="stylesheet" href="', text)
+            if page.name != "report.html":  # the HTML report is its own document, with its style inside
+                self.assertIn('<link rel="stylesheet" href="', text)
         self.assertIn("favicon.svg", {p.name for p in self.written})
         self.assertIn(".nojekyll", {p.name for p in self.written})
 
@@ -141,8 +142,29 @@ class BuildTest(unittest.TestCase):
             with self.assertRaises(build_site.BuildError):
                 build_site.build(Path(plain))
             self.assertTrue((Path(plain) / "keep.txt").exists())
-        again = build_site.build(self.out)  # the marker is there, so the directory is rebuilt
-        self.assertEqual(len(again), len(self.written))
+        with tempfile.TemporaryDirectory() as own:
+            first = build_site.build(Path(own) / "site")
+            again = build_site.build(Path(own) / "site")  # the marker is there, so the directory is rebuilt
+            self.assertEqual(len(again), len(first))
+
+    def test_the_demo_runs_tessri_on_this_checkout(self):
+        index = self.pages[self.out / "index.html"]
+        demo = self.pages[self.out / "demo" / "index.html"]
+        report = self.pages[self.out / "demo" / "report.html"]
+        self.assertIn('<section class="band" id="demo">', index)
+        self.assertIn('<a href="demo/">Demo</a>', index)
+        self.assertIn("$ <b>tessri brief --since ", index)
+        self.assertIn('<h3 id="look-first">Look first</h3>', index)  # the brief's first sections, one heading level down
+        self.assertIn('<h1 id="tessri-on-itself">Tessri on itself</h1>', demo)
+        self.assertIn('<h2 id="review-brief-', demo)
+        self.assertIn('<h3 id="read-this-with-care">Read this with care</h3>', demo)
+        self.assertIn('<a href="report.html">', demo)
+        self.assertIn('<a href="../demo/" aria-current="page">Demo</a>', demo)
+        self.assertIn("<title>Tessri: ", report)
+        self.assertIn('<a href="../demo/">Demo</a>', self.pages[self.out / "guide" / "brief.html"])
+        change = build_site.latest_change()
+        self.assertEqual(set(change), {"sha", "pr", "title"})
+        self.assertIn(html.escape(change["title"]), demo)
 
     def test_the_command_line(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:

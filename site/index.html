@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tessri</title>
-<meta name="description" content="Keep code understandable. Tessri reads a codebase and its git history, offline and with nothing else installed, and answers the questions a maintainer asks: how the system fits together, what a change can reach, what nobody maintains, and what a change did to the structure.">
+<meta name="description" content="Keep code understandable. Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.">
 <meta property="og:title" content="Tessri">
-<meta property="og:description" content="Keep code understandable. Structure, impact, review focus and ownership for a codebase, offline, with evidence for every claim.">
+<meta property="og:description" content="Keep code understandable. The evidence layer between the agents that write code and the people who stand behind it: where to look first, who can look, what a change did to the structure, and what nobody maintains. Offline, zero dependencies.">
 <meta property="og:type" content="website">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="tessri.css">
@@ -22,13 +22,14 @@
   </a>
   <nav aria-label="Site">
     <a href="guide/">Guide</a>
+    {{demo_link}}
     <a href="{{repo}}">GitHub</a>
     {{theme_button}}
   </nav>
 </header>
 <section class="wrap hero">
     <h1>Keep code understandable.</h1>
-    <p class="lede">Tessri reads a codebase and its git history, offline and with nothing else installed, and answers the questions a maintainer asks of a system that grows faster than anyone can read it.</p>
+    <p class="lede">Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing else installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.</p>
     <div class="actions">
       <a class="button cta" href="guide/getting-started.html">Get started</a>
       <a class="button quiet" href="guide/">Read the guide</a>
@@ -43,9 +44,10 @@
 
 <main class="wrap">
 
+{{demo}}
   <section class="band" id="questions">
     <span class="label">What it answers</span>
-    <h2>Four questions, answered from one picture of the code and its history.</h2>
+    <h2>Four questions, answered from one picture of the code and its history, and one page that hands a change over.</h2>
     <div class="questions">
       <div>
         <h3>How does the system fit together?</h3>
@@ -65,7 +67,7 @@
       <div>
         <h3>What did this change do to the structure?</h3>
         <p>New orphans, new cycles, imports of deleted files, changed code nobody active maintains. Markdown, JSON or SARIF, with an exit code for CI.</p>
-        <span class="cmd"><code>tessri check --since main</code></span>
+        <span class="cmd"><code>tessri check</code></span>
       </div>
     </div>
   </section>

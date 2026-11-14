@@ -3,9 +3,12 @@
 Zero dependencies, like the tool. The landing page's example is lifted from the README so the two cannot drift; every
 guide page is Markdown rendered by the small converter below (headings, paragraphs, fenced code, tables, lists,
 links, code spans, bold and italic are all the guide uses). Links between guide pages become links between the
-rendered pages; links out of the guide point at the repository on GitHub.
+rendered pages; links out of the guide point at the repository on GitHub. With `--demo`, the package in this
+checkout runs on the checkout itself: `demo/report.html` is the HTML report, and `demo/` the brief of the latest
+commit against its first parent, which on `main` is the last merged pull request; the landing page then opens with
+the first sections of that brief.
 
-    python tools/build_site.py --out _site
+    python tools/build_site.py --out _site --demo
     python -m http.server --directory _site
 
 The output directory is created, or reused when it holds the marker this script writes; anything else is refused.
@@ -18,6 +21,7 @@ import html
 import posixpath
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,7 +37,7 @@ ASSETS = ("tessri.css", "favicon.svg")
 # The guide's navigation: README.md (the guide index) gives the labels and the order; this gives the groups. A page
 # the index names but no group claims lands under "More", so adding a page never hides it.
 GROUPS = [
-    ("Start", ["getting-started"]),
+    ("Start", ["getting-started", "when"]),
     ("Questions", ["scan", "ownership", "review-load", "graph", "impact"]),
     ("Changes", ["triage", "check", "brief"]),
     ("Output", ["html-report", "json"]),
@@ -292,12 +296,14 @@ def head(title: str, description: str, depth: int) -> str:
     )
 
 
-def top(depth: int, current: str | None) -> str:
+def top(depth: int, current: str | None, demo: bool = False) -> str:
     up = "../" * depth
     guide = ' aria-current="page"' if current == "guide" else ""
+    here = ' aria-current="page"' if current == "demo" else ""
+    demo_link = f'<a href="{up}demo/"{here}>Demo</a>' if demo else ""
     return (
         f'<div class="sky">\n<header class="wrap top">\n  <a class="wordmark" href="{up or "./"}" aria-label="Tessri home">{MARK}<span>tessri<span class="dot">.</span></span></a>\n'
-        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a><a href="{REPO}">GitHub</a>{THEME_BUTTON}</nav>\n</header>\n</div>\n'
+        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a href="{REPO}">GitHub</a>{THEME_BUTTON}</nav>\n</header>\n</div>\n'
     )
 
 
@@ -336,7 +342,7 @@ def nav(pages: list[tuple[str, str]], current: str) -> str:
     return "\n".join(out)
 
 
-def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]]) -> str:
+def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]], demo: bool = False) -> str:
     description = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", body.split("<p>", 1)[1].split("</p>", 1)[0])) if "<p>" in body else title
     source = f"docs/guide/{name}.md"
     article = (
@@ -345,7 +351,7 @@ def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]]) -
     return (
         head(f"{title} · Tessri guide", description[:300], 1)
         + "<body>\n"
-        + top(1, "guide")
+        + top(1, "guide", demo)
         + f'<div class="wrap guide">\n{nav(pages, name if name != "README" else "index")}\n{article}\n</div>\n'
         + foot(1)
         + SCRIPTS
@@ -374,13 +380,15 @@ def example_panel() -> str:
     return f'<div class="cmdline">$ <b>{html.escape(first[2:])}</b></div>\n<div class="output prose">\n{body}\n</div>'
 
 
-def landing() -> str:
+def landing(demo: dict | None) -> str:
     template = (SITE / "index.html").read_text(encoding="utf-8")
     example = example_panel()
     filled = (
         template.replace("{{mark}}", MARK)
         .replace("{{repo}}", REPO)
         .replace("{{theme_button}}", THEME_BUTTON)
+        .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
+        .replace("{{demo}}", demo_section(demo) if demo else "")
         .replace("{{example}}", example)
         .replace("{{scripts}}", SCRIPTS)
     )
@@ -390,8 +398,112 @@ def landing() -> str:
     return filled
 
 
-def build(out: Path) -> list[Path]:
-    """Write the site into `out` and return the files written."""
+# --- The demo: Tessri on this checkout --------------------------------------------------------------------------
+
+
+def _git(*args: str) -> str:
+    """Standard output of a git command run in this checkout, stripped; empty when git fails."""
+    try:
+        res = subprocess.run(["git", "-C", str(ROOT), *args], capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def latest_change() -> dict:
+    """The commit this checkout is at, in the words the demo uses: the pull request it merged (number and title, from
+    the merge commit GitHub writes) or, for any other commit, its subject."""
+    lines = _git("log", "-1", "--format=%H%n%s%n%b").splitlines()
+    if len(lines) < 2:
+        raise BuildError("the demo needs a git checkout with a commit")
+    sha, subject, body = lines[0], lines[1], [line for line in lines[2:] if line.strip()]
+    merged = re.match(r"Merge pull request #(\d+)", subject)
+    if merged:
+        return {"sha": sha, "pr": int(merged.group(1)), "title": body[0] if body else subject}
+    return {"sha": sha, "pr": None, "title": subject}
+
+
+def demo_content() -> dict:
+    """Tessri on this checkout, from the package in it: the HTML report, the brief of the latest commit against its
+    first parent (`base`), and what that commit is. Nothing of the site has been written when this runs, so the brief
+    cannot see the site's own output as a change."""
+    base = _git("rev-parse", "--short=9", "HEAD^1")
+    if not base:
+        raise BuildError("the demo needs a commit with a parent in a full checkout (not a shallow one)")
+    sys.path.insert(0, str(ROOT))
+    from tessri import brief, config, htmlreport  # noqa: E402  (the package in this checkout)
+    from tessri.analyze import analyze  # noqa: E402
+    from tessri.report import build_report  # noqa: E402
+
+    cfg = config.load(ROOT)
+    analysis = analyze(ROOT, cfg)
+    try:
+        page = brief.markdown(brief.compute(ROOT, cfg, base))
+    except brief.BriefError as exc:
+        raise BuildError(f"the demo brief: {exc}") from exc
+    return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base}
+
+
+def _demote(body: str) -> str:
+    """Every heading one level down, so a rendered page sits under the page's own heading."""
+    return re.sub(r"<(/?)h([1-5])\b", lambda m: f"<{m.group(1)}h{int(m.group(2)) + 1}", body)
+
+
+def _what(change: dict) -> str:
+    title = html.escape(change["title"])
+    if change["pr"]:
+        return f'pull request <a href="{REPO}/pull/{change["pr"]}">#{change["pr"]}</a>, \u201c{title}\u201d, merged as <code>{change["sha"][:9]}</code>'
+    return f'the commit \u201c{title}\u201d (<code>{change["sha"][:9]}</code>)'
+
+
+def demo_section(demo: dict) -> str:
+    """The landing page's opening section: the brief's first sections (scope, commits, look first) as a panel."""
+    page = demo["brief"]
+    cut = page.find("\n## What it did to the structure")
+    excerpt = page[:cut] if cut != -1 else page
+    if excerpt.startswith("# "):
+        excerpt = excerpt.split("\n", 1)[1]  # the panel has a command line instead of the page's title
+    _, body = render_markdown(excerpt)
+    return (
+        '  <section class="band" id="demo">\n'
+        '    <span class="label">See it on this repository</span>\n'
+        '    <h2>A change is done. This is the page the person it goes to gets.</h2>\n'
+        f'    <p class="intro">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections here, '
+        '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'
+        '    <div class="example">\n      <div class="panel">\n'
+        f'<div class="cmdline">$ <b>tessri brief --since {html.escape(demo["base"])}</b></div>\n<div class="output prose">\n{_demote(body)}\n</div>\n'
+        '      </div>\n    </div>\n  </section>\n'
+    )
+
+
+def demo_page(demo: dict) -> str:
+    """`demo/index.html`: the whole brief, under a heading that says what it is."""
+    _, body = render_markdown(demo["brief"])
+    base = html.escape(demo["base"])
+    intro = (
+        '<h1 id="tessri-on-itself">Tessri on itself</h1>\n'
+        f'<p>The latest change on this repository\'s <code>main</code> is {_what(demo["change"])}. Below is the page <code>tessri brief --since {base}</code> hands a person for it: '
+        f'the change compared with <code>main</code> as it was before it (<code>{base}</code>), built when the site was deployed, and every push to <code>main</code> rebuilds it. '
+        '<a href="report.html">The HTML report of the repository</a>, with the module graph and the impact explorer, is what <code>tessri scan . --format html</code> writes, built the same way.</p>\n'
+    )
+    article = (
+        f'<article class="prose">\n{intro}{_demote(body)}\n'
+        f'<p class="source">Built from this checkout by <a href="{BLOB}tools/build_site.py">tools/build_site.py</a> with <code>--demo</code>; the <a href="../guide/brief.html">brief guide</a> explains every section, and the <a href="../guide/html-report.html">report guide</a> the explorer.</p>\n</article>'
+    )
+    return (
+        head("Tessri on itself · demo", "The brief of the latest change on Tessri's own repository, and the HTML report of the repository, rebuilt on every push.", 1)
+        + "<body>\n"
+        + top(1, "demo", True)
+        + f'<div class="wrap demo-page">\n{article}\n</div>\n'
+        + foot(1)
+        + SCRIPTS
+        + "\n</body>\n</html>\n"
+    )
+
+
+def build(out: Path, demo: bool = False) -> list[Path]:
+    """Write the site into `out` and return the files written. With `demo`, the pages that run Tessri on this checkout."""
+    content = demo_content() if demo else None  # before anything is written
     out = out.resolve()
     if out.exists():
         if out.is_file() or (any(out.iterdir()) and not (out / MARKER).exists()):
@@ -408,7 +520,7 @@ def build(out: Path) -> list[Path]:
     for asset in ASSETS:
         shutil.copyfile(SITE / asset, out / asset)
         written.append(out / asset)
-    write("index.html", landing())
+    write("index.html", landing(content))
     pages = guide_index()
     known = {s for s, _ in pages}
     for md in sorted(GUIDE.glob("*.md")):
@@ -418,7 +530,11 @@ def build(out: Path) -> list[Path]:
         title, body = render_markdown(md.read_text(encoding="utf-8"))
         if not title:
             raise BuildError(f"docs/guide/{md.name} has no level-one heading")
-        write(f"guide/{'index' if name == 'README' else name}.html", guide_page(name, title, body, pages))
+        write(f"guide/{'index' if name == 'README' else name}.html", guide_page(name, title, body, pages, demo))
+    if content:
+        (out / "demo").mkdir()
+        write("demo/report.html", content["report"])
+        write("demo/index.html", demo_page(content))
     write(".nojekyll", "")
     write(MARKER, "built by tools/build_site.py\n")
     return written
@@ -427,9 +543,10 @@ def build(out: Path) -> list[Path]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the Tessri site from site/ and docs/guide/.")
     parser.add_argument("--out", default="_site", help="output directory (default: _site)")
+    parser.add_argument("--demo", action="store_true", help="also run Tessri on this checkout: demo/report.html and the brief of the latest commit at demo/")
     args = parser.parse_args(argv)
     try:
-        written = build(Path(args.out))
+        written = build(Path(args.out), demo=args.demo)
     except BuildError as exc:
         print(f"build_site: {exc}", file=sys.stderr)
         return 2

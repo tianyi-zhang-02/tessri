@@ -360,6 +360,7 @@ footer.foot a { color: var(--ink-2); }
 /* Guide */
 
 .guide { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; padding: 40px 0 0; }
+.demo-page { padding-top: 40px; }
 
 .guide-nav { position: sticky; top: 24px; align-self: start; font-size: 14px; line-height: 20px; }
 .guide-nav summary { display: none; }
@@ -397,6 +398,7 @@ footer.foot a { color: var(--ink-2); }
 @media (max-width: 880px) {
   .questions, .how { grid-template-columns: minmax(0, 1fr); }
   .guide { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 16px; }
+  .demo-page { padding-top: 16px; }
   .guide-nav { position: static; }
   .guide-nav summary { display: block; cursor: pointer; color: var(--ink-2); padding: 10px 0; border-bottom: 1px solid var(--line-soft); list-style: none; }
   .guide-nav summary::-webkit-details-marker { display: none; }

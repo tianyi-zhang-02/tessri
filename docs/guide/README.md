@@ -4,6 +4,7 @@ Tessri reads a codebase and its git history and answers the questions a maintain
 faster than anyone can read it. One page per question, each with real output and with what the analysis cannot see.
 
 - [Getting started](getting-started.md): install, run, or build a single-file copy.
+- [Which command, when](when.md): the moment, the command, the MCP tool, and the first thing to read in the output.
 - [What is unused: scan and reachability](scan.md): every file's status, and how reachability is decided.
 - [Who maintains it](ownership.md): owners from git history, who went quiet, and `CODEOWNERS` against reality.
 - [Review load](review-load.md): how much review the recent changes ask for, where, and from whom.
