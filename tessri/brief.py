@@ -7,10 +7,11 @@ look at first with the reasons triage gives, what the change did to the structur
 from the checks the host actually ran, who can look, and what needs a person. It selects for reading and shortens
 every list with its count; the JSON carries the whole `triage` and `check` objects, so nothing is filtered away.
 
-What the host ran is the host's to say: `--ran` records one line per check, verbatim, and `--report` reads a test
+What the host ran is the host's to say: `--ran` records one line per check, verbatim, `--report` reads a test
 report the host wrote (JUnit XML, which pytest, jest-junit and most CI systems produce) and holds the candidate tests
-against it; without either the brief says that no check was recorded. An execution is never inferred from the
-candidate tests."""
+against it, and `--coverage` reads a coverage report the host wrote and holds the lines the change added or changed
+against the statements that ran; without any of them the brief says that no check was recorded. An execution is never
+inferred from the candidate tests."""
 
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
-from . import __version__, inventory, meta, since, triage
+from . import __version__, coverage, inventory, meta, since, triage
 from . import runs as testruns
 from .analyze import analyze
 from .config import Config
@@ -43,7 +44,8 @@ NOTES = [
     "registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.",
     "History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. "
     "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.",
-    "Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test report the host wrote and `--report` reads, was run.",
+    "Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. "
+    "A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.",
 ]
 
 
@@ -86,11 +88,12 @@ def uncommitted(root: Path) -> list[str]:
     return sorted(paths)
 
 
-def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence[str] = (), now: float | None = None, limit: int = LISTED, reports: Sequence[str | Path] = (), report_base: Path | None = None) -> dict:
+def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence[str] = (), now: float | None = None, limit: int = LISTED, reports: Sequence[str | Path] = (), report_base: Path | None = None, coverage_reports: Sequence[str | Path] = ()) -> dict:
     """The brief of the change between `since_ref` (`since.default_since` when None) and the working tree, as the
     JSON-ready dict the command prints: its own sections for reading, and the whole triage and check objects under
-    `triage` and `check`. `reports` are test reports the host wrote (JUnit XML; relative paths under `report_base`,
-    else the working directory), held against the candidate tests."""
+    `triage` and `check`. `reports` are test reports the host wrote (JUnit XML), held against the candidate tests, and
+    `coverage_reports` coverage reports it wrote (Cobertura or Clover XML, lcov, coverage.py's JSON), held against the
+    lines the change added or changed; relative paths are under `report_base`, else the working directory."""
     root = Path(root).resolve()
     now = time.time() if now is None else now
     if since_ref is None:
@@ -112,7 +115,11 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
         raise BriefError(str(exc)) from exc
     try:
         held = testruns.against(testruns.load(reports, set(head_a.records), report_base), t["tests"]["paths"]) if reports else None
-    except testruns.RunsError as exc:
+        cover = None
+        if coverage_reports:
+            measured = [p for p in code if (rec := head_a.records.get(p)) is not None and rec.analyzer is not None and not rec.is_test]
+            cover = coverage.against(coverage.load(coverage_reports, set(head_a.records), report_base), coverage.changed_lines(root, base, measured))
+    except (testruns.RunsError, coverage.CoverageError, since.CheckError) as exc:
         raise BriefError(str(exc)) from exc
 
     not_analysed: dict[str, list[str]] = defaultdict(list)
@@ -139,7 +146,14 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
         open_items.append({"kind": "candidate-failed", "text": f"{_named(held['failed'])} failed in the report: the tests that reach the change do not pass.", "files": held["failed"]})
     if held and held["not_run"]:
         open_items.append({"kind": "candidates-not-run", "text": f"{_named(held['not_run'])} reach the change but are not in the report: run them, or say why not.", "files": held["not_run"]})
-    if not ran and held is None:
+    if cover and cover["not_run"]:
+        bad = _not_run(cover)
+        open_items.append({"kind": "changed-lines-not-run", "text": f"Changed statements no recorded test executed: {_lines_named(cover, bad)}. Run tests that reach them, or say why they need none.", "files": bad})
+    if cover and cover["not_measured"]:
+        missing = _not_measured(cover)
+        one = len(missing) == 1
+        open_items.append({"kind": "changed-files-not-measured", "text": f"{_named(missing)} {'is' if one else 'are'} not in the coverage report: none of {'its' if one else 'their'} changed lines was measured. Run tests that load {'it' if one else 'them'}, or say why {'it needs' if one else 'they need'} none.", "files": missing})
+    if not ran and held is None and cover is None:
         open_items.append({"kind": "no-checks-recorded", "text": "No check was recorded as run: the candidate tests are paths, not results.", "files": []})
 
     ids = {"since": since_ref, "base": base, "head": head, "uncommitted": dirty}
@@ -174,13 +188,45 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "modules_touched": c["modules_touched"],
             "not_analysed": [{"language": k, "files": v} for k, v in sorted(not_analysed.items())],
         },
-        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran), "report": held},
+        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran), "report": held, "coverage": cover},
         "people": {"reviewers": t["reviewers"], "nobody_else_can_look": nobody_else, "no_active_owner": no_owner},
         "open": open_items,
         "triage": t,
         "check": c,
         "notes": NOTES,
     }
+
+
+def _not_run(cover: dict) -> list[str]:
+    """The measured files with changed statements that did not run, most first."""
+    return sorted((p for p, f in cover["files"].items() if f["not_run"]), key=lambda p: (-cover["files"][p]["not_run"], p))
+
+
+def _not_measured(cover: dict) -> list[str]:
+    return sorted(cover["not_measured"], key=lambda p: (-cover["not_measured"][p], p))
+
+
+def _lines_named(cover: dict, paths: Sequence[str], limit: int = NAMED, runs: int = 6) -> str:
+    """`path` lines 10-12, 15; `other` line 3; and 2 more."""
+    parts = []
+    for p in paths[:limit]:
+        f = cover["files"][p]
+        parts.append(f"`{p}` {'line' if f['not_run'] == 1 else 'lines'} {coverage.spans(f['not_run_ranges'][:runs])}" + (", ..." if len(f["not_run_ranges"]) > runs else ""))
+    return "; ".join(parts) + (f"; and {len(paths) - limit} more under `validation.coverage.files`" if len(paths) > limit else "")
+
+
+def _coverage_line(cover: dict) -> str:
+    files = cover["files"]
+    text = f"Against the coverage report: of the {_many(cover['changed'], 'line')} this change adds or changes in {_many(len(files) + len(cover['not_measured']), 'code file')} (tests left out), the report has a statement on {cover['statements']:,}"
+    if cover["statements"]:
+        bad = _not_run(cover)
+        text += f"; {cover['ran']:,} ran under the recorded tests, {cover['not_run']:,} did not" + (f" ({_lines_named(cover, bad)})" if bad else "")
+    text += "."
+    if cover["not_measured"]:
+        missing = _not_measured(cover)
+        listed = ", ".join(f"`{p}` ({_many(cover['not_measured'][p], 'line')})" for p in missing[:NAMED]) + (f" and {len(missing) - NAMED} more" if len(missing) > NAMED else "")
+        text += f" Not in the report: {listed}, so nothing there was measured."
+    return text
 
 
 # --- Markdown ---------------------------------------------------------------------------------------------
@@ -259,14 +305,20 @@ def markdown(b: dict) -> str:
             out += [f"Against the report: {len(held['ran'])} of the {cand['count']} ran, {', '.join(parts)}; {len(held['not_run'])} did not run" + (f" ({_named(held['not_run'])})" if held["not_run"] else "") + ".", ""]
     elif c["code_files"]:
         out += ["No test file reaches the changed code, as far as static imports show.", ""]
-    if v["ran"] or held:
+    cover = v.get("coverage")
+    if cover and cover["changed"]:
+        out += [_coverage_line(cover), ""]
+    if v["ran"] or held or cover:
         lines = [f"- {line}" for line in v["ran"]]
         if held:
             extra = f", {held['unmatched']['cases']} of them of no file in this repository" if held["unmatched"]["cases"] else ""
             lines.append(f"- test report {', '.join(f'`{s}`' for s in held['sources'])}: {_many(held['cases'], 'case')}{extra}")
+        if cover:
+            extra = f", and {_many(cover['unmatched']['files'], 'name')} of no file in this repository" if cover["unmatched"]["files"] else ""
+            lines.append(f"- coverage report {', '.join(f'`{s}`' for s in cover['sources'])}: {_many(cover['measured'], 'file')} measured{extra}")
         out += ["Checks the host ran, as recorded:", ""] + lines + [""]
     else:
-        out += ['Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report`.', ""]
+        out += ['Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report` or a coverage report with `--coverage`.', ""]
 
     out += ["## Open for a person", ""]
     out += [f"- {item['text']}" for item in b["open"]] or ["- Nothing this analysis can name; the diff and the intent are still yours to read."]

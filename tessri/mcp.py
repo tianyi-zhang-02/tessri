@@ -198,13 +198,14 @@ def _check(server: Server, args: dict) -> tuple[str, dict]:
 def _brief(server: Server, args: dict) -> tuple[str, dict]:
     root, cfg = server.configured(args)
     try:
-        result = brief.compute(root, cfg, args.get("since"), ran=args.get("ran") or [], reports=args.get("report") or [], report_base=root)
+        result = brief.compute(root, cfg, args.get("since"), ran=args.get("ran") or [], reports=args.get("report") or [], report_base=root, coverage_reports=args.get("coverage") or [])
     except brief.BriefError as exc:
         raise Mistake(str(exc)) from exc
     return brief.markdown(result), result
 
 
 _REPORT = {"type": "array", "items": {"type": "string"}, "default": [], "description": "test reports the host wrote, as JUnit XML (pytest --junitxml, jest-junit and the like), paths relative to the root: the candidate tests are held against what ran"}
+_COVERAGE = {"type": "array", "items": {"type": "string"}, "default": [], "description": "coverage reports the host wrote (Cobertura or Clover XML, lcov, or coverage.py's JSON), paths relative to the root: the lines the change adds or changes are held against the statements that ran"}
 _SINCE = {"type": "string", "description": "a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work. Absent: the default branch (origin/HEAD, else origin/main, origin/master, main or master; HEAD when none exists). HEAD: only uncommitted work"}
 
 TOOLS: tuple[Tool, ...] = (
@@ -270,6 +271,7 @@ TOOLS: tuple[Tool, ...] = (
             "since": _SINCE,
             "ran": {"type": "array", "items": {"type": "string"}, "default": [], "description": "the checks the host actually ran, one string each with the command, its result and exit code, recorded verbatim; without it the brief says that none was recorded"},
             "report": _REPORT,
+            "coverage": _COVERAGE,
         },
         (),
         _brief,

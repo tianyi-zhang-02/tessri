@@ -60,7 +60,7 @@ Code outside the change that imports it: **1 file** directly, 0 files through on
 
 Candidate tests, nearest first: `tests/test_brief.py`, `tests/test_htmlreport.py`, `tests/test_integration.py`, `tests/test_mcp.py`, `tests/test_meta.py` and 3 more (15 in all). They reach the changed files; they are paths, not results.
 
-Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report`.
+Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report` or a coverage report with `--coverage`.
 ```
 
 The page goes on with what is open for a person and what to read with care; the JSON carries the whole `triage`

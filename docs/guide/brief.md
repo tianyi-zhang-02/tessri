@@ -9,6 +9,7 @@ tessri brief --since main                                                       
 tessri brief                                                                     # the same against the default branch (origin/HEAD, else main or master)
 tessri brief --since main --ran "python -m pytest tests/test_x.py: 12 passed (exit 0)"   # record what you ran, one --ran per check
 tessri brief --since main --report junit.xml                                     # hold the candidate tests against a test report the host wrote
+tessri brief --since main --coverage coverage.xml                                # hold the lines the change added or changed against a coverage report the host wrote
 tessri brief --since main --format json                                          # the sections as data, with the whole triage and check objects
 tessri brief --since main --out brief.md                                         # a file to paste into the change's description
 ```
@@ -79,7 +80,7 @@ Checks the host ran, as recorded:
 - Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in a backtest on one repository that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that this change is wrong, and a new file has no history, so it sorts by its size.
 - Dependents, candidate tests and findings rest on what the analyzers see between files of this repository, static imports above all; a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.
 - History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.
-- Candidate tests are paths that reach the change, never executions; only what `--ran` records was run.
+- Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.
 ```
 
 **What is on the page.** The first paragraph is the scope: `since`, the base it resolves to, HEAD, and when there is
@@ -90,20 +91,34 @@ owners and flags, and who other than the authors maintains the changed files. *W
 check's findings, most serious first, each with its first files and what to do, then the code outside the change that
 imports it, and the changed files no analyzer covers, named rather than dropped. *Validation* keeps two things apart:
 the candidate tests, which are paths that reach the changed files, and the checks the host ran, which are only what
-`--ran` recorded or a test report given with `--report` says; with a report, each candidate is marked passed, failed,
-skipped or not run, and the page says how many of them ran. *Open for a person* collects what the analysis cannot
-settle: findings that need a decision (changed code nobody active maintains), files only the author maintains, files
-in a language without an analyzer, candidate tests that failed or are missing from the report, and the absence of any
-recorded check.
+`--ran` recorded or a test or coverage report given with `--report` or `--coverage` says; with a test report, each
+candidate is marked passed, failed, skipped or not run, and the page says how many of them ran; with a coverage report,
+it says how many of the lines the change added or changed the report has a statement on, how many of those ran, which
+did not, and which changed files the report does not measure at all. *Open for a person* collects what the analysis
+cannot settle: findings that need a decision (changed code nobody active maintains), files only the author maintains,
+files in a language without an analyzer, candidate tests that failed or are missing from the report, changed statements
+no recorded test executed, changed files the coverage report does not measure, and the absence of any recorded check.
 
 **What ran is the host's to say.** Tessri runs no tests and reads no CI. `--ran` records one line per check,
 verbatim, with whatever the host wants a reviewer to see (the command, the result, the exit code). `--report` reads a
 test report the host wrote, JUnit XML as pytest (`--junitxml`), jest-junit, go-junit-report and most CI systems produce
 it, and holds the candidate tests against its cases: a case belongs to the file its `file` attribute or its dotted
-`classname` names, a `failure`, `error` or `skipped` child says how it went, and a candidate the report does not mention
-did not run, as far as the report says. Several reports are read as one. The MCP tool takes the same as `ran` and
-`report`. Without either the page says that no check was recorded. A candidate test is never promoted to an execution,
-and a historical passing suite is not a current result.
+`classname` names, or failing both the file its suite is named after (jest-junit writes the attribute with
+`addFileAttribute: "true"`, or names suites by `{filepath}`), a `failure`, `error` or `skipped` child says how it went,
+and a candidate the report does not mention did not run, as far as the report says. Several reports are read as one.
+
+**A coverage report says which statements ran.** `--coverage` reads one the host wrote, Cobertura or Clover XML, lcov
+or coverage.py's JSON (`coverage xml`, `coverage json`, `coverage lcov`, pytest-cov, jest or c8 with the `lcov`,
+`cobertura` or `clover` reporter), and joins it with the diff: of the lines the change added or changed in the code
+files the analyzers read, tests left out, which the report has a statement on, which of those ran under the recorded
+tests and which did not, line by line, and which changed files the report does not measure at all. A changed line the
+report has no statement on (a blank line, a comment, a line of a docstring) counts for neither side, and a report is
+read as the host left it: its line numbers are those of the files when the tests ran, and executed means executed, not
+asserted about. Several reports are read as one run. The MCP tool takes the same as `ran`, `report` and `coverage`.
+Without any of them the page says that no check was recorded. A candidate test is never promoted to an execution, and a
+historical passing suite is not a current result.
+On this repository, the line's first run named eight statements of the module that reads the report which no test had
+executed, two error branches and the case of a path git quotes; the tests exist now because the report said so.
 
 **What it does not do.** It writes no review questions: those are the reviewer's, and the
 [hand-curated sample](../examples/review-brief-f8d4219.md) shows what a person adds to the facts. It infers no
@@ -115,10 +130,13 @@ why the page says so. Everything structural rests on static imports between file
 `uncommitted_files`, `authors`, `commits` as `id`, `author`, `subject`, and the counts), `attention` (the first
 `--limit` rows of triage's `files`, `shown`, `total`), `consequences` (`counts`, `findings`, `ripple`, `by_area`,
 `modules_touched`, `not_analysed` as `language` and `files`), `validation` (`candidates` with `count` and `nearest`,
-`ran`, and `report`: null without `--report`, else `sources`, `cases`, `ran` as path to `passed`, `failed` or `skipped`,
-`passed`, `failed`, `skipped`, `not_run` and `unmatched`), `people` (`reviewers`, `nobody_else_can_look`,
-`no_active_owner`), `open` (each with `kind`, `text`, `files`; the kinds are the finding kinds that need a person,
-`only-the-author`, `not-analysed`, `candidate-failed`, `candidates-not-run` and `no-checks-recorded`), then
+`ran`, `report`: null without `--report`, else `sources`, `cases`, `ran` as path to `passed`, `failed` or `skipped`,
+`passed`, `failed`, `skipped`, `not_run` and `unmatched`, and `coverage`: null without `--coverage`, else `sources`,
+`measured`, `files` as path to `changed`, `statements`, `ran`, `not_run` and `not_run_ranges` as `[start, end]` runs,
+`not_measured` as path to its changed lines, the totals `changed`, `statements`, `ran` and `not_run`, and `unmatched`),
+`people` (`reviewers`, `nobody_else_can_look`, `no_active_owner`), `open` (each with `kind`, `text`, `files`; the kinds
+are the finding kinds that need a person, `only-the-author`, `not-analysed`, `candidate-failed`, `candidates-not-run`,
+`changed-lines-not-run`, `changed-files-not-measured` and `no-checks-recorded`), then
 `triage` and `check` whole, and `notes`. `meta` is the [shared block](json.md) with `meta.change` and `meta.analysis`,
 which says `skipped` with reason `no-code-changes` when there was nothing to compare. A bad base, or a directory that
 is not a git repository, exits 2 with the sentence on standard error and nothing on standard output; the brief has no

@@ -19,8 +19,8 @@ prints the same facts the text shows, as data: `file`, `verdict` (`status`, `con
 for `reached_via` as one entry per hop and for `dependents` and `depends_on` as a map from path to kind) and
 `advice`; `git`, `owners` and `graph` are `null` when the analysis had nothing to say. `tessri brief --format json`
 prints `kind: "brief"`: its own sections (`change` with the full base and head, the commits on the way and the
-uncommitted files in scope; `attention`; `consequences`, with `not_analysed`; `validation`, with `candidates` and
-`ran`; `people`; `open`) and, whole, the `triage` and `check` objects it was composed from.
+uncommitted files in scope; `attention`; `consequences`, with `not_analysed`; `validation`, with `candidates`,
+`ran`, `report` and `coverage`; `people`; `open`) and, whole, the `triage` and `check` objects it was composed from.
 
 The [MCP server](mcp.md) returns these same objects as each tool's `structuredContent`, unchanged.
 

@@ -36,7 +36,7 @@ describes them.
 | `tessri_graph` | `root`, `level`, `module_depth`, `include_tests` | `kind: "module-graph"` (`modules`, `edges`, `cycles`, `summary`, `caveats`) or `"file-graph"` (`nodes`, `edges`) | who imports whom, cycles, owners |
 | `tessri_triage` | `root`, `since` | `kind: "triage"` (`change`, `summary`, `files`, `areas`, `ripple`, `tests`, `reviewers`, `nobody_else_can_look`, `notes`) | which files of a change deserve a person first, who can look |
 | `tessri_check` | `root`, `since` | `kind: "change-check"` (`change`, `summary`, `changed_files`, `findings`, `orphans`, `dangling_imports`, `dangling_references`, `cycles`, `dependencies`, `unowned`, `modules_touched`, `notes`) | what a change did to the structure |
-| `tessri_brief` | `root`, `since`, `ran`, `report` | `kind: "brief"` (`change`, `attention`, `consequences`, `validation`, `people`, `open`, and the whole `triage` and `check` objects) | one page to hand the change over to a person |
+| `tessri_brief` | `root`, `since`, `ran`, `report`, `coverage` | `kind: "brief"` (`change`, `attention`, `consequences`, `validation`, `people`, `open`, and the whole `triage` and `check` objects) | one page to hand the change over to a person |
 
 Arguments, with the command-line option each one is:
 
@@ -52,6 +52,8 @@ Arguments, with the command-line option each one is:
 | `include_tests` (`graph`) | boolean | false | `--include-tests` |
 | `since` (`triage`, `check`, `brief`) | string | the default branch: `origin/HEAD`, else `origin/main`, `origin/master`, `main` or `master`; `HEAD` when none exists | `--since`: a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work (`HEAD`: the uncommitted work alone) |
 | `ran` (`brief`) | array of strings | `[]` | `--ran`: the checks the host actually ran, one string each with the command, its result and exit code, recorded verbatim; without it the page says that none was recorded |
+| `report` (`impact`, `brief`) | array of strings | `[]` | `--report`: test reports the host wrote, JUnit XML, paths relative to the root; the candidate tests are held against what ran |
+| `coverage` (`brief`) | array of strings | `[]` | `--coverage`: coverage reports the host wrote (Cobertura or Clover XML, lcov, coverage.py's JSON), paths relative to the root; the lines the change added or changed are held against the statements that ran |
 | `full` (`scan`) | boolean | false | `--full`: the per-file table |
 
 Paths in and out are repository-relative with `/`, as in the JSON; `root` is the only place the machine's layout

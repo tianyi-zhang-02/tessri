@@ -172,6 +172,7 @@ that). `info` is the rest. Findings are bounded by static analysis and its langu
 ```bash
 tessri brief --since <base> --ran "<command>: <result, exit code>"     # one page for the person; --format json for the data
 tessri brief --since <base> --report junit.xml                           # the candidate tests against the report your test run wrote
+tessri brief --since <base> --coverage coverage.xml                      # the changed lines against the coverage report it wrote
 ```
 
 Run it when the change is ready for a person. It is triage and check from one analysis, in one page: the base,
@@ -181,8 +182,10 @@ and what needs a person. Every shortened list carries its count, and the JSON ho
 objects, so nothing is filtered away. Record what you actually ran with `--ran`, one per check, with its result and
 exit code, verbatim, or hand over the JUnit XML your test run wrote with `--report` (pytest `--junitxml`, jest-junit):
 it marks each candidate test passed, failed, skipped or not run, and a failed or missing one becomes an item for a
-person. Without either the page says that no check was recorded, and it never infers an execution from the candidate
-tests. Put the page in the change's description, or hand the JSON to the reviewer's tools; it is a reading aid, not a
+person. Hand over the coverage report the run wrote with `--coverage` (Cobertura or Clover XML, lcov, coverage.py's
+JSON): the lines the change added or changed are held against the statements that ran, and the ones no recorded test
+executed, or in a changed file the report does not measure, become items too. Without any of them the page says that
+no check was recorded, and it never infers an execution from the candidate tests. Put the page in the change's description, or hand the JSON to the reviewer's tools; it is a reading aid, not a
 verdict, and the diff is still theirs to read.
 
 ## Ownership
