@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="tessri.css">
-<script>try{var t=localStorage.getItem("tessri-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
+{{notices}}
 </head>
 <body class="home">
 
@@ -23,23 +23,32 @@
   <nav aria-label="Site">
     <a href="guide/">Guide</a>
     {{demo_link}}
-    <a href="{{repo}}">GitHub</a>
+    <a href="{{repo}}">GitHub {{icon:arrow-up-right}}</a>
     {{theme_button}}
   </nav>
 </header>
 <section class="wrap hero">
+  <div class="pitch">
+    <ul class="facts" aria-label="In short">
+      <li>{{icon:box}} Zero dependencies</li>
+      <li>{{icon:folder-git-2}} Offline, reads git</li>
+      <li>{{icon:shield-check}} Never edits your code</li>
+    </ul>
     <h1>Keep code understandable.</h1>
     <p class="lede">Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing else installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.</p>
     <div class="actions">
-      <a class="button cta" href="guide/getting-started.html">Get started</a>
+      <a class="button cta" href="guide/getting-started.html">Get started {{icon:arrow-right}}</a>
       <a class="button quiet" href="guide/">Read the guide</a>
     </div>
     <div class="install">
       <code><span class="prompt">$ </span>pip install tessri</code>
-      <button class="copy" type="button" data-copy="pip install tessri">Copy</button>
+      {{copy:pip install tessri}}
     </div>
     <p class="note">Python 3.11 or newer, no dependencies. To run it once without installing: <code>uvx tessri scan .</code></p>
+  </div>
+  <div class="visual" aria-hidden="true">{{mark}}<canvas class="liquid"></canvas></div>
 </section>
+{{demo_head}}
 </div>
 
 <main class="wrap">
@@ -49,26 +58,45 @@
     <span class="label">What it answers</span>
     <h2>Four questions, answered from one picture of the code and its history, and one page that hands a change over.</h2>
     <div class="questions">
-      <div>
+      <article class="lead">
+        <span class="tile">{{icon:scroll-text}}</span>
+        <h3>One page that hands a change over.</h3>
+        <p>Where to look first, who is able to look, what the change did to the structure, which tests reach it and which checks ran, and what needs a person: from one analysis of the base and one of the working tree, with the evidence for every line.</p>
+        <div class="page" aria-hidden="true">
+          <div class="page-bar"><i></i><i></i><i></i><span>tessri brief --since main</span></div>
+          <div class="page-body">
+            <section><b>Look first</b><span class="row"><i style="width:26%"></i><i style="width:34%"></i><i style="width:18%"></i></span><span class="row"><i style="width:30%"></i><i style="width:24%"></i><i style="width:22%"></i></span><span class="row"><i style="width:22%"></i><i style="width:38%"></i><i style="width:16%"></i></span></section>
+            <section><b>What it did to the structure</b><span class="line" style="width:72%"></span><span class="line" style="width:54%"></span></section>
+            <section><b>Validation</b><span class="line" style="width:64%"></span></section>
+            <section><b>Open for a person</b><span class="line" style="width:46%"></span><span class="line" style="width:58%"></span></section>
+          </div>
+        </div>
+        <span class="cmd"><code>tessri brief --since main</code></span>
+      </article>
+      <article>
+        <span class="tile">{{icon:network}}</span>
         <h3>How does the system fit together?</h3>
         <p>The modules, the cycles, and the few dependencies that would break them if cut.</p>
         <span class="cmd"><code>tessri graph</code></span>
-      </div>
-      <div>
+      </article>
+      <article>
+        <span class="tile">{{icon:radar}}</span>
         <h3>What can this change reach?</h3>
         <p>The files that depend on it, the tests that reach it, and who is able to review it.</p>
         <span class="cmd"><code>tessri impact &lt;path&gt;</code></span>
-      </div>
-      <div>
+      </article>
+      <article>
+        <span class="tile">{{icon:scan-search}}</span>
         <h3>What does nothing reach, and what does nobody maintain?</h3>
         <p>Every file's status from entry points, tests and configs; owners from history, and who went quiet.</p>
         <span class="cmd"><code>tessri scan .</code></span>
-      </div>
-      <div>
+      </article>
+      <article>
+        <span class="tile">{{icon:git-compare}}</span>
         <h3>What did this change do to the structure?</h3>
         <p>New orphans, new cycles, imports of deleted files, changed code nobody active maintains. Markdown, JSON or SARIF, with an exit code for CI.</p>
         <span class="cmd"><code>tessri check</code></span>
-      </div>
+      </article>
     </div>
   </section>
 
@@ -88,23 +116,25 @@
     <span class="label">How does it work?</span>
     <h2>One pass over the files and the history, then one view per question.</h2>
     <div class="how">
+      <div class="lead">
+        <p>No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
+      </div>
       <div>
-        <span class="step">01</span>
+        <div class="head"><span class="tile">{{icon:file-search}}</span><span class="step">01</span></div>
         <h3>Read</h3>
         <p>Lists the files, parses Python with Python's own parser and JavaScript and TypeScript with its own scanner, and reads configs, scripts and docs for the files they name.</p>
       </div>
       <div>
-        <span class="step">02</span>
+        <div class="head"><span class="tile">{{icon:git-merge}}</span><span class="step">02</span></div>
         <h3>Join</h3>
         <p>Builds the import graph with the kind of evidence behind every edge, and reads from git who changed what, following files through renames.</p>
       </div>
       <div>
-        <span class="step">03</span>
+        <div class="head"><span class="tile">{{icon:message-square-text}}</span><span class="step">03</span></div>
         <h3>Answer</h3>
         <p>Each command is one view of that picture: reachability, ownership, module graph, impact, triage and the check of a change.</p>
       </div>
     </div>
-    <p class="intro">No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
   </section>
 
   <section class="band" id="evidence">
@@ -129,18 +159,9 @@
 
 </main>
 
-<footer class="wrap foot">
-  <nav aria-label="Footer">
-    <a href="guide/">Guide</a>
-    <a href="guide/integration.html">Integration</a>
-    <a href="guide/json.html">JSON</a>
-    <a href="guide/limits.html">Limits</a>
-    <a href="{{repo}}/blob/main/CHANGELOG.md">Changelog</a>
-    <a href="{{repo}}">GitHub</a>
-  </nav>
-  <span>MIT. <a href="guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span>
-</footer>
+{{foot}}
 
 {{scripts}}
+<script src="liquid.js" defer></script>
 </body>
 </html>

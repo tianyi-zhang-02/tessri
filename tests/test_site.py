@@ -66,6 +66,12 @@ class RenderTest(unittest.TestCase):
         self.assertIn('<th>Name</th><th class="num">Count</th><th>Note</th>', self.body)
         self.assertIn('<td><code>a.py</code></td><td class="num">1</td><td><em>uses</em> it</td>', self.body)
 
+    def test_a_shell_block_is_highlighted_and_every_block_gets_a_copy_button(self):
+        _, body = build_site.render_markdown("```bash\n$ tessri scan . --format json  # the report\n```\n")
+        self.assertIn('<span class="tk-p">$ </span><span class="tk-k">tessri</span> scan . <span class="tk-f">--format</span> json  <span class="tk-c"># the report</span>', body)
+        self.assertIn('<button class="copy mini" type="button" data-copy="$ tessri scan . --format json  # the report" aria-label="Copy">', body)
+        self.assertEqual(self.body.count("<pre>"), self.body.count('class="copy mini"'))
+
     def test_links_are_rewritten_for_the_site(self):
         cases = {
             "scan.md": "scan.html",
@@ -166,11 +172,58 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(set(change), {"sha", "pr", "title"})
         self.assertIn(html.escape(change["title"]), demo)
 
+    def test_the_type_the_icons_and_their_notices_ship_with_the_pages(self):
+        names = {p.relative_to(self.out.resolve()).as_posix() for p in self.written}
+        for name in ("fonts/inter-latin-wght.woff2", "fonts/commit-mono-latin-400.woff2", "fonts/LICENSE-inter.txt", "fonts/LICENSE-commit-mono.txt", "icons/LICENSE", "liquid.js"):
+            self.assertIn(name, names)
+        css = (self.out / "tessri.css").read_text(encoding="utf-8")
+        self.assertIn('url("fonts/inter-latin-wght.woff2")', css)
+        index = self.pages[self.out / "index.html"]
+        self.assertIn('<svg class="icon icon-network" aria-hidden="true"', index)
+        self.assertIn('<canvas class="liquid"></canvas>', index)
+        self.assertIn('<script src="liquid.js" defer></script>', index)
+        self.assertNotIn("{{", index)
+        for page, text in self.pages.items():
+            if page.name != "report.html":
+                self.assertIn("<!-- Type: Inter and Commit Mono", text, page.name)
+
+    def test_a_guide_page_with_sections_gets_the_rail(self):
+        hooks = self.pages[self.out / "guide" / "hooks.html"]
+        self.assertIn('<nav class="toc" aria-label="On this page">', hooks)
+        ids = re.findall(r'<h2 id="([^"]+)">', hooks)
+        self.assertGreaterEqual(len(ids), 2)
+        for i in ids:
+            self.assertIn(f'<a href="#{i}">', hooks)
+        self.assertNotIn('class="toc"', self.pages[self.out / "guide" / "getting-started.html"])
+
     def test_the_command_line(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(build_site.main(["--out", str(Path(tmp) / "out")]), 0)
             self.assertTrue((Path(tmp) / "out" / "guide" / "index.html").exists())
         self.assertRegex(out.getvalue(), r"^\d+ files written to ")
+
+
+class AssetsTest(unittest.TestCase):
+    def test_an_icon_is_inlined_without_its_size_and_hidden_from_readers(self):
+        svg = build_site.icon("copy")
+        self.assertTrue(svg.startswith('<svg class="icon icon-copy" aria-hidden="true" viewBox="0 0 24 24"'), svg[:90])
+        for gone in (' width="', ' height="', ' xmlns="'):
+            self.assertNotIn(gone, svg.split(">", 1)[0])  # the icon's own size is dropped; the page sizes it
+        for gone in ("<!--", "\n"):
+            self.assertNotIn(gone, svg)
+        self.assertIn('class="icon sun icon-sun"', build_site.theme_button())
+        with self.assertRaises(build_site.BuildError):
+            build_site.icon("no-such-icon")
+
+    def test_python_and_data_blocks_are_highlighted_and_text_is_not(self):
+        py = build_site.highlight('from x import y  # why\nname = "a < b"\nn = 42\n@dec\ndef f(): pass', "python")
+        self.assertIn('<span class="tk-k">from</span> x <span class="tk-k">import</span> y  <span class="tk-c"># why</span>', py)
+        self.assertIn('name = <span class="tk-s">"a &lt; b"</span>', py)
+        self.assertIn('n = <span class="tk-n">42</span>\n<span class="tk-f">@dec</span>\n<span class="tk-k">def</span> f(): <span class="tk-k">pass</span>', py)
+        toml = build_site.highlight('[tool]\nname = "x"  # c\ncount = 3\n{"key": true}', "toml")
+        self.assertEqual(toml, '[tool]\n<span class="tk-k">name</span> = <span class="tk-s">"x"</span>  <span class="tk-c"># c</span>\n<span class="tk-k">count</span> = <span class="tk-n">3</span>\n{<span class="tk-k">"key"</span>: <span class="tk-n">true</span>}')
+        self.assertEqual(build_site.highlight("x < 1  # kept as it is", "text"), "x &lt; 1  # kept as it is")
+        self.assertEqual(build_site.highlight("echo a#b | grep b", "bash"), '<span class="tk-k">echo</span> a#b | <span class="tk-k">grep</span> b')
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ The output directory is created, or reused when it holds the marker this script 
 from __future__ import annotations
 
 import argparse
+import functools
 import html
 import posixpath
 import re
@@ -32,7 +33,10 @@ REPO = "https://github.com/tianyi-zhang-02/tessri"
 BLOB = f"{REPO}/blob/main/"
 TREE = f"{REPO}/tree/main/"
 MARKER = ".tessri-site"
-ASSETS = ("tessri.css", "favicon.svg")
+ASSETS = ("tessri.css", "favicon.svg", "liquid.js")
+FONTS = SITE / "fonts"  # the type, served next to its notices
+ICONS = SITE / "icons"  # the icon set, inlined where a page uses one; its notice ships at icons/LICENSE
+NOTICES = "<!-- Type: Inter and Commit Mono, SIL Open Font License, the notices in fonts/. Icons: Lucide, ISC licence, icons/LICENSE. -->"
 
 # The guide's navigation: README.md (the guide index) gives the labels and the order; this gives the groups. A page
 # the index names but no group claims lands under "More", so adding a page never hides it.
@@ -49,14 +53,6 @@ MARK = (
     '<svg viewBox="0 0 32 32" aria-hidden="true" fill="currentColor"><path d="M7 6h18v3H7zM15 7h3v20h-3z"/>'
     '<rect x="3" y="2" width="11" height="10" rx="3"/><rect x="19" y="2" width="11" height="10" rx="3"/>'
     '<rect x="12" y="15" width="9" height="7" rx="2"/><rect x="12" y="25" width="9" height="7" rx="2"/></svg>'
-)
-
-THEME_BUTTON = (
-    '<button class="theme" type="button" aria-label="Switch between dark and light">'
-    '<svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">'
-    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
-    '<svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">'
-    '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>'
 )
 
 SCRIPTS = """<script>
@@ -78,12 +74,29 @@ SCRIPTS = """<script>
     b.addEventListener("click", function () {
       if (!navigator.clipboard) { return; }
       navigator.clipboard.writeText(b.getAttribute("data-copy")).then(function () {
-        var was = b.textContent;
-        b.textContent = "Copied";
-        setTimeout(function () { b.textContent = was; }, 1200);
+        var label = b.querySelector("span");
+        var was = label ? label.textContent : "";
+        b.classList.add("done");
+        if (label) { label.textContent = "Copied"; }
+        setTimeout(function () { b.classList.remove("done"); if (label) { label.textContent = was; } }, 1200);
       });
     });
   });
+  var rail = document.querySelectorAll(".toc a");
+  if (rail.length && "IntersectionObserver" in window) {
+    var byId = {};
+    Array.prototype.forEach.call(rail, function (a) { byId[a.getAttribute("href").slice(1)] = a; });
+    var current = null;
+    var follow = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) { return; }
+        if (current) { current.removeAttribute("aria-current"); }
+        current = byId[e.target.id];
+        current.setAttribute("aria-current", "true");
+      });
+    }, { rootMargin: "0px 0px -70% 0px" });
+    Object.keys(byId).forEach(function (id) { var h = document.getElementById(id); if (h) { follow.observe(h); } });
+  }
   if (!motion || !("IntersectionObserver" in window)) { return; }
   var below = Array.prototype.filter.call(document.querySelectorAll("main .band"), function (s) { return s.getBoundingClientRect().top > innerHeight * 0.9; });
   var arrive = new IntersectionObserver(function (entries) {
@@ -121,6 +134,104 @@ THEME_BOOT = '<script>try{var t=localStorage.getItem("tessri-theme");if(t)docume
 
 class BuildError(Exception):
     pass
+
+
+@functools.lru_cache(maxsize=None)
+def icon(name: str, cls: str = "icon") -> str:
+    """One icon of the set, inline: its own size dropped, hidden from readers, classed `icon icon-<name>`."""
+    path = ICONS / f"{name}.svg"
+    if not path.is_file():
+        raise BuildError(f"no icon named {name} in site/icons/")
+    text = re.sub(r"<!--.*?-->", "", path.read_text(encoding="utf-8"), flags=re.S)
+    m = re.search(r"<svg\b([^>]*)>(.*)</svg>", text, re.S)
+    if not m:
+        raise BuildError(f"site/icons/{name}.svg is not an SVG icon")
+    attrs = re.sub(r'\s+(?:class|width|height|xmlns)="[^"]*"', "", m.group(1))
+    attrs = re.sub(r"\s+", " ", attrs).strip()
+    body = re.sub(r">\s+<", "><", m.group(2).strip())
+    return f'<svg class="{cls} icon-{name}" aria-hidden="true" {attrs}>{body}</svg>'
+
+
+def theme_button() -> str:
+    return (
+        '<button class="theme" type="button" aria-label="Switch between dark and light">'
+        f'{icon("sun", "icon sun")}{icon("moon", "icon moon")}</button>'
+    )
+
+
+def copy_button(text: str, label: str | None = "Copy") -> str:
+    """A button that copies `text`; with no label, the small one that sits on a code block."""
+    cls = "copy" if label else "copy mini"
+    aria = "" if label else ' aria-label="Copy"'
+    inner = icon("copy", "icon copy-icon") + icon("check", "icon check") + (f"<span>{html.escape(label)}</span>" if label else "")
+    return f'<button class="{cls}" type="button" data-copy="{html.escape(text, quote=True)}"{aria}>{inner}</button>'
+
+
+# --- Code, as the reader reads it ------------------------------------------------------------------------------------
+
+_SHELL = {"bash", "sh", "shell", "zsh", "console"}
+_PYTHON = {"python", "py"}
+_DATA = {"toml", "yaml", "yml", "json", "ini"}
+_PY_KEYWORDS = frozenset({
+    "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except",
+    "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise",
+    "return", "try", "while", "with", "yield", "None", "True", "False",
+})
+_SH_TOKEN = re.compile(r"""(?P<c>(?<!\S)#[^\n]*)|(?P<s>"(?:[^"\\]|\\.)*"|'[^']*')|(?P<f>(?<!\S)--?[A-Za-z][\w-]*)|(?P<w>[^\s"'#]+)""")
+_PY_TOKEN = re.compile(r"""(?P<c>#[^\n]*)|(?P<s>"{3}[\s\S]*?"{3}|'{3}[\s\S]*?'{3}|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(?P<d>@[\w.]+)|(?P<n>\b\d+(?:\.\d+)?\b)|(?P<w>[A-Za-z_]\w*)""")
+_DATA_TOKEN = re.compile(r"""(?P<c>(?<!\S)#[^\n]*)|(?P<k>"(?:[^"\\]|\\.)*"(?=\s*:)|^[ \t]*(?:-[ \t]+)?[\w.-]+(?=[ \t]*[:=]))|(?P<s>"(?:[^"\\]|\\.)*"|'[^']*')|(?P<n>\b(?:\d+(?:\.\d+)?|true|false|null)\b)""", re.M)
+_CLASS = {"c": "tk-c", "s": "tk-s", "f": "tk-f", "n": "tk-n", "k": "tk-k", "d": "tk-f"}
+
+
+def _spans(code: str, pattern: re.Pattern, keywords: frozenset = frozenset()) -> str:
+    out: list[str] = []
+    at = 0
+    for m in pattern.finditer(code):
+        out.append(html.escape(code[at : m.start()], quote=False))
+        kind, text = m.lastgroup, html.escape(m.group(), quote=False)
+        if kind == "w":
+            out.append(f'<span class="tk-k">{text}</span>' if m.group() in keywords else text)
+        else:
+            out.append(f'<span class="{_CLASS[kind]}">{text}</span>')
+        at = m.end()
+    out.append(html.escape(code[at:], quote=False))
+    return "".join(out)
+
+
+def _shell(code: str) -> str:
+    """A prompt is quiet, the command is the keyword, then flags, strings and comments."""
+    lines: list[str] = []
+    for line in code.split("\n"):
+        out: list[str] = []
+        rest = line
+        if rest.startswith("$ "):
+            out.append('<span class="tk-p">$ </span>')
+            rest = rest[2:]
+        start = True
+        at = 0
+        for m in _SH_TOKEN.finditer(rest):
+            out.append(html.escape(rest[at : m.start()], quote=False))
+            kind, text = m.lastgroup, html.escape(m.group(), quote=False)
+            if kind == "w":
+                out.append(f'<span class="tk-k">{text}</span>' if start and m.group()[0].isalpha() else text)
+                start = m.group() in {"|", "&&", "||", ";"}
+            else:
+                out.append(f'<span class="{_CLASS[kind]}">{text}</span>')
+            at = m.end()
+        out.append(html.escape(rest[at:], quote=False))
+        lines.append("".join(out))
+    return "\n".join(lines)
+
+
+def highlight(code: str, lang: str) -> str:
+    """The fenced block's HTML: escaped, and for shell, Python and data files, a span per comment, string, keyword, flag and number."""
+    if lang in _SHELL:
+        return _shell(code)
+    if lang in _PYTHON:
+        return _spans(code, _PY_TOKEN, _PY_KEYWORDS)
+    if lang in _DATA:
+        return _spans(code, _DATA_TOKEN)
+    return html.escape(code, quote=False)
 
 
 # --- Markdown ------------------------------------------------------------------------------------------------------
@@ -221,7 +332,8 @@ def render_markdown(text: str) -> tuple[str, str]:
                 i += 1
             i += 1
             attr = f' class="language-{html.escape(lang)}"' if lang else ""
-            out.append(f"<pre><code{attr}>{html.escape(chr(10).join(code))}</code></pre>")
+            text = chr(10).join(code)
+            out.append(f'<div class="code"><pre><code{attr}>{highlight(text, lang)}</code></pre>{copy_button(text, None)}</div>')
             continue
         if not line.strip():
             flush()
@@ -292,7 +404,7 @@ def head(title: str, description: str, depth: int) -> str:
         f"<title>{html.escape(title)}</title>\n"
         f'<meta name="description" content="{html.escape(description, quote=True)}">\n'
         f'<link rel="icon" href="{up}favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="{up}tessri.css">\n'
-        f"{THEME_BOOT}\n</head>\n"
+        f"{NOTICES}\n{THEME_BOOT}\n</head>\n"
     )
 
 
@@ -303,14 +415,14 @@ def top(depth: int, current: str | None, demo: bool = False) -> str:
     demo_link = f'<a href="{up}demo/"{here}>Demo</a>' if demo else ""
     return (
         f'<div class="sky">\n<header class="wrap top">\n  <a class="wordmark" href="{up or "./"}" aria-label="Tessri home">{MARK}<span>tessri<span class="dot">.</span></span></a>\n'
-        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a href="{REPO}">GitHub</a>{THEME_BUTTON}</nav>\n</header>\n</div>\n'
+        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a href="{REPO}">GitHub {icon("arrow-up-right")}</a>{theme_button()}</nav>\n</header>\n</div>\n'
     )
 
 
 def foot(depth: int) -> str:
     up = "../" * depth
     return (
-        '<footer class="wrap foot">\n  <nav aria-label="Footer">'
+        f'<footer class="wrap foot">\n  <span class="brand">{MARK}<span>tessri<span class="dot">.</span></span></span>\n  <nav aria-label="Footer">'
         f'<a href="{up}guide/">Guide</a><a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
         f'<a href="{up}guide/limits.html">Limits</a><a href="{BLOB}CHANGELOG.md">Changelog</a><a href="{REPO}">GitHub</a></nav>\n'
         f'  <span>MIT. <a href="{up}guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span>\n</footer>\n'
@@ -342,6 +454,15 @@ def nav(pages: list[tuple[str, str]], current: str) -> str:
     return "\n".join(out)
 
 
+def rail(body: str) -> str:
+    """The page's own sections, for the rail beside the prose: its level-two headings, when there are at least two."""
+    heads = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', body)
+    if len(heads) < 2:
+        return ""
+    items = "".join(f'<li><a href="#{i}">{re.sub(r"<[^>]+>", "", text)}</a></li>' for i, text in heads)
+    return f'<nav class="toc" aria-label="On this page"><p class="group">On this page</p><ul>{items}</ul></nav>\n'
+
+
 def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]], demo: bool = False) -> str:
     description = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", body.split("<p>", 1)[1].split("</p>", 1)[0])) if "<p>" in body else title
     source = f"docs/guide/{name}.md"
@@ -352,7 +473,7 @@ def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]], d
         head(f"{title} · Tessri guide", description[:300], 1)
         + "<body>\n"
         + top(1, "guide", demo)
-        + f'<div class="wrap guide">\n{nav(pages, name if name != "README" else "index")}\n{article}\n</div>\n'
+        + f'<div class="wrap guide">\n{nav(pages, name if name != "README" else "index")}\n{article}\n{rail(body)}</div>\n'
         + foot(1)
         + SCRIPTS
         + "\n</body>\n</html>\n"
@@ -371,13 +492,18 @@ def readme_example() -> str:
     return "\n".join(lines[fence + 1 : end])
 
 
+def cmdline(command: str) -> str:
+    """The panel's title bar: the window's dots, then the command as typed."""
+    return f'<div class="cmdline"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>$ <b>{html.escape(command)}</b></span></div>'
+
+
 def example_panel() -> str:
     """The README's example as a reader sees it: the command line, then the Markdown output rendered."""
     first, _, rest = readme_example().partition("\n")
     if not first.startswith("$ "):
         raise BuildError("the README example should start with the command that produced it")
     _, body = render_markdown(rest)
-    return f'<div class="cmdline">$ <b>{html.escape(first[2:])}</b></div>\n<div class="output prose">\n{body}\n</div>'
+    return f'{cmdline(first[2:])}\n<div class="output prose">\n{body}\n</div>'
 
 
 def landing(demo: dict | None) -> str:
@@ -386,13 +512,18 @@ def landing(demo: dict | None) -> str:
     filled = (
         template.replace("{{mark}}", MARK)
         .replace("{{repo}}", REPO)
-        .replace("{{theme_button}}", THEME_BUTTON)
+        .replace("{{notices}}", NOTICES)
+        .replace("{{theme_button}}", theme_button())
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
+        .replace("{{demo_head}}", demo_head(demo) if demo else "")
         .replace("{{demo}}", demo_section(demo) if demo else "")
         .replace("{{example}}", example)
+        .replace("{{foot}}", foot(0))
         .replace("{{scripts}}", SCRIPTS)
     )
-    left = re.findall(r"{{\w+}}", filled)
+    filled = re.sub(r"{{icon:([\w-]+)}}", lambda m: icon(m.group(1)), filled)
+    filled = re.sub(r"{{copy:([^}]+)}}", lambda m: copy_button(m.group(1)), filled)
+    left = re.findall(r"{{[\w:-]+}}", filled)
     if left:
         raise BuildError(f"unfilled placeholders in site/index.html: {', '.join(sorted(set(left)))}")
     return filled
@@ -456,8 +587,16 @@ def _what(change: dict) -> str:
     return f'the commit \u201c{title}\u201d (<code>{change["sha"][:9]}</code>)'
 
 
+def demo_head(demo: dict) -> str:
+    """The band's tail on the landing page: the demo's heading, in the band's ink, above the panel that straddles the edge."""
+    return (
+        '<div class="wrap demo-head">\n  <span class="label">See it on this repository</span>\n'
+        '  <h2>A change is done. This is the page the person it goes to gets.</h2>\n</div>\n'
+    )
+
+
 def demo_section(demo: dict) -> str:
-    """The landing page's opening section: the brief's first sections (scope, commits, look first) as a panel."""
+    """The landing page's first section: the brief's first sections (scope, commits, look first) as the glass panel, then its caption."""
     page = demo["brief"]
     cut = page.find("\n## What it did to the structure")
     excerpt = page[:cut] if cut != -1 else page
@@ -466,13 +605,12 @@ def demo_section(demo: dict) -> str:
     _, body = render_markdown(excerpt)
     return (
         '  <section class="band" id="demo">\n'
-        '    <span class="label">See it on this repository</span>\n'
-        '    <h2>A change is done. This is the page the person it goes to gets.</h2>\n'
-        f'    <p class="intro">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections here, '
+        '    <div class="example">\n      <div class="panel glass">\n'
+        f'{cmdline("tessri brief --since " + demo["base"])}\n<div class="output prose">\n{_demote(body)}\n</div>\n'
+        '      </div>\n'
+        f'      <p class="after">The latest change on Tessri\'s own <code>main</code> is {_what(demo["change"])}. Its brief, as of this build: the first sections above, '
         '<a href="demo/">the whole page</a> with the findings, the candidate tests and what needs a person, and <a href="demo/report.html">the HTML report</a> of the repository, with the module graph and the impact explorer.</p>\n'
-        '    <div class="example">\n      <div class="panel">\n'
-        f'<div class="cmdline">$ <b>tessri brief --since {html.escape(demo["base"])}</b></div>\n<div class="output prose">\n{_demote(body)}\n</div>\n'
-        '      </div>\n    </div>\n  </section>\n'
+        '    </div>\n  </section>\n'
     )
 
 
@@ -520,6 +658,11 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     for asset in ASSETS:
         shutil.copyfile(SITE / asset, out / asset)
         written.append(out / asset)
+    shutil.copytree(FONTS, out / "fonts")
+    written.extend(sorted(p for p in (out / "fonts").iterdir() if p.is_file()))
+    (out / "icons").mkdir()
+    shutil.copyfile(ICONS / "LICENSE", out / "icons" / "LICENSE")
+    written.append(out / "icons" / "LICENSE")
     write("index.html", landing(content))
     pages = guide_index()
     known = {s for s, _ in pages}
