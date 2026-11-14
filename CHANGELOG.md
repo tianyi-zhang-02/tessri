@@ -26,12 +26,14 @@ Dates are the day a version was tagged.
   SARIF. A stranded file now lists every link the change cut, with its kind. The report's caveat about names that fit
   several files now covers the names the analyzers found in code, not only those in configs and scripts.
 - A module turned into a package (`x.py` moved into `x/`, with an `x/__init__.py` in its place), or the reverse, keeps
-  its import name, so `check` no longer reports its importers as dangling. A file name in a string of Python code,
+  its import name, so `check` no longer reports its importers as dangling; and a package `__init__.py` deleted while a
+  module the name names stays (or goes with it, in which case the module's own row names the referrer) is no longer a
+  `dangling-reference`, since Python only ran it on the way. A file name in a string of Python code,
   `"setup.py"`, is a path, not the dotted name `setup.py`, so it no longer links the file to a top-level module `setup`.
 - `tools/deletions.py` replays every change of a repository's history that deleted or moved a code file through
   `check` and says what became of each name left behind: removed, restored, or still there, and after how long. On
-  one repository's last year three of the four names it reported were real loose ends and the fourth an `__init__.py`
-  run on the way to a module the string still names (a limit, listed); the two false alarms it exposed are the fixes above.
+  one repository's last year every name it reports is a real loose end; the three false alarms it exposed are the fixes
+  above.
 
 ## 0.3.0 (2026-11-06)
 

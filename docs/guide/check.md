@@ -73,12 +73,11 @@ artifacts, test selection and gates are in [docs/workflow-recipes.md](../workflo
 
 How much the warning about a name left behind is worth was tried on a year of one repository's history with
 `tools/deletions.py`, which replays every change that deleted or moved a code file through `check` and follows each
-name it left behind through the later commits. Of 23 such changes, four left a name. A test-suite script still ran a
+name it left behind through the later commits. Of 23 such changes, three left a name. A test-suite script still ran a
 deleted example (fixed the same day); a functional-test script still imports a module that was moved, and a design
-document still names a worker's old module path (both still do); and an actor registry's string named a worker module
-whose package `__init__.py` the change deleted while the module stayed, so the name still resolves and the `__init__.py`
-run on the way only counted as named: a false alarm, listed under limits. Two other false alarms the
-same trial showed, a module turned into a package and `setup.py` read as a dotted name, are gone. Four names on one
+document still names a worker's old module path (both still do). Three false alarms the same trial showed are gone: a
+module turned into a package, `setup.py` read as a dotted name, and a package `__init__.py` deleted while the module
+a registry string named stayed (the `__init__.py` Python runs on the way had counted as named). Three names on one
 repository is a small number, so run it on yours:
 
 ```bash

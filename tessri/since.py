@@ -20,6 +20,7 @@ import subprocess
 import tempfile
 import time
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -333,12 +334,19 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
 
         gone = change.origin or path
         still = {path} | _same_name(gone)
+        inside = path[: -len("__init__.py")] if path.endswith("/__init__.py") else None  # a package: a name that names a module in it only runs this file on the way
 
         def untouched(s: str) -> bool:
             return s in head_a.records and s not in touched
 
         def names_it(s: str, bucket: dict[str, set[str]]) -> bool:  # still names the file, under its new name or by what its old name now reaches
             return any(s in bucket.get(t, ()) for t in still)
+
+        def on_the_way(s: str, targets: Iterable[str]) -> bool:  # the name named a module of this package: this file was run on the way, and the module's own row names the referrer if it went too
+            return inside is not None and any(t != path and t.startswith(inside) for t in targets)
+
+        def named_by(s: str, bucket: dict[str, set[str]]) -> set[str]:
+            return {t for t, sources in bucket.items() if s in sources}
 
         referrers = [
             (s, base_a.graph.kind(s, path))
@@ -347,9 +355,10 @@ def compare(base_a: Analysis, head_a: Analysis, changed: dict[str, gitlog.FileCh
             and path not in modules._imported(base_a, s)
             and untouched(s)
             and not still & head_a.graph.edges.get(s, set())
+            and not on_the_way(s, base_a.graph.edges.get(s, ()))
         ]
-        referrers += [(s, "config") for s in base_a.graph.config_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.config_refs)]
-        referrers += [(s, "doc") for s in base_a.graph.doc_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.doc_refs) and not _record(s)]
+        referrers += [(s, "config") for s in base_a.graph.config_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.config_refs) and not on_the_way(s, named_by(s, base_a.graph.config_refs))]
+        referrers += [(s, "doc") for s in base_a.graph.doc_refs.get(path, ()) if untouched(s) and not names_it(s, head_a.graph.doc_refs) and not _record(s) and not on_the_way(s, named_by(s, base_a.graph.doc_refs))]
         referrers.sort(key=lambda r: (REACHED.index(r[1]), r[0]))
         if referrers:
             classes = _classes({k for _, k in referrers})
