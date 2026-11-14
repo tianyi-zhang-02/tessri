@@ -27,6 +27,12 @@ cycles without looping. With git history it also lists who maintains the affecte
 ask for a review. `--hops 1` keeps only direct dependents. A package `__init__` is affected by any import
 beneath it, because Python runs it.
 
+`--report FILE` (repeatable) reads a test report the host wrote, JUnit XML as pytest `--junitxml`, jest-junit and
+most CI systems produce it, and holds the candidate tests against it: the text marks each as passed, failed, skipped
+or not run and says how many of them ran, and the JSON adds `tests.report` (`sources`, `cases`, `ran`, `passed`,
+`failed`, `skipped`, `not_run`, `unmatched`). A candidate the report does not mention did not run, as far as the
+report says; nothing is inferred from the candidates.
+
 Every edge carries the kind of evidence it rests on, strongest first: `import` (recognized literal dependency
 syntax names the file: a Python import statement; for JavaScript and TypeScript an `import`, `export ... from`,
 `require()`, a literal `import()`, `new URL(...)` or a reference path), `package` (a parent `__init__.py` that

@@ -127,6 +127,7 @@ that). `info` is the rest. Findings are bounded by static analysis and its langu
 
 ```bash
 tessri brief --since <base> --ran "<command>: <result, exit code>"     # one page for the person; --format json for the data
+tessri brief --since <base> --report junit.xml                           # the candidate tests against the report your test run wrote
 ```
 
 Run it when the change is ready for a person. It is triage and check from one analysis, in one page: the base,
@@ -134,9 +135,11 @@ HEAD, the commits on the way in their authors' words and the uncommitted files i
 at first with the reasons; the findings; the candidate tests kept apart from the checks that ran; who can look;
 and what needs a person. Every shortened list carries its count, and the JSON holds the whole `triage` and `check`
 objects, so nothing is filtered away. Record what you actually ran with `--ran`, one per check, with its result and
-exit code, verbatim; without it the page says that no check was recorded, and it never infers an execution from the
-candidate tests. Put the page in the change's description, or hand the JSON to the reviewer's tools; it is a reading
-aid, not a verdict, and the diff is still theirs to read.
+exit code, verbatim, or hand over the JUnit XML your test run wrote with `--report` (pytest `--junitxml`, jest-junit):
+it marks each candidate test passed, failed, skipped or not run, and a failed or missing one becomes an item for a
+person. Without either the page says that no check was recorded, and it never infers an execution from the candidate
+tests. Put the page in the change's description, or hand the JSON to the reviewer's tools; it is a reading aid, not a
+verdict, and the diff is still theirs to read.
 
 ## Ownership
 

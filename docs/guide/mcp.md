@@ -32,11 +32,11 @@ describes them.
 | `tessri_repos` | none | `{schema_version, kind: "repos", repos: [{name, root, git}]}` | which checkouts this server reads |
 | `tessri_scan` | `root`, `full` | the scan report (`summary`, `languages`, `directories`, `ownership`, `review`, `largest_files`, `hotspots`, `cleanup`, `analysis`, `caveats`) | how the codebase fits together; what nobody maintains |
 | `tessri_why` | `root`, `path` | `kind: "why"` (`file`, `verdict`, `git`, `owners`, `graph` with `kinds`, `advice`) | the evidence behind one file's verdict |
-| `tessri_impact` | `root`, `target`, `edges`, `hops` | `kind: "file"` or `"directory"` (`files`, `code`, `module`, `dependents`, `tests`, `edges`, `depends_on`, `owners`, `contributors`) | what a change to one file or directory can reach |
+| `tessri_impact` | `root`, `target`, `edges`, `hops`, `report` | `kind: "file"` or `"directory"` (`files`, `code`, `module`, `dependents`, `tests`, `edges`, `depends_on`, `owners`, `contributors`) | what a change to one file or directory can reach |
 | `tessri_graph` | `root`, `level`, `module_depth`, `include_tests` | `kind: "module-graph"` (`modules`, `edges`, `cycles`, `summary`, `caveats`) or `"file-graph"` (`nodes`, `edges`) | who imports whom, cycles, owners |
 | `tessri_triage` | `root`, `since` | `kind: "triage"` (`change`, `summary`, `files`, `areas`, `ripple`, `tests`, `reviewers`, `nobody_else_can_look`, `notes`) | which files of a change deserve a person first, who can look |
 | `tessri_check` | `root`, `since` | `kind: "change-check"` (`change`, `summary`, `changed_files`, `findings`, `orphans`, `dangling_imports`, `dangling_references`, `cycles`, `dependencies`, `unowned`, `modules_touched`, `notes`) | what a change did to the structure |
-| `tessri_brief` | `root`, `since`, `ran` | `kind: "brief"` (`change`, `attention`, `consequences`, `validation`, `people`, `open`, and the whole `triage` and `check` objects) | one page to hand the change over to a person |
+| `tessri_brief` | `root`, `since`, `ran`, `report` | `kind: "brief"` (`change`, `attention`, `consequences`, `validation`, `people`, `open`, and the whole `triage` and `check` objects) | one page to hand the change over to a person |
 
 Arguments, with the command-line option each one is:
 

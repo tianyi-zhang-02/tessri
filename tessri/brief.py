@@ -7,8 +7,10 @@ look at first with the reasons triage gives, what the change did to the structur
 from the checks the host actually ran, who can look, and what needs a person. It selects for reading and shortens
 every list with its count; the JSON carries the whole `triage` and `check` objects, so nothing is filtered away.
 
-What the host ran is the host's to say: `--ran` records one line per check, verbatim, and without it the brief says
-that no check was recorded. An execution is never inferred from the candidate tests."""
+What the host ran is the host's to say: `--ran` records one line per check, verbatim, and `--report` reads a test
+report the host wrote (JUnit XML, which pytest, jest-junit and most CI systems produce) and holds the candidate tests
+against it; without either the brief says that no check was recorded. An execution is never inferred from the
+candidate tests."""
 
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ from pathlib import Path
 from typing import Sequence
 
 from . import __version__, inventory, meta, since, triage
+from . import runs as testruns
 from .analyze import analyze
 from .config import Config
 from .model import SCHEMA_VERSION
@@ -40,7 +43,7 @@ NOTES = [
     "registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.",
     "History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. "
     "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.",
-    "Candidate tests are paths that reach the change, never executions; only what `--ran` records was run.",
+    "Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test report the host wrote and `--report` reads, was run.",
 ]
 
 
@@ -83,10 +86,11 @@ def uncommitted(root: Path) -> list[str]:
     return sorted(paths)
 
 
-def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence[str] = (), now: float | None = None, limit: int = LISTED) -> dict:
+def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence[str] = (), now: float | None = None, limit: int = LISTED, reports: Sequence[str | Path] = (), report_base: Path | None = None) -> dict:
     """The brief of the change between `since_ref` (`since.default_since` when None) and the working tree, as the
     JSON-ready dict the command prints: its own sections for reading, and the whole triage and check objects under
-    `triage` and `check`."""
+    `triage` and `check`. `reports` are test reports the host wrote (JUnit XML; relative paths under `report_base`,
+    else the working directory), held against the candidate tests."""
     root = Path(root).resolve()
     now = time.time() if now is None else now
     if since_ref is None:
@@ -105,6 +109,10 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
         t = triage.compute(root, cfg, since_ref, now=now, analysis=head_a)
         c = since.check(root, cfg, since_ref, now=now, analyses=pair)
     except (triage.TriageError, since.CheckError) as exc:
+        raise BriefError(str(exc)) from exc
+    try:
+        held = testruns.against(testruns.load(reports, set(head_a.records), report_base), t["tests"]["paths"]) if reports else None
+    except testruns.RunsError as exc:
         raise BriefError(str(exc)) from exc
 
     not_analysed: dict[str, list[str]] = defaultdict(list)
@@ -127,7 +135,11 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "text": f"{_named(paths)}: no analyzer covers {language}, so dependents, candidate tests and structure are unknown for {'this file' if len(paths) == 1 else 'these files'}.",
             "files": paths,
         })
-    if not ran:
+    if held and held["failed"]:
+        open_items.append({"kind": "candidate-failed", "text": f"{_named(held['failed'])} failed in the report: the tests that reach the change do not pass.", "files": held["failed"]})
+    if held and held["not_run"]:
+        open_items.append({"kind": "candidates-not-run", "text": f"{_named(held['not_run'])} reach the change but are not in the report: run them, or say why not.", "files": held["not_run"]})
+    if not ran and held is None:
         open_items.append({"kind": "no-checks-recorded", "text": "No check was recorded as run: the candidate tests are paths, not results.", "files": []})
 
     ids = {"since": since_ref, "base": base, "head": head, "uncommitted": dirty}
@@ -162,7 +174,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "modules_touched": c["modules_touched"],
             "not_analysed": [{"language": k, "files": v} for k, v in sorted(not_analysed.items())],
         },
-        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran)},
+        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran), "report": held},
         "people": {"reviewers": t["reviewers"], "nobody_else_can_look": nobody_else, "no_active_owner": no_owner},
         "open": open_items,
         "triage": t,
@@ -238,15 +250,23 @@ def markdown(b: dict) -> str:
             out += [f"Not analysed: {_named(group['files'])} ({group['language']}, no analyzer), so dependents, candidate tests and structure are unknown for {'it' if len(group['files']) == 1 else 'them'}.", ""]
 
     out += ["## Validation", ""]
-    cand = v["candidates"]
+    cand, held = v["candidates"], v.get("report")
     if cand["count"]:
-        out += [f"Candidate tests, nearest first: {_named(cand['nearest'])}" + (f" ({cand['count']} in all)" if cand["count"] > len(cand["nearest"][:NAMED]) else "") + ". They reach the changed files; they are paths, not results.", ""]
+        named = ", ".join(f"`{p}`" + (f" ({held['ran'].get(p, 'not run')})" if held else "") for p in cand["nearest"][:NAMED]) + (f" and {cand['count'] - NAMED} more" if cand["count"] > NAMED else "")
+        out += [f"Candidate tests, nearest first: {named}" + (f" ({cand['count']} in all)" if cand["count"] > len(cand["nearest"][:NAMED]) else "") + ". They reach the changed files; they are paths, not results.", ""]
+        if held:
+            parts = [f"{held['passed']} passed", f"{len(held['failed'])} failed"] + ([f"{held['skipped']} skipped"] if held["skipped"] else [])
+            out += [f"Against the report: {len(held['ran'])} of the {cand['count']} ran, {', '.join(parts)}; {len(held['not_run'])} did not run" + (f" ({_named(held['not_run'])})" if held["not_run"] else "") + ".", ""]
     elif c["code_files"]:
         out += ["No test file reaches the changed code, as far as static imports show.", ""]
-    if v["ran"]:
-        out += ["Checks the host ran, as recorded:", ""] + [f"- {line}" for line in v["ran"]] + [""]
+    if v["ran"] or held:
+        lines = [f"- {line}" for line in v["ran"]]
+        if held:
+            extra = f", {held['unmatched']['cases']} of them of no file in this repository" if held["unmatched"]["cases"] else ""
+            lines.append(f"- test report {', '.join(f'`{s}`' for s in held['sources'])}: {_many(held['cases'], 'case')}{extra}")
+        out += ["Checks the host ran, as recorded:", ""] + lines + [""]
     else:
-        out += ['Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`.', ""]
+        out += ['Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report`.', ""]
 
     out += ["## Open for a person", ""]
     out += [f"- {item['text']}" for item in b["open"]] or ["- Nothing this analysis can name; the diff and the intent are still yours to read."]

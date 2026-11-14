@@ -280,6 +280,15 @@ class ImpactTest(TempRepo):
         self.assertEqual(found["tests"], {"files": 1, "direct": 0, "paths": ["tests/test_engine.py"]})  # two hops away, through the engine
         self.assertEqual(found["depends_on"], [])
 
+    def test_candidates_are_held_against_a_report_when_one_is_given(self):
+        report = {"sources": ["r.xml"], "cases": 3, "files": {"tests/test_engine.py": {"passed": 2, "failed": 0, "skipped": 0}}, "unmatched": {"cases": 1, "named": ["elsewhere"]}}
+        found = modules.impact(self.a, "util/helpers.py", report=report)
+        self.assertEqual(found["tests"]["report"], {"sources": ["r.xml"], "cases": 3, "ran": {"tests/test_engine.py": "passed"}, "passed": 1, "failed": [], "skipped": 0, "not_run": [], "unmatched": {"cases": 1, "named": ["elsewhere"]}})
+        text = graphview.impact_text(found)
+        self.assertIn("- in the report (`r.xml`): 1 of them ran, 1 passed, 0 failed; 0 did not run (the report also has 1 cases of no file in this repository)", text)
+        self.assertIn("Tests that reach it, nearest first: `tests/test_engine.py` (passed)", text)
+        self.assertNotIn("report", modules.impact(self.a, "util/helpers.py")["tests"])
+
     def test_distances_are_counted(self):
         found = modules.impact(self.a, "util/helpers.py")
         self.assertEqual(found["dependents"]["by_distance"], [2])

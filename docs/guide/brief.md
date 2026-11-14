@@ -8,6 +8,7 @@ what needs a person.
 tessri brief --since main                                                        # a branch against main, plus uncommitted work
 tessri brief                                                                     # the same against the default branch (origin/HEAD, else main or master)
 tessri brief --since main --ran "python -m pytest tests/test_x.py: 12 passed (exit 0)"   # record what you ran, one --ran per check
+tessri brief --since main --report junit.xml                                     # hold the candidate tests against a test report the host wrote
 tessri brief --since main --format json                                          # the sections as data, with the whole triage and check objects
 tessri brief --since main --out brief.md                                         # a file to paste into the change's description
 ```
@@ -89,14 +90,20 @@ owners and flags, and who other than the authors maintains the changed files. *W
 check's findings, most serious first, each with its first files and what to do, then the code outside the change that
 imports it, and the changed files no analyzer covers, named rather than dropped. *Validation* keeps two things apart:
 the candidate tests, which are paths that reach the changed files, and the checks the host ran, which are only what
-`--ran` recorded. *Open for a person* collects what the analysis cannot settle: findings that need a decision (changed
-code nobody active maintains), files only the author maintains, files in a language without an analyzer, and the
-absence of any recorded check.
+`--ran` recorded or a test report given with `--report` says; with a report, each candidate is marked passed, failed,
+skipped or not run, and the page says how many of them ran. *Open for a person* collects what the analysis cannot
+settle: findings that need a decision (changed code nobody active maintains), files only the author maintains, files
+in a language without an analyzer, candidate tests that failed or are missing from the report, and the absence of any
+recorded check.
 
 **What ran is the host's to say.** Tessri runs no tests and reads no CI. `--ran` records one line per check,
-verbatim, with whatever the host wants a reviewer to see (the command, the result, the exit code); the MCP tool takes
-the same as `ran`, an array of strings. Without it the page says that no check was recorded. A candidate test is never
-promoted to an execution, and a historical passing suite is not a current result.
+verbatim, with whatever the host wants a reviewer to see (the command, the result, the exit code). `--report` reads a
+test report the host wrote, JUnit XML as pytest (`--junitxml`), jest-junit, go-junit-report and most CI systems produce
+it, and holds the candidate tests against its cases: a case belongs to the file its `file` attribute or its dotted
+`classname` names, a `failure`, `error` or `skipped` child says how it went, and a candidate the report does not mention
+did not run, as far as the report says. Several reports are read as one. The MCP tool takes the same as `ran` and
+`report`. Without either the page says that no check was recorded. A candidate test is never promoted to an execution,
+and a historical passing suite is not a current result.
 
 **What it does not do.** It writes no review questions: those are the reviewer's, and the
 [hand-curated sample](../examples/review-brief-f8d4219.md) shows what a person adds to the facts. It infers no
@@ -108,8 +115,10 @@ why the page says so. Everything structural rests on static imports between file
 `uncommitted_files`, `authors`, `commits` as `id`, `author`, `subject`, and the counts), `attention` (the first
 `--limit` rows of triage's `files`, `shown`, `total`), `consequences` (`counts`, `findings`, `ripple`, `by_area`,
 `modules_touched`, `not_analysed` as `language` and `files`), `validation` (`candidates` with `count` and `nearest`,
-`ran`), `people` (`reviewers`, `nobody_else_can_look`, `no_active_owner`), `open` (each with `kind`, `text`, `files`;
-the kinds are the finding kinds that need a person, `only-the-author`, `not-analysed` and `no-checks-recorded`), then
+`ran`, and `report`: null without `--report`, else `sources`, `cases`, `ran` as path to `passed`, `failed` or `skipped`,
+`passed`, `failed`, `skipped`, `not_run` and `unmatched`), `people` (`reviewers`, `nobody_else_can_look`,
+`no_active_owner`), `open` (each with `kind`, `text`, `files`; the kinds are the finding kinds that need a person,
+`only-the-author`, `not-analysed`, `candidate-failed`, `candidates-not-run` and `no-checks-recorded`), then
 `triage` and `check` whole, and `notes`. `meta` is the [shared block](json.md) with `meta.change` and `meta.analysis`,
 which says `skipped` with reason `no-code-changes` when there was nothing to compare. A bad base, or a directory that
 is not a git repository, exits 2 with the sentence on standard error and nothing on standard output; the brief has no

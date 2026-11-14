@@ -124,10 +124,10 @@ class CompositionTest(Repo):
 
     def test_what_the_host_ran_is_recorded_verbatim_or_said_to_be_missing(self):
         b = self.brief()
-        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "ran": []})
+        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "ran": [], "report": None})
         text = brief.markdown(b)
         self.assertIn("Candidate tests, nearest first: `tests/test_engine.py`. They reach the changed files; they are paths, not results.", text)
-        self.assertIn('Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`.', text)
+        self.assertIn('Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report`.', text)
         self.assertIn("no-checks-recorded", [item["kind"] for item in b["open"]])
         b = self.brief(ran=["python -m unittest tests/test_engine.py: 1 test OK (exit 0)", "mypy: not run"])
         text = brief.markdown(b)
@@ -135,6 +135,36 @@ class CompositionTest(Repo):
         self.assertIn("Checks the host ran, as recorded:\n\n- python -m unittest tests/test_engine.py: 1 test OK (exit 0)\n- mypy: not run\n", text)
         self.assertNotIn("none recorded", text)
         self.assertNotIn("no-checks-recorded", [item["kind"] for item in b["open"]])
+
+    def test_a_test_report_the_host_wrote_is_held_against_the_candidates(self):
+        with tempfile.TemporaryDirectory() as tmp:  # outside the repository, where a report would be uncommitted work
+            passing, other, failing = Path(tmp, "passing.xml"), Path(tmp, "other.xml"), Path(tmp, "failing.xml")
+            passing.write_text('<testsuites><testsuite name="s"><testcase classname="tests.test_engine" name="test_run"/><testcase classname="tests.test_engine" name="test_again"/></testsuite></testsuites>')
+            other.write_text('<testsuites><testsuite name="s"><testcase classname="tests.test_other" name="test_x"/></testsuite></testsuites>')
+            failing.write_text('<testsuites><testsuite name="s"><testcase classname="tests.test_engine" name="test_run"><failure message="no"/></testcase></testsuite></testsuites>')
+            b = self.brief(reports=[passing])
+            self.assertEqual(b["validation"]["report"], {"sources": [str(passing)], "cases": 2, "ran": {"tests/test_engine.py": "passed"}, "passed": 1, "failed": [], "skipped": 0, "not_run": [], "unmatched": {"cases": 0, "named": []}})
+            self.assertNotIn("no-checks-recorded", [item["kind"] for item in b["open"]])
+            text = brief.markdown(b)
+            self.assertIn("Candidate tests, nearest first: `tests/test_engine.py` (passed). They reach the changed files; they are paths, not results.", text)
+            self.assertIn("Against the report: 1 of the 1 ran, 1 passed, 0 failed; 0 did not run.", text)
+            self.assertIn(f"Checks the host ran, as recorded:\n\n- test report `{passing}`: 2 cases\n", text)
+            self.assertIn("or a test report the host wrote and `--report` reads, was run", text)
+            b = self.brief(reports=[other, failing])  # two reports as one: the candidate failed in one and is in neither as a pass
+            held = b["validation"]["report"]
+            self.assertEqual((held["sources"], held["cases"], held["ran"], held["failed"], held["unmatched"]), ([str(other), str(failing)], 2, {"tests/test_engine.py": "failed"}, ["tests/test_engine.py"], {"cases": 1, "named": ["tests.test_other"]}))
+            self.assertEqual([item["kind"] for item in b["open"] if item["kind"].startswith("candidate")], ["candidate-failed"])
+            self.assertIn("`tests/test_engine.py` failed in the report: the tests that reach the change do not pass.", brief.markdown(b))
+            b = self.brief(reports=[other])
+            self.assertEqual((b["validation"]["report"]["ran"], b["validation"]["report"]["not_run"]), ({}, ["tests/test_engine.py"]))
+            self.assertEqual([item["kind"] for item in b["open"] if item["kind"].startswith("candidate")], ["candidates-not-run"])
+            self.assertIn("Against the report: 0 of the 1 ran, 0 passed, 0 failed; 1 did not run (`tests/test_engine.py`).", brief.markdown(b))
+            code, out, err = run_cli("brief", "--since", "main", "--repo", str(self.root), "--report", str(passing), "--format", "json")
+            self.assertEqual((code, err), (0, ""))
+            self.assertEqual(json.loads(out)["validation"]["report"]["ran"], {"tests/test_engine.py": "passed"})
+            code, out, err = run_cli("brief", "--since", "main", "--repo", str(self.root), "--report", str(Path(tmp, "missing.xml")))
+            self.assertEqual((code, out), (2, ""))
+            self.assertTrue(err.startswith("tessri: ") and "missing.xml" in err, err)
 
     def test_findings_and_people_flow_into_what_needs_a_person(self):
         b = self.brief()

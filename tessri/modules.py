@@ -377,11 +377,14 @@ def _walk(a: Analysis, seeds: list[str], hops: int | None, allowed: frozenset[st
     return dist, {"followed": followed, "excluded": excluded, "references": references, "unknown_from": unknown_from}
 
 
-def impact(a: Analysis, target: str, depth: int | None = None, limit: int = IMPACT_TESTS, hops: int | None = None, edges: str = "all") -> dict:
+def impact(a: Analysis, target: str, depth: int | None = None, limit: int = IMPACT_TESTS, hops: int | None = None, edges: str = "all", report: dict | None = None) -> dict:
     """Everything that would be affected by changing `target`: files that depend on it directly or through others,
     following at most `hops` edges of the kinds the policy `edges` allows ("all": every edge an analyzer found;
     "imports": recognized dependency syntax and the package initializers Python runs for it). A package's
-    `__init__` runs for every import beneath it, so those count under both policies."""
+    `__init__` runs for every import beneath it, so those count under both policies. With `report`, a test report
+    the host wrote as `runs.load` reads it, the candidate tests are held against what ran."""
+    from . import runs as testruns
+
     if edges not in POLICIES:
         raise ValueError(f"unknown edge policy {edges!r}; choose one of {', '.join(POLICIES)}")
     label, kind, seeds = resolve_seeds(a, target)
@@ -445,7 +448,7 @@ def impact(a: Analysis, target: str, depth: int | None = None, limit: int = IMPA
             "by_distance": [sum(d == n for d in prod.values()) for n in range(1, max(prod.values(), default=0) + 1)],
             "modules": modules,
         },
-        "tests": {"files": len(tests), "direct": sum(d == 1 for d in tests.values()), "paths": ordered_tests[:limit]},
+        "tests": {"files": len(tests), "direct": sum(d == 1 for d in tests.values()), "paths": ordered_tests[:limit], **({"report": testruns.against(report, ordered_tests)} if report is not None else {})},
         "edges": evidence,
         "depends_on": [{"module": k, "files": len(v)} for k, v in sorted(needs.items(), key=lambda kv: (-len(kv[1]), kv[0]))],
     }

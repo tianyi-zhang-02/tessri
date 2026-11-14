@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, brief, config, graphview, hook, htmlreport, integration, modules, sarifview, since, sinceview
+from . import __version__, brief, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
 from .analyze import analyze
 from .explain import TargetError, explain, why_json
 from .render import markdown
@@ -168,7 +168,7 @@ def _cmd_brief(args: argparse.Namespace) -> int:
     root = _root(_root_given(args))
     cfg = _config_for(root, args)
     try:
-        result = brief.compute(root, cfg, args.since, ran=args.ran, limit=args.limit)
+        result = brief.compute(root, cfg, args.since, ran=args.ran, limit=args.limit, reports=args.report)
     except brief.BriefError as exc:
         print(f"tessri: {exc}", file=sys.stderr)
         return 2
@@ -180,8 +180,9 @@ def _cmd_impact(args: argparse.Namespace) -> int:
     root = _root(_root_given(args))
     analysis = analyze(root, _config_for(root, args))
     try:
-        found = modules.impact(analysis, args.target, args.module_depth, hops=args.hops, edges=args.edges)
-    except TargetError as exc:
+        report = runs.load(args.report, set(analysis.records)) if args.report else None
+        found = modules.impact(analysis, args.target, args.module_depth, hops=args.hops, edges=args.edges, report=report)
+    except (TargetError, runs.RunsError) as exc:
         print(f"tessri: {exc}", file=sys.stderr)
         return 2
     _emit(json.dumps(found, indent=2) + "\n" if args.format == "json" else graphview.impact_text(found), args.out)
@@ -255,6 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     impact.add_argument("--hops", type=_positive, metavar="N", help="follow edges at most N steps away (default: all of them)")
     impact.add_argument("--edges", choices=("all", "imports"), default="all", help="which evidence to follow: all = recognized dependency syntax, package files and references found in strings or dynamic loading (default); imports = recognized dependency syntax and package files only")
     impact.add_argument("--module-depth", type=_positive, metavar="N", help="group dependents by the first N directories (default: split by size)")
+    impact.add_argument("--report", action="append", default=[], metavar="FILE", help="a test report the host wrote (JUnit XML: pytest --junitxml, jest-junit and the like; repeatable): the candidate tests are held against what ran")
     impact.add_argument("--out", metavar="FILE", help="write the result to FILE instead of stdout")
     _add_analysis_options(impact)
     impact.set_defaults(func=_cmd_impact)
@@ -285,6 +287,7 @@ def build_parser() -> argparse.ArgumentParser:
     briefp.add_argument("--format", choices=("md", "json"), default="md", help="json: the brief's sections plus the whole triage and check objects")
     briefp.add_argument("--limit", type=int, default=brief.LISTED, metavar="N", help=f"files in the look-first table (default {brief.LISTED}); the JSON always carries them all")
     briefp.add_argument("--ran", action="append", default=[], metavar="TEXT", help="a check the host actually ran, with its result and exit code, recorded verbatim (repeatable); without it the brief says that none was recorded")
+    briefp.add_argument("--report", action="append", default=[], metavar="FILE", help="a test report the host wrote (JUnit XML: pytest --junitxml, jest-junit and the like; repeatable): the candidate tests are held against what ran")
     briefp.add_argument("--out", metavar="FILE", help="write the brief to FILE instead of stdout")
     _add_analysis_options(briefp)
     briefp.set_defaults(func=_cmd_brief)
