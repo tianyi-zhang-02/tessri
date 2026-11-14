@@ -13,6 +13,12 @@ Dates are the day a version was tagged.
   `stop_hook = "block"` in the configuration, to the agent first. A new receipt kind, `hooks`, finds the groups
   again by their exact content, so `update` and `remove` never touch your own hooks; `integration status` names
   the hooks file per host.
+- `tools/reviewer_match.py` publishes the test behind *who can look*: on a repository's merged pull requests, read
+  through the GitHub command line, it offers triage's reviewer list at each pull request's base with the clock at
+  its merge, alongside two baselines from git alone and one from the review data, and scores each against who
+  reviewed. [The reviewer match](docs/guide/reviewer-match.md) in the guide is its output on one repository: naming
+  the people behind the changed files beats naming the busiest people, triage's ownership does not beat a plain
+  count of recent committers to those files, and most reviewing there was done by two people git cannot name.
 - `tools/backtest.py` publishes the test behind the order `triage` uses and the review set `impact` draws. On any
   repository's history it scores the files each change touched with what git knew when the change landed, against
   the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
