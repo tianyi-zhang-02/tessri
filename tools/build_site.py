@@ -42,7 +42,7 @@ GROUPS = [
     ("Changes", ["triage", "check", "brief"]),
     ("Output", ["html-report", "json"]),
     ("Setup", ["integration", "hooks", "mcp", "configuration"]),
-    ("Reference", ["architecture", "limits", "formerly-repolife"]),
+    ("Reference", ["architecture", "backtest", "limits", "formerly-repolife"]),
 ]
 
 MARK = (

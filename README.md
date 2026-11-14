@@ -99,8 +99,9 @@ the recognized imports and leaves the string references at the frontier.
 
 Tessri lists the files, parses Python with Python's own parser and JavaScript/TypeScript with its own scanner,
 builds the import graph, reads who changed what from git, and answers every question from that one picture. No
-model, no network, no service, and it never edits your code. The order `triage` puts files in was backtested on
-real history, and the composite risk score we tried did not beat its parts, so there is none.
+model, no network, no service, and it never edits your code. The order `triage` puts files in was
+[backtested on real history](docs/guide/backtest.md), and the composite risk score we tried did not beat its parts,
+so there is none.
 
 ## Getting started
 
@@ -150,6 +151,13 @@ python3 tools/build_site.py --out _site --demo && python3 -m http.server --direc
 
 `--demo` adds the pages that run Tessri on this checkout: the HTML report, and the brief of the latest commit
 against its first parent.
+
+The order `triage` uses and the import graph's claim to predict what changes together are tested on history, not
+assumed. The test runs on any repository, and [the backtest](docs/guide/backtest.md) in the guide is its output on one:
+
+```bash
+python3 tools/backtest.py path/to/repository --months 12
+```
 
 ## License
 

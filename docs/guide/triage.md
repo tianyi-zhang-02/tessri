@@ -50,14 +50,15 @@ Tests that reach it, nearest first: `tests/test_a.py`
 ```
 
 **How the order is decided.** Files are ordered by how many commits touched them in the last 90 days, then by how much
-this change touches. We tested that rather than assuming it: on one large repository (nemo-rl, eleven monthly
-snapshots, no information from after each snapshot), the files a change touched were ordered this way and compared with
-which of them needed a fix over the following 30 days. The order scored an AUC of about 0.72, against 0.64 for
-"largest diff first". Three things we expected to help did not, so they are shown but do not move a file: knowing which
-of those commits were fixes or reverts (`fixes_90`), how many files import it, and who owns it. The first two describe
-trouble that already happened and what a mistake could reach; ownership describes who can catch it, which a
-"will it need a fix" score does not measure. One repository and eleven snapshots is a hint, not a proof. The backtest scripts are not
-in this repository yet, and the same check on other repositories has not been done.
+this change touches. We tested that rather than assuming it, and the test is in the repository: `tools/backtest.py`
+scores the files every change of the last twelve months touched with what git knew when the change landed, and asks
+which of them a fix touched in the following 30 days ([the backtest](backtest.md) has the method and the full output).
+On one large repository the order scored an AUC of 0.79, against 0.52 for "largest diff first", and beat it in
+eleven of twelve months. Two things we expected to help did not, so they are shown but do not move a file: knowing
+which of those commits were fixes or reverts (`fixes_90`) added nothing beyond activity, and how many files import it
+scored 0.62 on its own. The first describes trouble that already happened, the second what a mistake could reach;
+ownership is shown because it describes who can catch it, which a "will it need a fix" score does not measure. One
+repository is a hint, not a proof; the script runs on yours.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
