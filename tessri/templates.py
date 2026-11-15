@@ -39,6 +39,11 @@ CONFIG = """\
 # findings of `check` on the uncommitted work go when the agent stops. "inform" shows them to
 # you; "block" hands them to the agent first, once, and to you after that.
 # stop_hook = "inform"
+
+# Between runs, what the analyzers read from each file is kept in your cache directory, keyed by
+# the file's content, so a second run parses only what changed. It changes no result. false reads
+# everything every time; `--no-cache` does so once.
+# cache = true
 """
 
 SKILL = """\

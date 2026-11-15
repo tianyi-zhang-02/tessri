@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tessri import config, triage  # noqa: E402  (the package in this checkout)
+from tessri import cache, config, triage  # noqa: E402  (the package in this checkout)
 
 K = 3  # names a method offers, like triage
 STATES = ("APPROVED", "CHANGES_REQUESTED", "COMMENTED")  # a review in any of these states counts as having looked
@@ -245,6 +245,7 @@ def score(data: dict, root: Path, k: int = K, limit: int | None = None, log=None
             raise ReviewerMatchError(f"cannot make a worktree of {root}: {made.stderr.strip()}")
         try:
             cfg = config.load(wt)
+            cfg.store = cache.for_repository(root, cfg.cache)  # the same files recur across pull requests
             for i, pr in enumerate(pulls):
                 moved = subprocess.run(["git", "-C", str(wt), "checkout", "-q", "--detach", pr["merge"]], capture_output=True, text=True)
                 if moved.returncode != 0:

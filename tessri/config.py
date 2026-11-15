@@ -5,10 +5,12 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 _INT_KEYS = ("active_days", "dormant_days", "owner_inactive_days", "review_days", "depth", "top")
 _LIST_KEYS = ("keep", "exclude", "entry", "ignore_authors")
 _CHOICE_KEYS = {"stop_hook": ("inform", "block")}
+_BOOL_KEYS = ("cache",)
 
 
 class ConfigError(ValueError):
@@ -28,6 +30,8 @@ class Config:
     entry: list[str] = field(default_factory=list)  # extra entry points: module names or paths
     ignore_authors: list[str] = field(default_factory=list)  # globs on commit author name or email that never own code (bots are ignored already)
     stop_hook: str = "inform"  # agent hooks: when the agent stops, the findings go to the person ("inform") or to the agent first ("block")
+    cache: bool = True  # keep what the analyzers read from each file between runs, in the user's cache directory (cache.py); false reads everything every time
+    store: Any = field(default=None, repr=False, compare=False)  # the cache.Store the command line, the hooks and the server attach for a run; never read from a file, and None reads everything
 
 
 def _read(path: Path) -> dict:
@@ -50,6 +54,10 @@ def _apply(cfg: Config, data: dict, origin: str) -> None:
         elif key in _CHOICE_KEYS:
             if value not in _CHOICE_KEYS[key]:
                 raise ConfigError(f"{origin}: `{key}` must be one of {', '.join(repr(c) for c in _CHOICE_KEYS[key])}")
+            setattr(cfg, key, value)
+        elif key in _BOOL_KEYS:
+            if not isinstance(value, bool):
+                raise ConfigError(f"{origin}: `{key}` must be true or false")
             setattr(cfg, key, value)
         else:
             raise ConfigError(f"{origin}: unknown option `{key}`")

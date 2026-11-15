@@ -12,7 +12,8 @@ import re
 from typing import Mapping
 
 from . import Analyzer, LanguageResult, Repo, note
-from .jslex import Scan, scan
+from ..cache import digest
+from .jslex import Dynamic, Scan, scan
 from .jsproject import Resolver
 
 SOURCE_EXTS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts")
@@ -33,6 +34,59 @@ _TEST_DIRS = frozenset({"test", "tests", "__tests__", "__mocks__", "spec", "spec
 def is_test_path(path: str) -> bool:
     parts = path.split("/")
     return bool(_TEST_NAME.fullmatch(parts[-1])) or any(d in _TEST_DIRS for d in parts[:-1])
+
+
+NAMESPACE = "javascript/1"  # the cache namespace of what `_source` finds; bump the number when that changes
+
+
+def _to_cache(found: Scan | None) -> dict:
+    if found is None:
+        return {"unparsed": True}
+    return {
+        "specs": list(found.specs),
+        "strings": sorted(found.strings),
+        "dynamic": [[d.head, d.tail, d.deep] for d in found.dynamic],
+        "globs": list(found.globs),
+        "contexts": [[directory, deep, regex] for directory, deep, regex in found.contexts],
+        "main_guard": found.main_guard,
+        "hashbang": found.hashbang,
+    }
+
+
+def _from_cache(data: object) -> Scan | None:
+    """The `Scan` a cache entry holds, None for a file that did not scan; ValueError when the entry is not one."""
+    if not isinstance(data, dict):
+        raise ValueError("not an entry")
+    if data.get("unparsed") is True:
+        return None
+    try:
+        return Scan(
+            specs=[str(s) for s in data["specs"]],
+            strings={str(s) for s in data["strings"]},
+            dynamic=[Dynamic(str(head), str(tail), bool(deep)) for head, tail, deep in data["dynamic"]],
+            globs=[str(g) for g in data["globs"]],
+            contexts=[(str(directory), bool(deep), None if regex is None else str(regex)) for directory, deep, regex in data["contexts"]],
+            main_guard=bool(data["main_guard"]),
+            hashbang=bool(data["hashbang"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"malformed entry: {exc}") from exc
+
+
+def _scanned(path: str, text: str, store) -> Scan | None:
+    """`_source`, from the store when it holds the result for this text and this kind of file."""
+    if store is None:
+        return _source(path, text)
+    key = f"{digest(text)}:{posixpath.splitext(path)[1]}"  # what `_source` does depends on the suffix as well
+    kept = store.get(NAMESPACE, key)
+    if kept is not None:
+        try:
+            return _from_cache(kept)
+        except ValueError:
+            pass  # not an entry of ours: read the file
+    found = _source(path, text)
+    store.put(NAMESPACE, key, _to_cache(found))
+    return found
 
 
 def _source(path: str, text: str) -> Scan | None:
@@ -72,7 +126,7 @@ class JavaScriptAnalyzer(Analyzer):
         tests = {p for p in files if is_test_path(p)}
 
         for path, text in files.items():
-            found = _source(path, text)
+            found = _scanned(path, text, repo.cache)
             if found is None:
                 unparsed.add(path)
                 continue
