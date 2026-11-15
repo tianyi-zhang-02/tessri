@@ -15,7 +15,9 @@ The server writes nothing to standard output but protocol messages, reports noti
 exits when its input closes. Every call sees the checkout as it is, uncommitted work included: an analysis is
 reused for a later call only while the checkout's fingerprint is unchanged (HEAD, the paths git reports as changed
 or untracked with their sizes and modification times, and the configuration files) and for at most an hour, so a
-run of questions about one checkout costs one analysis. `meta.generated_at` is when that analysis was made.
+run of questions about one checkout costs one analysis, and across analyses and server runs what the analyzers read
+from each file is [kept on disk](configuration.md#the-cache), so a fresh analysis after an edit parses only what changed
+(`tessri mcp --no-cache` reads everything every time). `meta.generated_at` is when that analysis was made.
 `tessri_triage`, `tessri_check` and `tessri_brief` compare a change and always read afresh; a checkout that is
 not a git repository is analysed on every call.
 

@@ -46,8 +46,9 @@ without git or a repository without a commit yet produce no message.
 
 ## What it costs, and what it remembers
 
-After an edit the hook analyses the working tree once (about half a second on a repository of a hundred files,
-two to three seconds on two thousand); at a stop it compares the tree with HEAD, two analyses, and only when a
+After an edit the hook analyses the working tree once (about half a second on a repository of a hundred files;
+on two thousand, two to three seconds the first time and well under a second after, since what the analyzers read
+from each file is [kept between runs](configuration.md#the-cache)); at a stop it compares the tree with HEAD, two analyses, and only when a
 code file changed. The hosts run hooks synchronously; the installed groups carry timeouts of 60 and 120 seconds.
 What each session has been told lives in one small JSON file per session under `tessri-hooks/` in the system's
 temporary directory, named by a hash of the host's session id and holding only project-relative paths and finding

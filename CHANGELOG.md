@@ -2,6 +2,19 @@
 
 Dates are the day a version was tagged.
 
+## Unreleased
+
+- Faster, and a cache. The Python analyzer reads a tree in one pass: the statements for imports and docstrings, and
+  the expressions of a statement only when one of its lines holds a quote, which every string literal does, so the
+  walk that was most of a scan now takes a fifth of the time and finds the same things. What the analyzers read from
+  each file is then kept between runs in the user's cache directory, keyed by the file's content, so a second run
+  parses only what changed: `check` shares it with the scratch copy of the base, worktrees share it with their
+  repository, and the hooks and the server, which run at every edit and every call, run warm. On a repository of
+  1,900 files (730 of them Python) `scan` went from 3.7 seconds to 2.6 cold and 0.6 warm; `impact` takes 2.5 and
+  0.6, `brief` 4.7 and 1.8. The output is the same with the cache, without it (`--no-cache`, `tessri mcp --no-cache`,
+  `cache = false` in the configuration) and after the directory is deleted, and nothing is written into the
+  repository. [Configuration](docs/guide/configuration.md) says where it lives.
+
 ## 0.4.0 (2026-11-14)
 
 - `tessri integration install --agent claude-hooks` (or `codex-hooks`) puts Tessri into the agent's own loop. Two

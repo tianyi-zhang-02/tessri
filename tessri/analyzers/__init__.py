@@ -31,6 +31,8 @@ from importlib import metadata
 
 from typing import Callable, Mapping
 
+from ..cache import Store
+
 
 @dataclass(frozen=True)
 class Repo:
@@ -42,6 +44,7 @@ class Repo:
 
     paths: frozenset[str]
     read: Callable[[str], str | None]  # None when the file is missing, binary or too large
+    cache: Store | None = None  # when the run has one: what an analyzer read from a file, kept between runs under a digest of its text (see cache.py); an analyzer that ignores it is only slower
 
 
 # Kinds of evidence behind an edge, strongest first. "import": recognized literal dependency syntax names the
