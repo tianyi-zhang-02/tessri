@@ -14,6 +14,14 @@ Dates are the day a version was tagged.
   0.6, `brief` 4.7 and 1.8. The output is the same with the cache, without it (`--no-cache`, `tessri mcp --no-cache`,
   `cache = false` in the configuration) and after the directory is deleted, and nothing is written into the
   repository. [Configuration](docs/guide/configuration.md) says where it lives.
+- The front doors do more. The site searches the guide: `/` or Ctrl K (⌘K) opens a search over every page and
+  section, with the matching words marked and the keyboard moving through the places found. Guide pages carry the
+  page before and after in reading order, an edit link to their Markdown, and a skip link to the content; every page
+  has a canonical address and the card a link to it shows elsewhere; a wrong address gets a page that says so and
+  searches; a sitemap and robots.txt. The README leads with its badges, a table of where Tessri goes in an agent's
+  loop and a table of the questions and their commands; the repository gains a contributing guide, a security policy,
+  two issue forms (something broke; Tessri said something wrong, with the evidence it gave) and a pull request
+  template.
 
 ## 0.4.0 (2026-11-14)
 

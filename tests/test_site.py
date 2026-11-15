@@ -5,6 +5,7 @@ README's, and the small Markdown converter handles what the guide writes."""
 import contextlib
 import html
 import io
+import json
 import re
 import sys
 import tempfile
@@ -136,7 +137,7 @@ class BuildTest(unittest.TestCase):
     def test_the_pages_are_self_contained(self):
         for page, text in self.pages.items():
             self.assertNotRegex(text, r"[\w.+-]+@[\w-]+\.[\w.]+", page.name)
-            self.assertEqual(re.findall(r'<(?:link|script|img|iframe)\b[^>]*\s(?:href|src)="(https?://[^"]+)"', text), [], page.name)  # nothing loaded from elsewhere: no fonts, scripts, images, trackers
+            self.assertEqual(re.findall(r'<(?:link(?![^>]*rel="canonical")|script|img|iframe)\b[^>]*\s(?:href|src)="(https?://[^"]+)"', text), [], page.name)  # nothing loaded from elsewhere: no fonts, scripts, images, trackers; the canonical address loads nothing
             if page.name != "report.html":  # the HTML report is its own document, with its style inside
                 self.assertIn('<link rel="stylesheet" href="', text)
         self.assertIn("favicon.svg", {p.name for p in self.written})
@@ -222,6 +223,75 @@ class BuildTest(unittest.TestCase):
         for i in ids:
             self.assertIn(f'<a href="#{i}">', hooks)
         self.assertNotIn('class="toc"', self.pages[self.out / "guide" / "getting-started.html"])
+
+    def test_the_guide_is_searchable(self):
+        data = json.loads((self.out / "search.json").read_text(encoding="utf-8"))
+        self.assertGreater(len(data), 40)
+        covered = {e["u"].split("#")[0] for e in data}
+        for p in (self.out / "guide").glob("*.html"):
+            self.assertIn("guide/" if p.stem == "index" else f"guide/{p.name}", covered, p.name)
+        for e in data:
+            self.assertEqual(sorted(e), ["b", "h", "t", "u"])
+            target, _, anchor = e["u"].partition("#")
+            page = self.out / (target + "index.html" if target.endswith("/") else target)
+            self.assertTrue(page.exists(), e["u"])
+            if anchor:
+                self.assertIn(f'<h2 id="{anchor}">', self.pages[page], e["u"])
+            self.assertNotRegex(e["b"], r"<(?:p|a|code|em|strong|li|ul|ol|h\d|table|tr|td|th|div|span|pre)\b[^>]*>")  # plain text; `<base>` in a sentence is text
+            self.assertNotIn("&amp;", e["b"])
+        hooks = [e for e in data if e["u"].startswith("guide/hooks.html")]
+        self.assertEqual(hooks[0]["h"], "")  # the page itself first, then its sections
+        self.assertGreater(len(hooks), 2)
+        for page, text in self.pages.items():
+            if page.name != "report.html":
+                self.assertIn('<button class="search-open" type="button" aria-label="Search the guide">', text, page.name)
+                self.assertIn('<div class="search" role="dialog" aria-modal="true" aria-label="Search the guide" hidden data-base="', text, page.name)
+                self.assertIn('fetch(base + "search.json")', text, page.name)
+
+    def test_link_previews_and_canonical_addresses(self):
+        self.assertIn("og.png", {p.name for p in self.written})
+        for page, text in self.pages.items():
+            if page.name == "report.html":
+                continue
+            rel = page.relative_to(self.out).as_posix()
+            where = "" if rel == "index.html" else rel[: -len("index.html")] if rel.endswith("/index.html") else rel
+            self.assertIn(f'<link rel="canonical" href="{build_site.SITE_URL}{where}">', text, rel)
+            self.assertIn(f'<meta property="og:url" content="{build_site.SITE_URL}{where}">', text, rel)
+            self.assertIn(f'<meta property="og:image" content="{build_site.SITE_URL}og.png">', text, rel)
+            self.assertIn('<meta name="twitter:card" content="summary_large_image">', text, rel)
+            self.assertEqual(text.count('property="og:title"'), 1, rel)
+
+    def test_the_not_found_page_the_sitemap_and_robots(self):
+        lost = self.pages[self.out / "404.html"]
+        self.assertIn(f'<base href="{build_site.SITE_URL}">', lost)
+        self.assertIn('href="guide/"', lost)
+        self.assertIn('<main class="wrap notfound" id="main">', lost)
+        sitemap = (self.out / "sitemap.xml").read_text(encoding="utf-8")
+        for where in ("", "guide/", "guide/hooks.html", "demo/", "demo/report.html"):
+            self.assertIn(f"<loc>{build_site.SITE_URL}{where}</loc>", sitemap, where)
+        self.assertNotIn("404.html", sitemap)
+        self.assertIn(f"Sitemap: {build_site.SITE_URL}sitemap.xml", (self.out / "robots.txt").read_text(encoding="utf-8"))
+
+    def test_guide_pages_go_in_order_and_can_be_edited(self):
+        ordered = build_site.order(build_site.guide_index())
+        self.assertEqual(ordered[0], ("index", "Overview"))
+        self.assertEqual(len(ordered), len(build_site.guide_index()) + 1)
+        first = self.pages[self.out / "guide" / "index.html"]
+        self.assertNotIn('rel="prev"', first)
+        self.assertIn(f'<a class="next" rel="next" href="{ordered[1][0]}.html">', first)
+        last = self.pages[self.out / "guide" / f"{ordered[-1][0]}.html"]
+        self.assertNotIn('rel="next"', last)
+        self.assertIn(f'<a class="prev" rel="prev" href="{ordered[-2][0]}.html">', last)
+        second = self.pages[self.out / "guide" / f"{ordered[1][0]}.html"]
+        self.assertIn('<a class="prev" rel="prev" href="./">', second)
+        hooks = self.pages[self.out / "guide" / "hooks.html"]
+        self.assertIn(f'href="{build_site.REPO}/edit/main/docs/guide/hooks.md"', hooks)
+
+    def test_every_page_can_skip_to_its_content(self):
+        for page, text in self.pages.items():
+            if page.name != "report.html":
+                self.assertIn('<a class="skip" href="#main">Skip to content</a>', text, page.name)
+                self.assertEqual(text.count(' id="main"'), 1, page.name)
 
     def test_the_command_line(self):
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stdout(io.StringIO()) as out:

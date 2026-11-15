@@ -158,6 +158,7 @@ pre {
   font-size: 13.5px;
   line-height: 21px;
   overflow-x: auto;
+  contain: inline-size;  /* a long line scrolls inside the block and never widens the page: on a phone the layout viewport would otherwise grow to the longest line */
   tab-size: 4;
 }
 
@@ -727,7 +728,7 @@ footer.foot a { color: var(--ink-2); }
 .prose img { max-width: 100%; }
 .prose hr { border: 0; border-top: 1px solid var(--line-soft); margin: 36px 0; }
 
-.table { overflow-x: auto; max-width: 100%; }
+.table { overflow-x: auto; max-width: 100%; contain: inline-size; }
 .prose table { border-collapse: collapse; width: 100%; font-size: 14.5px; line-height: 21px; font-variant-numeric: tabular-nums; }
 .prose th { text-align: left; font-weight: 500; color: var(--ink-2); font-size: 13px; letter-spacing: 0.01em; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .prose td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
@@ -837,3 +838,84 @@ footer.foot a { color: var(--ink-2); }
 @keyframes tile { from { opacity: 0; transform: translateY(-6px) scale(0.5); } to { opacity: 1; transform: none; } }
 @keyframes blink { to { visibility: hidden; } }
 @keyframes plot { to { clip-path: inset(0 0 0 0); } }
+
+/* The front door's working parts: the skip link, the search over the guide, the pager, the not-found page. */
+
+.skip {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.skip:focus { top: 12px; }
+
+.search-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 9px 0 10px;
+  border: 1px solid var(--band-line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--band-ink-2);
+  cursor: pointer;
+  font: inherit;
+}
+.search-open:hover { color: var(--band-ink); border-color: var(--band-ink); }
+.search-open .icon { width: 16px; height: 16px; }
+.search-open kbd { font: 500 12px/1 var(--mono); padding: 3px 6px; border: 1px solid var(--band-line); border-radius: 5px; color: var(--band-muted); }
+
+.search { position: fixed; inset: 0; z-index: 60; }
+.search[hidden] { display: none; }
+.search-backdrop { position: absolute; inset: 0; background: rgba(23, 21, 30, 0.45); }
+.search-panel {
+  position: relative;
+  width: min(680px, calc(100% - 32px));
+  margin: 10vh auto 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.search-row { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line-soft); }
+.search-row .icon { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.search-row input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 17px; }
+.search-row input::-webkit-search-cancel-button { display: none; }
+.search-close { font: 500 12px/1 var(--mono); padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.search-close:hover { color: var(--ink); border-color: var(--ink-2); }
+.search ul { list-style: none; margin: 0; padding: 8px; max-height: min(60vh, 520px); overflow: auto; }
+.search ul:empty { padding: 0; }
+.search li a { display: block; padding: 10px 12px; border-radius: 10px; color: var(--ink); }
+.search li a:hover, .search li[aria-selected="true"] a { background: var(--bg-2); text-decoration: none; }
+.search .where { display: block; font-weight: 500; }
+.search .sep { color: var(--muted); font-weight: 400; }
+.search .snip { display: block; margin-top: 2px; font-size: 14px; line-height: 20px; color: var(--ink-2); }
+.search mark { padding: 0 1px; border-radius: 3px; background: var(--tile); color: inherit; }
+.search .hint { margin: 0; padding: 10px 18px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line-soft); }
+body.searching { overflow: hidden; }
+
+.pager { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 48px; }
+.pager a { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--line-soft); border-radius: 12px; color: var(--ink); }
+.pager a:hover { border-color: var(--line); text-decoration: none; }
+.pager a span { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.pager .next { grid-column: 2; text-align: right; }
+
+.notfound { max-width: 640px; padding: 80px 0 40px; }
+.notfound .actions { display: flex; gap: 12px; margin-top: 28px; }
+.notfound kbd { font: 500 13px/1 var(--mono); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink-2); }
+
+@media (max-width: 672px) {
+  .top nav .repo { display: none; }  /* the footer keeps the repository link; the bar keeps Guide, Demo, search and the theme */
+  .search-open { width: 34px; padding: 0; justify-content: center; }
+  .search-open kbd { display: none; }
+  .search-panel { margin-top: 12px; }
+  .pager { grid-template-columns: 1fr; }
+  .pager .next { grid-column: 1; text-align: left; }
+}

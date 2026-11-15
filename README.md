@@ -1,5 +1,7 @@
 # tessri.
 
+[![Tests](https://github.com/tianyi-zhang-02/tessri/actions/workflows/tests.yml/badge.svg)](https://github.com/tianyi-zhang-02/tessri/actions/workflows/tests.yml) ![Python 3.11 or newer](https://img.shields.io/badge/python-3.11%2B-5a46c2) ![No dependencies](https://img.shields.io/badge/dependencies-none-5a46c2) [![MIT](https://img.shields.io/badge/license-MIT-5a46c2)](LICENSE)
+
 **Keep code understandable.**
 
 Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history,
@@ -25,6 +27,19 @@ pip install tessri
 ```
 
 Python 3.11 or newer, no dependencies. To run it once without installing: `uvx tessri scan .`
+
+## In an agent's loop
+
+The same questions, where the agent and the reviewer already are. Each line installs with a receipt and
+`tessri integration remove` takes it out again; the [integration](docs/guide/integration.md) page has every option.
+
+| Where | Install | What it gives |
+|---|---|---|
+| Any MCP host | `tessri integration install --agent mcp` | the questions as tools (`tessri_impact`, `tessri_triage`, `tessri_check`, `tessri_brief`, `tessri_why`, `tessri_scan`, `tessri_graph`), served by `tessri mcp`; see [MCP](docs/guide/mcp.md) |
+| Claude Code, Codex | `--agent claude-hooks`, `--agent codex-hooks` | after each edit, what the edited file reaches; when the agent stops, what the uncommitted work did to the structure; see [hooks](docs/guide/hooks.md) |
+| Skills and instructions | `--agent claude`, `codex`, `agents`, `copilot` | when to ask which question, as the agent's own instructions |
+| Every pull request | `--agent review` | the brief below, posted as a comment |
+| A weekly look | `--agent report` | the HTML report of the repository, on a schedule |
 
 ## The hand-off
 
@@ -107,15 +122,21 @@ so there is none.
 
 ## Getting started
 
-1. `tessri scan .` in any repository, or `tessri scan . --format html --out report.html` for one page to open.
-2. `tessri impact <path>` before a change, `tessri triage` to review one, `tessri check` when it is done, and
-   `tessri brief` to hand it over on one page; without `--since`, a branch is judged against the default branch.
-3. `tessri integration install --agent claude` (or `codex`, `agents`, `copilot`) installs the agent's
-   instructions with a receipt, `--agent mcp` points a host at `tessri mcp`, the same questions as MCP tools,
-   `--agent claude-hooks` or `codex-hooks` puts Tessri into the agent's loop (what an edited file reaches, after
-   each edit; what the uncommitted work did to the structure, when it stops), `--agent config` writes a starter
-   `.tessri.toml`, `--agent report` a weekly report workflow and `--agent review` the brief as a comment on every
-   pull request; `tessri integration remove` takes it all out again.
+`tessri scan .` in any repository, or `tessri scan . --format html --out report.html` for one page to open. Then, by
+the question; without `--since`, a branch is judged against the default branch.
+
+| The question | The command | Read |
+|---|---|---|
+| What can a change to this file affect, which tests reach it, who maintains that? | `tessri impact <path>` | [impact](docs/guide/impact.md) |
+| Which of the changed files deserve a person first? | `tessri triage --since <base>` | [triage](docs/guide/triage.md) |
+| What did the change do to the structure? | `tessri check --since <base>` | [check](docs/guide/check.md) |
+| Hand the change over, on one page | `tessri brief --since <base>` | [brief](docs/guide/brief.md) |
+| What is the evidence behind what it said about this file? | `tessri why <path>` | [scan](docs/guide/scan.md) |
+| How do the modules depend on each other? | `tessri graph .` | [graph](docs/guide/graph.md) |
+| What does nothing reach, and what does nobody maintain? | `tessri scan .` | [scan](docs/guide/scan.md), [ownership](docs/guide/ownership.md) |
+
+[Which command, when](docs/guide/when.md) has the rest, and `tessri integration install --agent config` writes a
+starter `.tessri.toml` with every option commented out.
 
 ## Read more
 
@@ -129,6 +150,7 @@ so there is none.
   [Architecture](docs/guide/architecture.md), [Limits](docs/guide/limits.md).
 - [Changelog](CHANGELOG.md). Tessri was called repolife until 0.2.0;
   [what to rename](docs/guide/formerly-repolife.md) when upgrading from the old name.
+- [Contributing](CONTRIBUTING.md): what the code keeps, where things live, and how to tell us what Tessri got wrong.
 
 ## Development
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: The guide
+    url: https://tianyi-zhang-02.github.io/tessri/guide/
+    about: Every question Tessri answers, one page each, with real output, and which command to use when.
+  - name: What Tessri cannot see
+    url: https://tianyi-zhang-02.github.io/tessri/guide/limits.html
+    about: Registries, dependency injection, code outside the repository, and the other things the analysis says it cannot see. Read before reporting an edge that is missing.
