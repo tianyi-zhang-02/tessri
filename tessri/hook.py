@@ -29,12 +29,20 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import config, modules, since
+from . import cache, config, modules, since
 from .analyze import analyze
 from .explain import TargetError
 
 STATE_DIR = Path(tempfile.gettempdir()) / "tessri-hooks"  # what each session was already told; one small file per session
 STATE_DAYS = 7  # a session file older than this is dropped
+
+
+def _configured(root: Path, now: float) -> config.Config:
+    """The repository's configuration with the cache attached: a hook runs at every edit, so a run must read only
+    what changed since the last one."""
+    cfg = config.load(root)
+    cfg.store = cache.for_repository(root, cfg.cache, now=now)
+    return cfg
 EDITS_SPOKEN = 5  # files spoken about after one edit (a patch can touch many)
 FILES_LISTED = 6
 TESTS_LISTED = 5
@@ -172,7 +180,7 @@ def after_edit(event: dict, repo: str | None, now: float) -> dict | None:
     fresh = [p for p in paths if not memory.seen("edits", p)]
     if not fresh:
         return None
-    analysis = analyze(root, config.load(root), now=now)
+    analysis = analyze(root, _configured(root, now), now=now)
     said = []
     for rel in fresh[:EDITS_SPOKEN]:
         memory.note("edits", rel)
@@ -234,7 +242,7 @@ def at_stop(event: dict, repo: str | None, now: float) -> dict | None:
     root = project_root(event, repo)
     if root is None:
         return None
-    cfg = config.load(root)
+    cfg = _configured(root, now)
     try:
         result = since.check(root, cfg, since="HEAD", now=now)
     except since.CheckError:  # not a git repository, or no commit yet: nothing to compare the work with

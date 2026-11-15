@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, brief, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
+from . import __version__, brief, cache, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
 from .analyze import analyze
 from .explain import TargetError, explain, why_json
 from .render import markdown
@@ -43,6 +43,7 @@ def _add_analysis_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--entry", action="append", default=[], metavar="MODULE_OR_PATH", help="extra entry point (repeatable)")
     p.add_argument("--depth", type=int, metavar="N", help="directory depth for the per-directory table (default 1)")
     p.add_argument("--top", type=int, metavar="N", help="rows in the largest-files and hotspots tables (default 15)")
+    p.add_argument("--no-cache", action="store_true", help="read every file afresh instead of what earlier runs kept of it (the result is the same; see the configuration page)")
 
 
 def _positive(text: str) -> int:
@@ -68,6 +69,7 @@ def _config_for(root: Path, args: argparse.Namespace) -> config.Config:
     for key in ("keep", "exclude", "entry", "ignore_authors"):
         current = getattr(cfg, key)
         current.extend(v for v in getattr(args, key) if v not in current)
+    cfg.store = cache.for_repository(root, cfg.cache and not args.no_cache)
     return cfg
 
 
@@ -196,7 +198,7 @@ def _cmd_hook(args: argparse.Namespace) -> int:
 def _cmd_mcp(args: argparse.Namespace) -> int:
     from .mcp import Server
 
-    return Server([_root(r) for r in (args.root or ["."])]).serve()
+    return Server([_root(r) for r in (args.root or ["."])], use_cache=not args.no_cache).serve()
 
 
 def _cmd_integration(args: argparse.Namespace) -> int:
@@ -299,6 +301,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     mcp = sub.add_parser("mcp", help="serve the questions as Model Context Protocol tools over stdin/stdout, for an agent that starts it as a subprocess")
     mcp.add_argument("--root", action="append", metavar="PATH", help="a checkout to serve (repeatable; default: the current directory); with several, every tool names one with `root`")
+    mcp.add_argument("--no-cache", action="store_true", help="read every file afresh on every analysis instead of what earlier runs kept of it")
     mcp.set_defaults(func=_cmd_mcp)
 
     integ = sub.add_parser("integration", help="install, update, inspect or remove the project integration (agent skills, AGENTS.md block, MCP configuration, lifecycle hooks, a starter configuration file, the report and review workflows) with a receipt, reversibly")

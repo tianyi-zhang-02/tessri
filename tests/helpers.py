@@ -1,8 +1,16 @@
+import atexit
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+# The command line, the hooks and the server keep what the analyzers read in the user's cache directory; the suite
+# must leave that alone, so every test process gets a cache directory of its own, removed when it exits.
+_CACHE_DIR = tempfile.mkdtemp(prefix="tessri-test-cache-")
+os.environ["TESSRI_CACHE_DIR"] = _CACHE_DIR
+atexit.register(shutil.rmtree, _CACHE_DIR, ignore_errors=True)
 
 
 def write_tree(root: Path, files: dict[str, str]) -> None:

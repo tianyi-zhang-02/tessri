@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
 
-from . import __version__, brief, config, gitlog, graphview, modules, runs, since, sinceview
+from . import __version__, brief, cache, config, gitlog, graphview, modules, runs, since, sinceview
 from .analyze import Analysis, analyze
 from .explain import TargetError, explain, why_json
 from .gitlog import _git_line as git_line  # one-line probes, as the history reader runs them
@@ -336,8 +336,9 @@ def name_checkouts(roots: Sequence[Path]) -> list[Checkout]:
 
 
 class Server:
-    def __init__(self, roots: Sequence[Path]):
+    def __init__(self, roots: Sequence[Path], use_cache: bool = True):
         self.checkouts = name_checkouts([Path(r) for r in roots])
+        self.use_cache = use_cache  # whether an analysis may use what earlier runs kept of each file (cache.py); a checkout's configuration can still say no
         self.version: str | None = None  # the revision an `initialize` settled on; None until then or under 2026-07-28
         self.kept: dict[Path, Kept] = {}  # the last analysis per root, reused while the checkout's fingerprint holds
         self.clock: Callable[[], float] = time.time
@@ -370,6 +371,7 @@ class Server:
             cfg = config.load(root)
         except config.ConfigError as exc:
             raise Mistake(str(exc)) from exc
+        cfg.store = cache.for_repository(root, self.use_cache and cfg.cache, now=self.clock())
         return root, cfg
 
     def analysis(self, args: dict) -> tuple[Path, Analysis]:

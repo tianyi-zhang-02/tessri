@@ -1,7 +1,7 @@
 # Architecture
 
 One pass over a repository builds one `Analysis`; every command is a view of it, and no view reads the files again.
-The package is standard library only, about 7,700 lines of code in 34 files. The table is the import graph of this
+The package is standard library only, about 10,600 lines of code in 37 files. The table is the import graph of this
 checkout as `tessri graph . --level file --format json` reads it, and `tessri graph .` reports the one thing the
 layering does not keep: `analyzers/python.py` imports the dotted-name patterns of `textrefs`, so `tessri` and
 `tessri/analyzers` depend on each other, a cycle the tool lists against itself.
@@ -16,6 +16,7 @@ repository ─► inventory ─► analyzers ─► graph ─► analyze ─► 
 |---|---|---|
 | Discover | `inventory` | lists the files (`git ls-files`, or a walk without git), detects the language, reads the text and counts code, comment and blank lines; binaries, build output and oversized files are skipped |
 | Understand code | `analyzers/python` (on `ast`), `analyzers/javascript` (`jslex` scanner, `jsproject` resolution), `textrefs` | each analyzer turns its files into edges, entry points, tests and a resolver for names found elsewhere; `textrefs` finds the names that config, CI, shell scripts and docs mention |
+| Remember | `cache` | what each analyzer read from a file, under a digest of its text, in one JSON file per repository in the user's cache directory; a second run parses only what changed, and the output is the same with or without it |
 | Reachability | `graph` | walks from entry points and config references; tests are roots of their own, so test-only code stays visible |
 | History | `gitlog`, `ownership` | history is read once up to a rev for per-file activity and fix commits, and once more for the two review windows; `GitState` says why history is or is not there; ownership credits authors with yearly decay, marks owners who went quiet and compares with `CODEOWNERS` |
 | Verdict | `analyze`, `model` | one `FileRecord` per file, the status rules, and the `Analysis` everything below reads |
@@ -30,8 +31,9 @@ from git objects into a scratch directory (`cat-file --batch`, never `git archiv
 analyses both sides with the same settings and compares only the import graph and the reachability of each file;
 status, confidence and owners are never compared between the two analyses. `brief` makes those two analyses once and
 hands them to both `triage` and `check`, so its page costs what `check` costs. Only `inventory`, `gitlog`, `triage`, `since`,
-`brief` and `hook` run git; the analyzers and views never shell out, and nothing fetches, caches or calls a model, so the same tree
-and history give the same output. The tests in `tests/`, one file per area, build small repositories in temporary
+`brief` and `hook` run git; the analyzers and views never shell out, and nothing fetches or calls a model. `cache` keeps what the
+analyzers read from each file between runs, outside the repository and keyed by the file's content, and the same tree and history
+give the same output with it or without it. The tests in `tests/`, one file per area, build small repositories in temporary
 directories with fixed commit dates and assert on the output, so the suite needs git and nothing else, except `node`
 for the one test that runs the HTML page's script, which is skipped without it.
 

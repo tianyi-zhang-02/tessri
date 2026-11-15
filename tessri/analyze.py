@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import gitlog, graph, inventory, ownership, textrefs
+from . import cache, gitlog, graph, inventory, ownership, textrefs
 from .analyzers import Analyzer, Repo, load_analyzers
 from .config import Config
 from .gitlog import Activity
@@ -107,6 +107,35 @@ def _judge(rec: FileRecord, g: graph.Graph, cfg: Config, now: float, have_git: b
         rec.status = "STABLE"
 
 
+_TEXT = "text/1"  # the cache namespace of the references read from non-code files; bump the number when that reading changes
+
+
+def _text_scans(text: str, how: str) -> list[textrefs.TextScan]:
+    if how == "pyproject":
+        return [textrefs.scan_pyproject(text)]
+    if how == "setup_cfg":
+        return [textrefs.scan_setup_cfg(text)]
+    if how == "html":
+        return list(textrefs.scan_html(text))
+    return [textrefs.scan_text(text, weak=how == "weak")]
+
+
+def _scans(store: cache.Store | None, text: str, how: str) -> list[textrefs.TextScan]:
+    """The references in one non-code file, read `how`, from the store when it holds them for this text."""
+    if store is None:
+        return _text_scans(text, how)
+    key = f"{cache.digest(text)}:{how}"
+    kept = store.get(_TEXT, key)
+    if isinstance(kept, list):
+        try:
+            return [textrefs.TextScan(dotted={str(s) for s in dotted}, paths={str(s) for s in paths}, weak=bool(weak)) for dotted, paths, weak in kept]
+        except (TypeError, ValueError):
+            pass  # not an entry of ours: read the file
+    found = _text_scans(text, how)
+    store.put(_TEXT, key, [[sorted(s.dotted), sorted(s.paths), s.weak] for s in found])
+    return found
+
+
 def analyze(root: Path, cfg: Config, now: float | None = None, analyzers: list[Analyzer] | None = None, rev: str = "HEAD") -> Analysis:
     root = Path(root).resolve()
     now = time.time() if now is None else now
@@ -136,7 +165,7 @@ def analyze(root: Path, cfg: Config, now: float | None = None, analyzers: list[A
         return extra[path]
 
     known = frozenset(paths)
-    repo = Repo(paths=known, read=read)
+    repo = Repo(paths=known, read=read, cache=cfg.store)
     plugins = load_analyzers() if analyzers is None else analyzers
     results = []
     analyzed: dict[str, str] = {}
@@ -150,20 +179,21 @@ def analyze(root: Path, cfg: Config, now: float | None = None, analyzers: list[A
     unparsed = set().union(*(r.unparsed for r in results)) if results else set()
     scans: dict[str, list[textrefs.TextScan]] = {}  # a file's references; a page has its wiring and its mentions apart
     for path, lang in langs.items():
+        name = posixpath.basename(path)
         if path in unparsed:
-            scans[path] = [textrefs.scan_text(texts[path])]
+            how = "text"
         elif path in analyzed:
             continue
-        elif posixpath.basename(path) == "pyproject.toml":
-            scans[path] = [textrefs.scan_pyproject(texts[path])]
-        elif posixpath.basename(path) == "setup.cfg":
-            scans[path] = [textrefs.scan_setup_cfg(texts[path])]
+        elif name == "pyproject.toml":
+            how = "pyproject"
+        elif name == "setup.cfg":
+            how = "setup_cfg"
         else:
             mode = textrefs.scan_mode(path, lang.name, lang.kind)
-            if mode == "strong" and lang.name == "HTML":
-                scans[path] = list(textrefs.scan_html(texts[path]))
-            elif mode:
-                scans[path] = [textrefs.scan_text(texts[path], weak=mode == "weak")]
+            if mode is None:
+                continue
+            how = "html" if mode == "strong" and lang.name == "HTML" else "weak" if mode == "weak" else "text"
+        scans[path] = _scans(cfg.store, texts[path], how)
 
     g = graph.build(results, analyzed, scans, cfg.keep, cfg.entry)
     # History is read whether or not git supplied the file list: a repository whose commits hold no files yet still
@@ -195,6 +225,9 @@ def analyze(root: Path, cfg: Config, now: float | None = None, analyzers: list[A
         owners = ownership.compute(activity, cfg.owner_inactive_days, now, records, ownership.find_codeowners(known, read))
         for rec in records.values():
             _apply_ownership(rec, owners)
+
+    if cfg.store is not None:
+        cfg.store.save()
 
     return Analysis(
         root=root,

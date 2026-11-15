@@ -32,7 +32,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tessri import config, since  # noqa: E402  (the package in this checkout)
+from tessri import cache, config, since  # noqa: E402  (the package in this checkout)
 from tessri.analyzers import load_analyzers  # noqa: E402
 
 DAY = 86400
@@ -126,9 +126,11 @@ def run(root: Path, rev: str = "HEAD", days: int = 365, log=None) -> dict:
         subprocess.run(["git", "clone", "-q", "--shared", "--no-checkout", str(root), str(clone)], check=True, capture_output=True)
         for n, c in enumerate(changes, 1):
             _git(clone, "checkout", "-q", c["sha"])
+            cfg = config.load(clone)
+            cfg.store = cache.for_repository(clone, cfg.cache, now=now)  # the same files recur across commits
             started = time.time()
             try:
-                result = since.check(clone, config.load(clone), c["sha"] + "^", now=now)
+                result = since.check(clone, cfg, c["sha"] + "^", now=now)
             except since.CheckError as exc:
                 rows.append({"sha": c["sha"], "date": _day(c["when"]), "gone": c["gone"], "error": str(exc)})
                 continue

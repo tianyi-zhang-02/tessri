@@ -37,7 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tessri import config, gitlog, inventory, since  # noqa: E402  (the package in this checkout)
+from tessri import cache, config, gitlog, inventory, since  # noqa: E402  (the package in this checkout)
 from tessri.analyze import analyze  # noqa: E402
 
 DAY = 86400
@@ -391,6 +391,7 @@ def run(root: Path, rev: str = "HEAD", months: int = 12, window: int = 30, activ
         raise BacktestError(f"{root}: not a directory")
     sha = _git(root, "rev-parse", "--verify", "--quiet", f"{rev}^{{commit}}").strip()
     cfg = config.load(root)
+    cfg.store = cache.for_repository(root, cfg.cache)  # the same files recur across commits
     skip = [*inventory.DEFAULT_EXCLUDES, *cfg.exclude]
     all_changes = changes(root, sha, skip)
     touches, fixes = events(root, sha, skip)

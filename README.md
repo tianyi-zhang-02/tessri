@@ -100,7 +100,8 @@ the recognized imports and leaves the string references at the frontier.
 
 Tessri lists the files, parses Python with Python's own parser and JavaScript/TypeScript with its own scanner,
 builds the import graph, reads who changed what from git, and answers every question from that one picture. No
-model, no network, no service, and it never edits your code. The order `triage` puts files in was
+model, no network, no service, and it never edits your code. What it read from each file it keeps in your cache
+directory, keyed by the file's content, so the next run parses only what changed and answers the same. The order `triage` puts files in was
 [backtested on real history](docs/guide/backtest.md), and the composite risk score we tried did not beat its parts,
 so there is none.
 
