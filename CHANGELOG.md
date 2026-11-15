@@ -2,7 +2,7 @@
 
 Dates are the day a version was tagged.
 
-## Unreleased
+## 0.4.0 (2026-11-14)
 
 - `tessri integration install --agent claude-hooks` (or `codex-hooks`) puts Tessri into the agent's own loop. Two
   hook groups go into `.claude/settings.json` or `.codex/hooks.json`, next to whatever is there, and run
@@ -13,17 +13,17 @@ Dates are the day a version was tagged.
   `stop_hook = "block"` in the configuration, to the agent first. A new receipt kind, `hooks`, finds the groups
   again by their exact content, so `update` and `remove` never touch your own hooks; `integration status` names
   the hooks file per host.
-- `tools/reviewer_match.py` publishes the test behind *who can look*: on a repository's merged pull requests, read
-  through the GitHub command line, it offers triage's reviewer list at each pull request's base with the clock at
-  its merge, alongside two baselines from git alone and one from the review data, and scores each against who
-  reviewed. [The reviewer match](docs/guide/reviewer-match.md) in the guide is its output on one repository: naming
-  the people behind the changed files beats naming the busiest people, triage's ownership does not beat a plain
-  count of recent committers to those files, and most reviewing there was done by two people git cannot name.
-- `tools/backtest.py` publishes the test behind the order `triage` uses and the review set `impact` draws. On any
-  repository's history it scores the files each change touched with what git knew when the change landed, against
-  the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
-  directory or unrelated change together. [The backtest](docs/guide/backtest.md) in the guide is its output on one
-  repository, and the wording of `triage` and the guide follows those numbers.
+- `brief --report FILE` and `impact --report FILE` (and `report` on the MCP tools) read a test report the host wrote,
+  JUnit XML as pytest `--junitxml`, jest-junit and most CI systems produce it, and hold the candidate tests against
+  it: each is passed, failed, skipped or not run, the page says how many of the candidates ran, and a failed or
+  missing candidate is an item for a person. Nothing is inferred: a candidate the report does not mention did not
+  run, as far as the report says. Triage's JSON carries every candidate path under `tests.paths`.
+- `brief --coverage FILE` (and `coverage` on the MCP tool) reads a coverage report the host wrote, Cobertura or Clover
+  XML, lcov or coverage.py's JSON, and holds the lines the change added or changed against it: of the changed lines in
+  the code files the analyzers read, tests left out, how many the report has a statement on, how many of those ran
+  under the recorded tests and which did not, line by line, and which changed files the report does not measure at
+  all. The ones that did not run, and the files not measured, are items for a person. A test report's case now also
+  finds its file through the suite it is in when the suite is named after the file, as jest-junit's `{filepath}` is.
 - `check` reads the names of files outside import statements for one finding and says so: a file the change deleted
   or moved that an untouched file still names is a `dangling-reference`, with the kind of every name: in a config or a
   script (a warning: wiring that now points at nothing), in a string or a dynamic import (a warning for a person, since
@@ -36,23 +36,37 @@ Dates are the day a version was tagged.
   module the name names stays (or goes with it, in which case the module's own row names the referrer) is no longer a
   `dangling-reference`, since Python only ran it on the way. A file name in a string of Python code,
   `"setup.py"`, is a path, not the dotted name `setup.py`, so it no longer links the file to a top-level module `setup`.
+- `tools/backtest.py` publishes the test behind the order `triage` uses and the review set `impact` draws. On any
+  repository's history it scores the files each change touched with what git knew when the change landed, against
+  the fixes of the following 30 days, and compares how often files one import apart, two apart, in the same
+  directory or unrelated change together. [The backtest](docs/guide/backtest.md) in the guide is its output on one
+  repository, and the wording of `triage` and the guide follows those numbers.
+- `tools/reviewer_match.py` publishes the test behind *who can look*: on a repository's merged pull requests, read
+  through the GitHub command line, it offers triage's reviewer list at each pull request's base with the clock at
+  its merge, alongside two baselines from git alone and one from the review data, and scores each against who
+  reviewed. [The reviewer match](docs/guide/reviewer-match.md) in the guide is its output on one repository: naming
+  the people behind the changed files beats naming the busiest people, triage's ownership does not beat a plain
+  count of recent committers to those files, and most reviewing there was done by two people git cannot name.
 - `tools/deletions.py` replays every change of a repository's history that deleted or moved a code file through
   `check` and says what became of each name left behind: removed, restored, or still there, and after how long. On
   one repository's last year every name it reports is a real loose end; the three false alarms it exposed are the fixes
   above.
-- `brief --report FILE` and `impact --report FILE` (and `report` on the MCP tools) read a test report the host wrote,
-  JUnit XML as pytest `--junitxml`, jest-junit and most CI systems produce it, and hold the candidate tests against
-  it: each is passed, failed, skipped or not run, the page says how many of the candidates ran, and a failed or
-  missing candidate is an item for a person. Nothing is inferred: a candidate the report does not mention did not
-  run, as far as the report says. Triage's JSON carries every candidate path under `tests.paths`.
-- `brief --coverage FILE` (and `coverage` on the MCP tool) reads a coverage report the host wrote, Cobertura or Clover
-  XML, lcov or coverage.py's JSON, and holds the lines the change added or changed against it: of the changed lines in
-  the code files the analyzers read, tests left out, how many the report has a statement on, how many of those ran
-  under the recorded tests and which did not, line by line, and which changed files the report does not measure at
-  all. The ones that did not run, and the files not measured, are items for a person. A test report's case now also
-  finds its file through the suite it is in when the suite is named after the file, as jest-junit's `{filepath}` is.
+- The site's landing page now leads with a brief: the command line, the scope and the three steps *Look first*, *What
+  changed* and *Validation* of `tessri brief` on the latest change on this repository's `main`, with the candidate
+  tests labelled apart from the checks the host ran, and the drawing's key telling an import statement from a name
+  found in a string, a config or a dynamic import. The demo pages, the brief and the HTML report of this repository,
+  are rebuilt from it on every push to `main`. The guide's reference gains the backtest and the reviewer match.
+- A version tag publishes the package. `git tag v0.4.0 && git push origin v0.4.0` runs `.github/workflows/release.yml`:
+  `tools/release_notes.py` checks that the tag is the version `tessri/__init__.py` and `pyproject.toml` state and that
+  this file has the version's dated section, then the sdist and the wheel are built, the wheel is installed on 3.11
+  and 3.12 and runs `tessri scan` on the repository, PyPI accepts the workflow's identity (trusted publishing, nothing
+  secret in the repository), and the GitHub release is created with the section as its notes. Nothing of Tessri had
+  reached PyPI before: `pip install tessri` found nothing through 0.3.0, which was prepared and never uploaded.
 
 ## 0.3.0 (2026-11-06)
+
+0.3.0 reached `main` on this day and was never tagged or uploaded, so the paragraph below about PyPI came true
+only with 0.4.0.
 
 **On PyPI.** `pip install tessri`, `uvx tessri scan .` and `pipx run tessri` install the real package, and so do
 the `command: tessri` of the MCP profiles, the `pip install tessri` of a Copilot setup step and of the report
