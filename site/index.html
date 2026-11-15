@@ -5,14 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tessri</title>
 <meta name="description" content="Keep code understandable. Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.">
-<meta property="og:title" content="Tessri">
-<meta property="og:description" content="Keep code understandable. The evidence layer between the agents that write code and the people who stand behind it: where to look first, who can look, what a change did to the structure, and what nobody maintains. Offline, zero dependencies.">
-<meta property="og:type" content="website">
+{{social}}
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="tessri.css">
 {{notices}}
 </head>
 <body class="home">
+<a class="skip" href="#main">Skip to content</a>
 
 <div class="sky">
 <header class="wrap top">
@@ -23,7 +22,8 @@
   <nav aria-label="Site">
     <a href="guide/">Guide</a>
     {{demo_link}}
-    <a href="{{repo}}">GitHub {{icon:arrow-up-right}}</a>
+    <a class="repo" href="{{repo}}">GitHub {{icon:arrow-up-right}}</a>
+    {{search_button}}
     {{theme_button}}
   </nav>
 </header>
@@ -52,7 +52,7 @@
 </section>
 </div>
 
-<main class="wrap">
+<main class="wrap" id="main">
 
   <section class="band" id="questions">
     <span class="label">What it answers</span>

@@ -1,0 +1,55 @@
+name: Tessri said something wrong
+description: A file, an owner, an edge, a test or a finding that the analysis got wrong, with the evidence it gave.
+labels: ["wrong-claim"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The most useful report. Every claim in a report has evidence behind it; `tessri why <path>` prints it for a
+        file, and `tessri scan --format json` carries it for everything. Paste what it said and what is true.
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options: [scan, why, graph, impact, triage, check, brief, hook, mcp, the HTML report, the site]
+    validations:
+      required: true
+  - type: textarea
+    id: said
+    attributes:
+      label: What it said
+      description: The line or the table row, as printed.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: truth
+    attributes:
+      label: What is true
+      description: What a person who knows the code would say instead, and how they know.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: The evidence it gave
+      description: "`tessri why <path>` for the file in question, or the relevant part of the JSON."
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`tessri --version`, and the Python version."
+    validations:
+      required: true
+  - type: dropdown
+    id: repository
+    attributes:
+      label: Can the repository be looked at?
+      options: ["Yes, it is public (link it below)", "I can make a small repository that shows it", "No"]
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Repository or commit

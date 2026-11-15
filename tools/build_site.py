@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import functools
 import html
+import json
 import posixpath
 import re
 import shutil
@@ -30,11 +31,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 GUIDE = ROOT / "docs" / "guide"
 REPO = "https://github.com/tianyi-zhang-02/tessri"
+SITE_URL = "https://tianyi-zhang-02.github.io/tessri/"  # where the site is served; link previews and the sitemap need absolute addresses
 DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other checkout is a preview and says so
 BLOB = f"{REPO}/blob/main/"
 TREE = f"{REPO}/tree/main/"
 MARKER = ".tessri-site"
-ASSETS = ("tessri.css", "favicon.svg", "liquid.js")
+ASSETS = ("tessri.css", "favicon.svg", "liquid.js", "og.png")  # og.png is the card a link to the site shows elsewhere
 FONTS = SITE / "fonts"  # the type, served next to its notices
 ICONS = SITE / "icons"  # the icon set, inlined where a page uses one; its notice ships at icons/LICENSE
 NOTICES = "<!-- Type: Inter and Commit Mono, SIL Open Font License, the notices in fonts/. Icons: Lucide, ISC licence, icons/LICENSE. -->"
@@ -56,7 +58,7 @@ MARK = (
     '<rect x="12" y="15" width="9" height="7" rx="2"/><rect x="12" y="25" width="9" height="7" rx="2"/></svg>'
 )
 
-SCRIPTS = """<script>
+SCRIPTS = r"""<script>
 (function () {
   var root = document.documentElement;
   var motion = matchMedia("(prefers-reduced-motion: no-preference)").matches;
@@ -97,6 +99,109 @@ SCRIPTS = """<script>
       });
     }, { rootMargin: "0px 0px -70% 0px" });
     Object.keys(byId).forEach(function (id) { var h = document.getElementById(id); if (h) { follow.observe(h); } });
+  }
+  var opener = document.querySelector(".search-open");
+  var dialog = document.querySelector(".search");
+  if (opener && dialog) {
+    var input = dialog.querySelector("input");
+    var list = dialog.querySelector('[role="listbox"]');
+    var hint = dialog.querySelector(".hint");
+    var base = dialog.getAttribute("data-base");
+    var index = null, loading = null, rows = [], active = -1, lastFocus = null;
+    function load() {
+      if (index) { return Promise.resolve(index); }
+      if (!loading) {
+        loading = fetch(base + "search.json").then(function (r) { return r.json(); }).then(function (data) { index = data; return data; });
+      }
+      return loading;
+    }
+    function open() {
+      lastFocus = document.activeElement;
+      dialog.hidden = false;
+      document.body.classList.add("searching");
+      input.focus();
+      load().then(function () { show(input.value); }, function () { hint.textContent = "The index did not load"; });
+    }
+    function close() {
+      dialog.hidden = true;
+      document.body.classList.remove("searching");
+      if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+    }
+    function escapeHtml(s) { return s.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+    function pattern(ws) { return new RegExp("(" + ws.map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }).join("|") + ")", "i"); }
+    function marked(text, ws) {
+      return text.split(pattern(ws)).map(function (piece, i) { return i % 2 ? "<mark>" + escapeHtml(piece) + "</mark>" : escapeHtml(piece); }).join("");
+    }
+    function snippet(body, ws) {
+      var low = body.toLowerCase(), at = -1;
+      for (var i = 0; i < ws.length && at < 0; i++) { at = low.indexOf(ws[i]); }
+      var start = at < 0 ? 0 : Math.max(0, at - 60);
+      var piece = body.slice(start, start + 170);
+      return (start > 0 ? "… " : "") + marked(piece, ws) + (start + 170 < body.length ? " …" : "");
+    }
+    function score(e, ws) {
+      var t = e.t.toLowerCase(), h = e.h.toLowerCase(), b = e.b.toLowerCase(), s = 0;
+      for (var i = 0; i < ws.length; i++) {
+        var w = ws[i];
+        if (t.indexOf(w) >= 0) { s += 4; } else if (h.indexOf(w) >= 0) { s += 3; } else if (b.indexOf(w) >= 0) { s += 1; } else { return 0; }
+      }
+      return s + (e.h ? 0 : 0.5);
+    }
+    function mark() {
+      var items = list.children;
+      for (var i = 0; i < items.length; i++) { items[i].setAttribute("aria-selected", i === active ? "true" : "false"); }
+      if (active >= 0) { input.setAttribute("aria-activedescendant", "search-" + active); items[active].scrollIntoView({ block: "nearest" }); }
+      else { input.removeAttribute("aria-activedescendant"); }
+    }
+    function show(q) {
+      var ws = q.toLowerCase().split(/\s+/).filter(Boolean);
+      rows = [];
+      active = -1;
+      if (!index || !ws.length) { list.innerHTML = ""; hint.textContent = "Type to search the guide"; mark(); return; }
+      var found = index.map(function (e) { return { e: e, s: score(e, ws) }; }).filter(function (x) { return x.s > 0; });
+      found.sort(function (a, b) { return b.s - a.s || a.e.t.length - b.e.t.length; });
+      rows = found.slice(0, 8).map(function (x) { return x.e; });
+      list.innerHTML = "";
+      rows.forEach(function (e, i) {
+        var item = document.createElement("li");
+        item.setAttribute("role", "option");
+        item.id = "search-" + i;
+        item.setAttribute("aria-selected", "false");
+        var link = document.createElement("a");
+        link.href = base + e.u;
+        var where = document.createElement("span");
+        where.className = "where";
+        where.innerHTML = e.h ? escapeHtml(e.t) + ' <span class="sep">›</span> ' + marked(e.h, ws) : marked(e.t, ws);
+        var snip = document.createElement("span");
+        snip.className = "snip";
+        snip.innerHTML = snippet(e.b, ws);
+        link.appendChild(where);
+        link.appendChild(snip);
+        item.appendChild(link);
+        list.appendChild(item);
+      });
+      hint.textContent = rows.length ? (found.length > rows.length ? rows.length + " of " + found.length + " places; keep typing" : rows.length + (rows.length === 1 ? " place" : " places")) : "Nothing in the guide says that";
+      mark();
+    }
+    opener.addEventListener("click", open);
+    dialog.querySelector(".search-backdrop").addEventListener("click", close);
+    dialog.querySelector(".search-close").addEventListener("click", close);
+    input.addEventListener("input", function () { show(input.value); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (rows.length) { active = (active + 1) % rows.length; mark(); } }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (rows.length) { active = (active - 1 + rows.length) % rows.length; mark(); } }
+      else if (e.key === "Enter") { var pick = list.children[active >= 0 ? active : 0]; if (pick) { e.preventDefault(); location.href = pick.querySelector("a").href; } }
+    });
+    list.addEventListener("mousemove", function (e) {
+      var item = e.target.closest("li");
+      if (item) { var i = Array.prototype.indexOf.call(list.children, item); if (i !== active) { active = i; mark(); } }
+    });
+    document.addEventListener("keydown", function (e) {
+      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (dialog.hidden) { open(); } else { close(); } return; }
+      if (e.key === "Escape" && !dialog.hidden) { e.preventDefault(); close(); return; }
+      var tag = document.activeElement ? document.activeElement.tagName : "";
+      if (e.key === "/" && dialog.hidden && tag !== "INPUT" && tag !== "TEXTAREA" && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); open(); }
+    });
   }
   Array.prototype.forEach.call(document.querySelectorAll('[role="tablist"]'), function (list) {
     var tabs = Array.prototype.slice.call(list.querySelectorAll('[role="tab"]'));
@@ -527,13 +632,37 @@ def guide_index() -> list[tuple[str, str]]:
     return found
 
 
-def head(title: str, description: str, depth: int) -> str:
+def social(title: str, description: str, path: str) -> str:
+    """The page's address and what a link to it shows elsewhere: the canonical address, the Open Graph card, the
+    summary card. `path` is the page's place under SITE_URL ("" for the landing page, "guide/" for the guide's index)."""
+    where = html.escape(SITE_URL + path, quote=True)
+    text = html.escape(description, quote=True)
+    return (
+        f'<link rel="canonical" href="{where}">\n'
+        f'<meta property="og:type" content="website">\n<meta property="og:site_name" content="Tessri">\n'
+        f'<meta property="og:title" content="{html.escape(title, quote=True)}">\n<meta property="og:description" content="{text}">\n'
+        f'<meta property="og:url" content="{where}">\n<meta property="og:image" content="{SITE_URL}og.png">\n'
+        '<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n'
+        '<meta property="og:image:alt" content="tessri. Keep code understandable.">\n'
+        '<meta name="twitter:card" content="summary_large_image">\n'
+    )
+
+
+def skip() -> str:
+    """The first thing on every page: a link a keyboard reader uses to pass the top bar."""
+    return '<a class="skip" href="#main">Skip to content</a>\n'
+
+
+def head(title: str, description: str, depth: int, path: str = "", base: bool = False) -> str:
+    """`base` pins every relative address to SITE_URL: the not-found page is served at whatever address was asked for."""
     up = "../" * depth
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{html.escape(title)}</title>\n"
+        + (f'<base href="{SITE_URL}">\n' if base else "")
+        + f"<title>{html.escape(title)}</title>\n"
         f'<meta name="description" content="{html.escape(description, quote=True)}">\n'
-        f'<link rel="icon" href="{up}favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="{up}tessri.css">\n'
+        + social(title, description, path)
+        + f'<link rel="icon" href="{up}favicon.svg" type="image/svg+xml">\n<link rel="stylesheet" href="{up}tessri.css">\n'
         f"{NOTICES}\n{THEME_BOOT}\n</head>\n"
     )
 
@@ -545,7 +674,25 @@ def top(depth: int, current: str | None, demo: bool = False) -> str:
     demo_link = f'<a href="{up}demo/"{here}>Demo</a>' if demo else ""
     return (
         f'<div class="sky">\n<header class="wrap top">\n  <a class="wordmark" href="{up or "./"}" aria-label="Tessri home">{MARK}<span>tessri<span class="dot">.</span></span></a>\n'
-        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a href="{REPO}">GitHub {icon("arrow-up-right")}</a>{theme_button()}</nav>\n</header>\n</div>\n'
+        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a class="repo" href="{REPO}">GitHub {icon("arrow-up-right")}</a>{search_button()}{theme_button()}</nav>\n</header>\n</div>\n'
+    )
+
+
+def search_button() -> str:
+    return f'<button class="search-open" type="button" aria-label="Search the guide">{icon("search")}<kbd aria-hidden="true">/</kbd></button>'
+
+
+def search_dialog(depth: int) -> str:
+    """The search over the guide, closed until asked for: the index is fetched on the first opening. Outside the band,
+    which isolates and clips what it holds, so that the dialog can sit over the whole page."""
+    up = "../" * depth
+    return (
+        f'<div class="search" role="dialog" aria-modal="true" aria-label="Search the guide" hidden data-base="{up}">\n'
+        '  <div class="search-backdrop"></div>\n  <div class="search-panel">\n'
+        f'    <div class="search-row">{icon("search")}<input type="search" role="combobox" aria-expanded="true" aria-controls="search-results" aria-autocomplete="list" aria-label="Search the guide" placeholder="Search the guide" autocomplete="off" spellcheck="false">'
+        '<button class="search-close" type="button" aria-label="Close">Esc</button></div>\n'
+        '    <ul id="search-results" role="listbox" aria-label="Places in the guide"></ul>\n'
+        '    <p class="hint" aria-live="polite">Type to search the guide</p>\n  </div>\n</div>\n'
     )
 
 
@@ -556,10 +703,12 @@ def foot(depth: int) -> str:
         f'<a href="{up}guide/">Guide</a><a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
         f'<a href="{up}guide/limits.html">Limits</a><a href="{BLOB}CHANGELOG.md">Changelog</a><a href="{REPO}">GitHub</a></nav>\n'
         f'  <span>MIT. <a href="{up}guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span>\n</footer>\n'
+        + search_dialog(depth)
     )
 
 
-def nav(pages: list[tuple[str, str]], current: str) -> str:
+def grouped(pages: list[tuple[str, str]]) -> list[tuple[str, list[str]]]:
+    """The guide's pages by group, in the order the navigation shows them; pages no group names come last."""
     labels = dict(pages)
     placed: set[str] = set()
     groups: list[tuple[str, list[str]]] = []
@@ -571,6 +720,34 @@ def nav(pages: list[tuple[str, str]], current: str) -> str:
     rest = [s for s, _ in pages if s not in placed]
     if rest:
         groups.append(("More", rest))
+    return groups
+
+
+def order(pages: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """(slug, label) of every guide page in reading order: the overview, then the groups."""
+    labels = dict(pages)
+    return [("index", "Overview")] + [(s, labels[s]) for _, members in grouped(pages) for s in members]
+
+
+def pager(pages: list[tuple[str, str]], current: str) -> str:
+    """The page before and the page after, in reading order."""
+    ordered = order(pages)
+    at = next((i for i, (s, _) in enumerate(ordered) if s == current), None)
+    if at is None:
+        return ""
+
+    def link(i: int, rel: str, word: str) -> str:
+        s, label = ordered[i]
+        return f'<a class="{rel}" rel="{rel}" href="{"./" if s == "index" else s + ".html"}"><span>{word}</span>{html.escape(label)}</a>'
+
+    before = link(at - 1, "prev", "Previous") if at > 0 else ""
+    after = link(at + 1, "next", "Next") if at + 1 < len(ordered) else ""
+    return f'<nav class="pager" aria-label="Guide pages, in order">{before}{after}</nav>\n'
+
+
+def nav(pages: list[tuple[str, str]], current: str) -> str:
+    labels = dict(pages)
+    groups = grouped(pages)
 
     def link(s: str, label: str) -> str:
         mark = ' aria-current="page"' if s == current else ""
@@ -596,14 +773,17 @@ def rail(body: str) -> str:
 def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]], demo: bool = False) -> str:
     description = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", body.split("<p>", 1)[1].split("</p>", 1)[0])) if "<p>" in body else title
     source = f"docs/guide/{name}.md"
+    current = name if name != "README" else "index"
     article = (
-        f'<article class="prose">\n{body}\n<p class="source">Source: <a href="{BLOB}{source}">{source}</a>. The guide is Markdown in the repository; this page is built from it.</p>\n</article>'
+        f'<article class="prose" id="main">\n{body}\n<p class="source">Source: <a href="{BLOB}{source}">{source}</a>, Markdown in the repository; this page is built from it. '
+        f'<a href="{REPO}/edit/main/{source}">Edit it on GitHub</a>.</p>\n{pager(pages, current)}</article>'
     )
     return (
-        head(f"{title} · Tessri guide", description[:300], 1)
+        head(f"{title} · Tessri guide", description[:300], 1, "guide/" if current == "index" else f"guide/{name}.html")
         + "<body>\n"
+        + skip()
         + top(1, "guide", demo)
-        + f'<div class="wrap guide">\n{nav(pages, name if name != "README" else "index")}\n{article}\n{rail(body)}</div>\n'
+        + f'<div class="wrap guide">\n{nav(pages, current)}\n{article}\n{rail(body)}</div>\n'
         + foot(1)
         + SCRIPTS
         + "\n</body>\n</html>\n"
@@ -636,6 +816,12 @@ def example_panel() -> str:
     return f'{cmdline(first[2:])}\n<div class="output prose">\n{body}\n</div>'
 
 
+LANDING_DESCRIPTION = (
+    "Keep code understandable. The evidence layer between the agents that write code and the people who stand behind it: "
+    "where to look first, who can look, what a change did to the structure, and what nobody maintains. Offline, zero dependencies."
+)
+
+
 def landing(demo: dict | None) -> str:
     template = (SITE / "index.html").read_text(encoding="utf-8")
     example = example_panel()
@@ -644,6 +830,8 @@ def landing(demo: dict | None) -> str:
         .replace("{{repo}}", REPO)
         .replace("{{notices}}", NOTICES)
         .replace("{{theme_button}}", theme_button())
+        .replace("{{search_button}}", search_button())
+        .replace("{{social}}", social("Tessri", LANDING_DESCRIPTION, ""))
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
         .replace("{{handoff}}", handoff(demo) if demo else "")
         .replace("{{hero_class}}", " with-handoff" if demo else "")
@@ -832,18 +1020,59 @@ def demo_page(demo: dict) -> str:
         '<a href="report.html">The HTML report of the repository</a>, with the module graph and the impact explorer, is what <code>tessri scan . --format html</code> writes, built the same way.</p>\n'
     )
     article = (
-        f'<article class="prose">\n{intro}{_demote(body)}\n'
+        f'<article class="prose" id="main">\n{intro}{_demote(body)}\n'
         f'<p class="source">Built from this checkout by <a href="{BLOB}tools/build_site.py">tools/build_site.py</a> with <code>--demo</code>; the <a href="../guide/brief.html">brief guide</a> explains every section, and the <a href="../guide/html-report.html">report guide</a> the explorer.</p>\n</article>'
     )
     return (
-        head("Tessri on itself · demo", "The brief of the latest change on Tessri's own repository, and the HTML report of the repository, rebuilt on every push.", 1)
+        head("Tessri on itself · demo", "The brief of the latest change on Tessri's own repository, and the HTML report of the repository, rebuilt on every push.", 1, "demo/")
         + "<body>\n"
+        + skip()
         + top(1, "demo", True)
         + f'<div class="wrap demo-page">\n{article}\n</div>\n'
         + foot(1)
         + SCRIPTS
         + "\n</body>\n</html>\n"
     )
+
+
+def search_entries(where: str, title: str, body: str) -> list[dict]:
+    """What the search over the guide knows about one page: the page itself, then each of its sections, as plain
+    text. `where` is the page's address under the site root."""
+
+    def text(fragment: str) -> str:
+        return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).strip()
+
+    parts = re.split(r'(?=<h2 id=")', body)
+    entries = [{"t": title, "u": where, "h": "", "b": text(parts[0])[:1500]}]
+    for part in parts[1:]:
+        m = re.match(r'<h2 id="([^"]+)">(.*?)</h2>', part)
+        if not m:
+            continue
+        entries.append({"t": title, "u": f"{where}#{m.group(1)}", "h": text(m.group(2)), "b": text(part[m.end():])[:1500]})
+    return entries
+
+
+def not_found(demo: bool) -> str:
+    """`404.html`, which GitHub Pages serves for any address the site does not have. Every link on it is pinned to
+    the site's root, since the page appears at the address that was asked for."""
+    return (
+        head("Not found · Tessri", "There is no page at this address.", 0, "404.html", base=True)
+        + "<body>\n"
+        + skip()
+        + top(0, None, demo)
+        + '<main class="wrap notfound" id="main">\n<h1 id="not-found">No page here.</h1>\n'
+        '<p>The address may be from an older version of the site, or mistyped. <a href="guide/">The guide</a> lists every page Tessri has, '
+        'and <kbd>/</kbd> searches it from any page.</p>\n'
+        f'<p class="actions"><a class="button cta" href="./">Home {icon("arrow-right")}</a><a class="button quiet" href="guide/">The guide</a></p>\n</main>\n'
+        + foot(0)
+        + SCRIPTS
+        + "\n</body>\n</html>\n"
+    )
+
+
+def sitemap(paths: list[str]) -> str:
+    urls = "".join(f"<url><loc>{html.escape(SITE_URL + p, quote=True)}</loc></url>" for p in paths)
+    return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>\n'
 
 
 def build(out: Path, demo: bool = False) -> list[Path]:
@@ -873,6 +1102,8 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     write("index.html", landing(content))
     pages = guide_index()
     known = {s for s, _ in pages}
+    entries: list[dict] = []
+    addresses = [""]
     for md in sorted(GUIDE.glob("*.md")):
         name = md.stem
         if name != "README" and name not in known:
@@ -880,11 +1111,19 @@ def build(out: Path, demo: bool = False) -> list[Path]:
         title, body = render_markdown(md.read_text(encoding="utf-8"))
         if not title:
             raise BuildError(f"docs/guide/{md.name} has no level-one heading")
+        where = "guide/" if name == "README" else f"guide/{name}.html"
         write(f"guide/{'index' if name == 'README' else name}.html", guide_page(name, title, body, pages, demo))
+        entries.extend(search_entries(where, title, body))
+        addresses.append(where)
     if content:
         (out / "demo").mkdir()
         write("demo/report.html", content["report"])
         write("demo/index.html", demo_page(content))
+        addresses.extend(["demo/", "demo/report.html"])
+    write("search.json", json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
+    write("404.html", not_found(bool(content)))
+    write("sitemap.xml", sitemap(addresses))
+    write("robots.txt", f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n")
     write(".nojekyll", "")
     write(MARKER, "built by tools/build_site.py\n")
     return written
