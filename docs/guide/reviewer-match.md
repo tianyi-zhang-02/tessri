@@ -3,7 +3,8 @@
 `tessri triage` and `tessri brief` end their first section with a sentence: *Who can look, other than the authors:*
 and up to three names, the people who maintain the changed files and are still active. That is a claim about people,
 so it is tested against people: on a repository's own pull requests, do the names match who actually reviewed?
-`tools/reviewer_match.py` runs the test on any repository on GitHub; this page is its method and its output on one.
+`tools/reviewer_match.py` runs the test on any repository on GitHub; this page is its method and its output on two: a
+large repository with a company's team behind it, and a small one maintained by a handful of core developers.
 
 ```bash
 python3 tools/reviewer_match.py collect owner/name path/to/checkout --limit 300 --out pulls.json   # through gh, signed in
@@ -33,7 +34,7 @@ and the change touched a code file: triage ranks code files, so on a change of d
 anything to go on. Precision is the share of offered people who reviewed; recall the share of reviewers who were
 offered; hit@1 whether the first name reviewed; any hit whether at least one offered name did.
 
-## The result on one repository
+## The result on a large repository
 
 The public `nemo-rl` repository, its newest 300 merged pull requests, read on 2026-11-13:
 
@@ -83,10 +84,68 @@ Read it this way:
   are closer to "who should look" than to "who got to it", and on that truth the ownership list leads, on a smaller
   set.
 
+## The result on a small repository
+
+The public `pytest` repository, the 300 merged pull requests most recently updated, read on 2026-11-15: 288 of them
+were merged in the twelve months before, 12 are older ones that were touched again; 89 were opened by bots, which is
+why 134 changed no code file.
+
+```text
+Tessri reviewer match on pytest-dev/pytest (300 merged pull requests, 2022-03-21 to 2026-11-15)
+
+300 scored; 277 had a reviewer other than the authors (bots and service accounts apart), 1.2 per pull request;
+134 changed no code file and are left out, so 157 are judged. A method offers up to 3 people, the authors
+apart, and is judged where it offers anyone.
+
+Method                                            offered on  precision  recall  hit@1  any hit
+triage: active holders of the changed files       147 of 157       0.30    0.46   0.30     0.58
+committers to the changed files, last 365 days    148 of 157       0.27    0.52   0.33     0.61
+busiest committers repo-wide, last 90 days        157 of 157       0.28    0.60   0.43     0.71
+most frequent reviewers before this pull request  148 of 157       0.36    0.79   0.36     0.87
+
+Who reviews: 25 people took a review slot; the two most frequent took 30% and 24% of the slots, and 65% of the
+judged pull requests were reviewed only by the three most frequent. Where git names the people behind the
+changed files, triage and the plain committer count hit on different pull requests: both 73, triage only 13,
+committers only 17, neither 54.
+
+Against the reviewers GitHub had requested (not yet reviewed when read; a weaker truth):
+
+Method                                          offered on  precision  recall
+triage: active holders of the changed files       20 of 22       0.20    0.50
+committers to the changed files, last 365 days    21 of 22       0.22    0.50
+busiest committers repo-wide, last 90 days        22 of 22       0.16    0.36
+
+Of triage's offers, 39 (18 distinct names) matched no login and were dropped; the JSON names them.
+```
+
+Read it this way:
+
+- **The busiest people win here.** In `pytest` four core developers write most of the code and review nearly all
+  of it, so the three busiest committers of the last 90 days are the reviewers whatever the files: recall 0.60 and
+  a hit on 71% of the pull requests, against 0.46 and 58% for the ownership list, which is the more precise of the
+  two (0.30 against 0.28). On the large repository the busiest list lost to both file-level lists; the small one
+  reverses that. Where a few people review everything, the right offer is those few, whom git can see as the
+  busiest committers; the brief does not do that yet.
+- **Ownership still does not beat the plain count.** Precision 0.30 against 0.27 for the ownership list, recall and
+  hits a little behind (0.46 against 0.52, 58% against 61%), and the two hit on different pull requests again (73
+  both, 13 and 17 one only). Two repositories now say the same thing: recency matters more than share, and the
+  ownership list buys a little precision for a little recall.
+- **Who reviews is a role here too.** The two most frequent reviewers took 30% and 24% of the slots (31% and 23%
+  on the large repository), 65% of the judged pull requests were reviewed only by the three most frequent (56%),
+  and the list of who reviewed most so far hits on 87% (82%). Two repositories run quite differently give nearly
+  the same numbers.
+- **Against the requested reviewers** (22 pull requests, too few to lean on) the two file-level lists tie at a
+  recall of 0.50 and the busiest list trails at 0.36, as on the large repository.
+
+So the second repository confirms the plain count and the role, and overturns the busiest-people result: the
+ownership list beats the repository's regulars only where reviewing is spread beyond a few. The ownership list has
+now failed to beat a plain count twice, so ranking it by recency rather than share is the next change to make, and
+the number to watch when it is made is precision, the one thing the ownership list wins.
+
 ## What it does not measure
 
-- One repository, and the newest 300 of its pull requests; a repository that assigns reviewers by file owner, or one
-  with many reviewers per change, will look different.
+- Two repositories, and 300 pull requests of each; a repository that assigns reviewers by file owner, or one with
+  many reviewers per change, will look different.
 - Whether the reviewer was the right one: a review by whoever was free counts as much as one by the person who knew
   the code. Review quality and time to review need data the API does not give.
 - Identities: logins are matched by name and address, so a person whose commits carry a different name than their

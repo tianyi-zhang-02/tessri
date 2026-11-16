@@ -3,7 +3,8 @@
 `tessri triage` orders the files of a change by recent activity and then by the size of the change, and
 `tessri impact` treats the files one import away as the review set. Both are claims about what happens next, so
 both are tested on history rather than assumed. `tools/backtest.py` runs the test on any repository; this page is
-its method and its output on one.
+its method and its output on two: a large, young repository that squashes every pull request, and a small, old one
+that merges them with merge commits.
 
 ```bash
 python3 tools/backtest.py path/to/repository --months 12                   # from a checkout of Tessri
@@ -32,7 +33,7 @@ with no import between them, or unrelated. A pair co-changed when one change of 
 change touching more than 50 code files is left out. The rate of each class is compared with the rate of the
 unrelated pairs.
 
-## The result on one repository
+## The result on a large repository
 
 The public `nemo-rl` repository at commit `bf33dd52e`, which squashes every pull request; read on 2026-11-09, in
 twelve seconds:
@@ -76,13 +77,76 @@ Read it this way:
 The month-by-month ratios swing (8 to 57 for one import apart) because the unrelated rate is small and a quiet month
 makes it smaller; the pooled number is the one to quote.
 
+## The result on a small repository
+
+The public `pytest` repository at commit `50234b4e6`, which merges pull requests with merge commits, so a change on
+the first-parent line is a whole pull request; 131 code files, tests apart, at that commit, against 385 in `nemo-rl` at
+its.
+Read on 2026-11-15, in eight seconds:
+
+```text
+Tessri backtest of pytest at 50234b4e6 (history 2007-01-24 to 2026-11-15, 7,866 changes on the first-parent line)
+
+Rows: 683 code files touched by 475 changes in 12 months (2025-11 to 2026-10); the outcome, a fix or revert
+commit touching the file within 30 days, holds for 14% of them. Activity is commits in the 90 days before the
+change; a deleted file is left out; a moved file counts under its new name.
+
+Order                            pooled AUC  mean of months  ahead of size  within a change (changes)
+activity, then size (triage)           0.64            0.65        6 of 10                  0.62 (47)
+size                                   0.54            0.54              -                  0.47 (47)
+activity                               0.64            0.64        6 of 10                  0.64 (47)
+fixes, then activity, then size        0.64            0.66        6 of 10                  0.63 (47)
+dependents, then size                  0.59            0.63        7 of 10                  0.60 (47)
+
+Pairs of code files (tests apart) in the tree at each month's start, and whether one change of the month
+touched both; 0 changes touching more than 50 code files left out.
+
+Pairs               pairs  co-changed   rate  x unrelated  over the months
+one import apart    5,694         260  4.57%         82.2     0.0 to 192.8
+two imports apart  36,569         284  0.78%         14.0      0.6 to 36.0
+same directory      1,956           3  0.15%          2.8      0.0 to 27.5
+unrelated          48,633          27  0.06%          1.0       1.0 to 1.0
+```
+
+Read it this way:
+
+- **The order holds, by less.** Activity then size scores 0.64 against 0.54 for size, and 0.62 against 0.47 within a
+  change, but it is ahead in only six of ten months and the within-change set is 47 changes. A change here touches two
+  code files at the median, and in a repository this small nearly every file is recently touched: 11% of the rows had
+  no commit in the 90 days before, against 28% in `nemo-rl`, so the count separates less. Where everything is active,
+  recency says less.
+- **Fix history and dependents again add nothing.** 0.64 and 0.59, against 0.64 for activity alone.
+- **The graph's classes keep their order; the multipliers do not travel.** One import apart co-changed 82 times as
+  often as unrelated pairs, two apart 14 times, the same directory 2.8 times: the same ranking as in `nemo-rl`, and
+  ratios that cannot be compared with it, because with 120 code files only 27 unrelated pairs co-changed in the whole
+  year, so the rate they divide by is tiny and a quiet month puts the monthly ratio anywhere from 0 to 190. The rates
+  are the numbers to compare: 4.6% of the pairs one import apart co-changed in a month (16% in `nemo-rl`), 0.15% of
+  the same-directory pairs (1.9%).
+
+Two checks on the same repository, because the sample is small and the fix label is the tool's rule, not pytest's:
+
+- **More history.** Over 36 months (2,672 rows from 1,310 changes) the order scores 0.69 against 0.57, ahead in 20 of
+  29 months, and 0.68 against 0.47 within a change (104 changes); fixes first 0.71 pooled but 0.66 within a change,
+  dependents 0.63. The pairs over 36 months: one import apart 9.4 times unrelated, two apart 3.1, the same directory
+  1.4, with four changes over 50 files left out; months with repository-wide changes raise the unrelated rate and pull
+  every ratio down.
+- **pytest's own fix label.** pytest records a bug fix as a `changelog/<issue>.bugfix.rst` fragment in the pull
+  request, whatever its commits' subjects say. The tool's rule catches 76 of the year's 742 commits, while 94 of its
+  475 changes add a bugfix fragment, and a subject that mentions fixtures is not a fix. With the fragment as the
+  outcome (a change that adds one touched the file within 30 days), the order scores 0.66 against 0.53, ahead in nine
+  of twelve months, and 0.75 against 0.54 within a change (72 changes); over 36 months 0.70 against 0.62, and 0.69
+  against 0.54 within a change (164). Fix history adds nothing under either label.
+
+So the second repository says what the first said, more quietly: order by activity, break ties by size, show the rest.
+
 ## What it does not measure
 
 - Severity and cost: an outcome is any fix or revert touching the file, a typo as much as an incident, and a
   repository that does not write `fix:` in its subjects shows no outcomes at all.
 - Capacity: who was able to look, and whether a file with no active owner is riskier, need review or incident data
   that git does not hold. `triage` shows ownership because it answers who can look, not where trouble lands.
-- Other repositories: one history is a hint, not a proof. An earlier run on the same repository, with a slightly
+- Other repositories: two histories are a hint, not a proof, and they already disagree on the size of the effect; a
+  JavaScript or TypeScript repository is the natural next run. An earlier run on the first repository, with a slightly
   different method and scripts that were never published, reached the same conclusions (0.72 against 0.64 for the
   order); this script replaces it.
 - Dates are commit dates, so in a repository that merges without rebasing a commit can count as activity a little
