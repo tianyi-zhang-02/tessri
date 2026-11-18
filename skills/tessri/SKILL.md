@@ -96,8 +96,11 @@ tessri triage --since <base> --format json     # a branch against its base; with
 Run it before you open a change and before you review one. `files` is the changed code, most active first: files
 that were committed to most in the last 90 days, then by lines changed. Fix and revert history (`fixes_90`),
 `dependents`, `owners` and `flags` are context shown beside the order, not part of it. `ripple` is code outside the
-change that imports the changed files, `tests.nearest` are candidate tests, `reviewers` are the people who maintain the
-files other than the authors, and `nobody_else_can_look` lists files only the author maintains. A flag
+change that imports the changed files, `tests.nearest` are candidate tests, `reviewers` are the people, other than the
+authors, who committed to the changed files in the last year, most commits first, then those who maintain them,
+`regulars` are the repository's busiest committers of the last 90 days with their share of its commits (where a few
+people review everything, they are the reviewers whatever the files), and `nobody_else_can_look` lists files only the
+author maintains. A flag
 `no active owner` means nobody who maintains the file has committed lately: say so where the change is described, so
 a person can decide who looks, and do not pick a reviewer from its last maintainers; whether that pauses the work is
 the team's policy, not the tool's. History is read up to the base, so the change's own commits do not count. It is a

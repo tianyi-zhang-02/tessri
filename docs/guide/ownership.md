@@ -29,7 +29,8 @@ The report's ownership section answers the questions a large codebase makes hard
 | Does `CODEOWNERS` match reality? | files with no declared owner, and files whose declared owner is not among their maintainers |
 
 A directory nobody clearly owns is shown honestly, e.g. `Dana 10% + 25 others`. Bots (`[bot]`,
-dependabot, renovate, github-actions) never own code, and neither do authors matching `ignore_authors`.
+dependabot, renovate, github-actions, pre-commit-ci, and a name or address ending in `-ci` or `-bot`) never own code,
+and neither do authors matching `ignore_authors`.
 A commit touching 300 or more files (a reformat, a vendor drop) is ignored for ownership unless it is all
 a file has, and a pure move (a rename that changes nothing inside the file) credits nobody: the file keeps the
 credit of the people who wrote what is in it. Authors are matched by name, so one person committing from two addresses is one author; add a

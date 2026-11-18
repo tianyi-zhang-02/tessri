@@ -133,7 +133,7 @@ class ScoreTest(Pulls):
         one = next(r for r in result["rows"] if r["number"] == 1)
         self.assertEqual((one["files"], one["actual"], one["authors"]), (1, ["alice"], ["bbrown"]))  # the service account is not a reviewer
         self.assertEqual((one["tessri_names"], one["tessri"], one["unmatched"]), (["Alice Adams"], ["alice"], []))
-        self.assertEqual((one["recent"], one["usual"], one["gatekeepers"]), (["alice"], ["alice"], []))  # too little review history for gatekeepers
+        self.assertEqual((one["recent"], one["usual"], one["regulars"], one["gatekeepers"]), (["alice"], ["alice"], ["alice"], []))  # too little review history for gatekeepers
         by = {m["method"]: m for m in result["methods"]}
         self.assertEqual((by["tessri"]["offered"], by["tessri"]["precision"], by["tessri"]["recall"], by["tessri"]["hit_at_1"], by["tessri"]["any_hit"]), (1, 1.0, 1.0, 1.0, 1.0))
         self.assertEqual(by["gatekeepers"]["offered"], 0)
@@ -142,7 +142,8 @@ class ScoreTest(Pulls):
         self.assertEqual(subprocess.run(["git", "worktree", "list"], cwd=self.root, capture_output=True, text=True).stdout.count("\n"), 1)  # the scoring worktree is gone
         rendered = rm.text(result)
         self.assertIn("Tessri reviewer match on o/r (2 merged pull requests, 2026-04-01 to 2026-04-05)", rendered)
-        self.assertIn("triage: active holders of the changed files", rendered)
+        self.assertIn("triage: who can look", rendered)
+        self.assertIn("triage: the repository's regulars", rendered)
         self.assertIn("1 of 1", rendered)
 
     def test_the_command_line(self):

@@ -33,6 +33,21 @@ Dates are the day a version was tagged.
   repository, wins on the small one, where four people write and review most of the code.
   [The backtest](docs/guide/backtest.md) and [the reviewer match](docs/guide/reviewer-match.md) carry both outputs,
   and the brief's note on the order now says two repositories.
+- *Who can look* is ranked by recent commits, and the page names the repository's regulars. The people `triage` and
+  the brief offer, the authors apart, are now those who committed to the changed files in the last year, most commits
+  first, then those who hold a share of the files' history without a commit this year; the share used to rank alone.
+  The reviewer match on two repositories had found that the share did not beat a plain count of recent committers; on
+  the list as it ships the large repository's recall went from 0.33 to 0.39 and its first name hit on 29% of the pull
+  requests instead of 18%, the small one's recall from 0.46 to 0.48, with precision within a point of the plain
+  count's (0.28 against 0.27). Below that line the page names *the repository's regulars*, the busiest committers of
+  the last 90 days with their share of its commits, merges included, when they are not already offered, because on
+  the small repository they beat every file-level list: where a few people review everything they are the reviewers
+  whatever the files. Each reviewer row carries `commits`; `triage` and the brief's `people` carry `regulars`
+  (`window_days`, `commits`, `committers`, `people` with `commits` and `share`); `tools/reviewer_match.py` scores
+  both lists beside the baselines. On the way the service account that commits most to the large repository turned
+  up first among its regulars, so a name or address ending in `-ci` or `-bot` now counts as automation, like `[bot]`,
+  dependabot, renovate, github-actions and pre-commit-ci, wherever Tessri reads history: such an account owns nothing
+  and is offered to nobody. [The reviewer match](docs/guide/reviewer-match.md) has the numbers.
 
 ## 0.4.0 (2026-11-14)
 

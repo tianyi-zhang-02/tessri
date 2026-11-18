@@ -1,8 +1,11 @@
 # The reviewer match: how "who can look" was tested
 
 `tessri triage` and `tessri brief` end their first section with a sentence: *Who can look, other than the authors:*
-and up to three names, the people who maintain the changed files and are still active. That is a claim about people,
-so it is tested against people: on a repository's own pull requests, do the names match who actually reviewed?
+and up to three names, the active people who committed to the changed files in the last year, most commits first, then
+those who hold a share of the files' history. That is a claim about people, so it is tested against people: on a
+repository's own pull requests, do the names match who actually reviewed? The test was run first on the list as it was,
+ranked by share of the files' history; what it found changed the order, and the last section measures the list as it
+now ships.
 `tools/reviewer_match.py` runs the test on any repository on GitHub; this page is its method and its output on two: a
 large repository with a company's team behind it, and a small one maintained by a handful of core developers.
 
@@ -24,8 +27,9 @@ the change against the commit's first parent, with the clock set to the merge ti
 what git knew when the change was merged and nothing from after it is read. Triage's reviewer list is the offer: up to
 three people, the authors apart. Two baselines are offered the same way from git alone: the people who committed most
 to the changed files in the 365 days before the merge, and the people who committed most to the whole repository in
-the 90 days before it. A fourth comes from the review data git does not hold: the people who reviewed most often among
-the pull requests merged before this one, once that history holds twenty review slots.
+the 90 days before it. Since the page started naming *the repository's regulars*, those are scored as an offer too.
+The last method comes from the review data git does not hold: the people who reviewed most often among the pull
+requests merged before this one, once that history holds twenty review slots.
 
 **The match.** GitHub logins are matched to git names through the names and addresses on the pull requests' commits
 and the profiles' names, compared without case or punctuation; an offered name that matches no login is dropped from
@@ -138,9 +142,105 @@ Read it this way:
   recall of 0.50 and the busiest list trails at 0.36, as on the large repository.
 
 So the second repository confirms the plain count and the role, and overturns the busiest-people result: the
-ownership list beats the repository's regulars only where reviewing is spread beyond a few. The ownership list has
-now failed to beat a plain count twice, so ranking it by recency rather than share is the next change to make, and
-the number to watch when it is made is precision, the one thing the ownership list wins.
+ownership list beats the repository's regulars only where reviewing is spread beyond a few. The ownership list had
+now failed to beat a plain count twice, so the list was reranked by recency, with the share ordering the rest, and the
+page started naming the regulars; the number to watch was precision, the one thing the ownership list won. The next
+section is the same test on the list as it ships.
+
+## The result on the list as it ships
+
+The two sections above tested the list ranked by share of the files' history. On 2026-11-18 the order changed to what
+they recommended: the people who committed to the changed files in the last year come first, most commits first, those
+who hold a share of the files' history without a commit this year follow, and the page started naming *the
+repository's regulars*, the busiest committers of the last 90 days, merges included, when they are not already named.
+This is the same test on the list as it ships. The small repository's pull requests are the ones collected on
+2026-11-15; the large repository's were collected again on 2026-11-18, so its set moved by five days and its numbers
+are close to, not the same as, the first run's.
+
+```text
+Tessri reviewer match on pytest-dev/pytest (300 merged pull requests, 2022-03-21 to 2026-11-15)
+
+300 scored; 277 had a reviewer other than the authors (bots and service accounts apart), 1.2 per pull request;
+134 changed no code file and are left out, so 157 are judged. A method offers up to 3 people, the authors
+apart, and is judged where it offers anyone.
+
+Method                                            offered on  precision  recall  hit@1  any hit
+triage: who can look                              155 of 157       0.28    0.48   0.30     0.59
+committers to the changed files, last 365 days    148 of 157       0.27    0.52   0.33     0.61
+busiest committers repo-wide, last 90 days        157 of 157       0.28    0.60   0.43     0.71
+triage: the repository's regulars                 157 of 157       0.28    0.59   0.40     0.71
+most frequent reviewers before this pull request  148 of 157       0.36    0.79   0.36     0.87
+
+Who reviews: 25 people took a review slot; the two most frequent took 30% and 24% of the slots, and 65% of the
+judged pull requests were reviewed only by the three most frequent. Where git names the people behind the
+changed files, triage and the plain committer count hit on different pull requests: both 87, triage only 4,
+committers only 3, neither 63.
+
+Against the reviewers GitHub had requested (not yet reviewed when read; a weaker truth):
+
+Method                                          offered on  precision  recall
+triage: who can look                              21 of 22       0.22    0.50
+committers to the changed files, last 365 days    21 of 22       0.22    0.50
+busiest committers repo-wide, last 90 days        22 of 22       0.16    0.36
+triage: the repository's regulars                 22 of 22       0.22    0.36
+
+Of triage's offers, 63 (22 distinct names) matched no login and were dropped; the JSON names them.
+```
+
+```text
+Tessri reviewer match on NVIDIA-NeMo/RL (300 merged pull requests, 2026-09-23 to 2026-11-18)
+
+300 scored; 254 had a reviewer other than the authors (bots and service accounts apart), 1.12 per pull
+request; 53 changed no code file and are left out, so 214 are judged. A method offers up to 3 people, the
+authors apart, and is judged where it offers anyone.
+
+Method                                            offered on  precision  recall  hit@1  any hit
+triage: who can look                              198 of 214       0.17    0.39   0.29     0.47
+committers to the changed files, last 365 days    197 of 214       0.17    0.39   0.29     0.46
+busiest committers repo-wide, last 90 days        214 of 214       0.12    0.28   0.20     0.36
+triage: the repository's regulars                 214 of 214       0.12    0.27   0.18     0.35
+most frequent reviewers before this pull request  198 of 214       0.27    0.66   0.42     0.80
+
+Who reviews: 42 people took a review slot; the two most frequent took 30% and 24% of the slots, and 55% of the
+judged pull requests were reviewed only by the three most frequent. Where git names the people behind the
+changed files, triage and the plain committer count hit on different pull requests: both 89, triage only 4,
+committers only 2, neither 119.
+
+Against the reviewers GitHub had requested (not yet reviewed when read; a weaker truth):
+
+Method                                          offered on  precision  recall
+triage: who can look                              62 of 63       0.11    0.20
+committers to the changed files, last 365 days    62 of 63       0.12    0.22
+busiest committers repo-wide, last 90 days        63 of 63       0.09    0.16
+triage: the repository's regulars                 63 of 63       0.07    0.15
+
+Of triage's offers, 23 (9 distinct names) matched no login and were dropped; the JSON names them.
+```
+
+Read it this way:
+
+- **The reranked list matches the plain count and keeps a little of the share's precision.** On the large repository
+  it offers on 198 of 214 pull requests (195 of 213 before): precision 0.17, recall 0.39, hit@1 0.29, any hit 0.47,
+  against 0.17, 0.33, 0.18 and 0.41 for the share-ranked list on the first run and 0.17, 0.39, 0.29 and 0.46 for the
+  plain count on this one; the two now hit on nearly the same pull requests (both on 89, one alone on 4 and 2). On the
+  small repository it offers on 155 of 157 (147 before): 0.28, 0.48, 0.30 and 0.59, against 0.30, 0.46, 0.30 and
+  0.58 before and 0.27, 0.52, 0.33 and 0.61 for the plain count; on the 148 pull requests where both offer, 0.29 and
+  0.50 against 0.27 and 0.52, so the list trades a little of the count's recall for a little of the share's
+  precision, and the seven pull requests it alone offers on, with people who hold a share but made no commit this
+  year, are weak (any hit 0.29).
+- **The regulars are the busiest-committers baseline, as the page names it.** Small repository 0.28, 0.59, 0.40 and
+  0.71 against 0.28, 0.60, 0.43 and 0.71; large 0.12, 0.27, 0.18 and 0.35 against 0.12, 0.28, 0.20 and 0.36. The
+  gap is the measurement: the page names three people and fills no slot when one of them matches no login, the
+  baseline draws from twelve. Two things had to change to get there. Merges count: without them the regulars scored
+  0.26, 0.52, 0.34 and 0.64 on the small repository, because in a merge-commit workflow the person who merged is
+  often the one who reviewed. And a service account that commits to the large repository under a name ending in
+  `-ci`, which the baseline's bot filter dropped and Tessri's did not, took the first slot on 158 of its 214 pull
+  requests (hit@1 0.03); a name or address ending in `-ci` or `-bot` now counts as automation wherever Tessri reads
+  history, so such an account owns nothing and is offered to nobody.
+- **The role is unchanged.** The two most frequent reviewers took 30% and 24% of the slots on both repositories, the
+  past reviewers hit on 80% and 87%, and on the large repository the gap between the best git-only offer (0.47) and
+  them (0.80) is where the data git does not hold would have to come from.
+
 
 ## What it does not measure
 

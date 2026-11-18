@@ -1,5 +1,6 @@
 """Test, on a repository's own pull requests, the claim behind "who can look" in `tessri triage` and `tessri brief`:
-that the people who maintain the changed files, the authors apart, are the people who review the change.
+that the people behind the changed files, the authors apart, are the people who review the change: those who committed
+to them in the last year, most commits first, then those who hold a share of their history.
 
 `collect` reads the merged pull requests of a repository on GitHub through the `gh` command, which must be installed
 and signed in: newest first, those whose merge commit the local checkout holds, with their reviews, the reviewers
@@ -50,9 +51,10 @@ WIDTH = 110
 BOT = re.compile(r"\[bot\]$|^(?:copilot|github-actions|dependabot|coderabbitai|codecov|renovate|pre-commit-ci|svc)|[-_]ci$|nemo-ci", re.I)
 NOREPLY = re.compile(r"^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$")
 METHODS = (
-    ("tessri", "triage: active holders of the changed files"),
+    ("tessri", "triage: who can look"),
     ("recent", "committers to the changed files, last 365 days"),
     ("usual", "busiest committers repo-wide, last 90 days"),
+    ("regulars", "triage: the repository's regulars"),
     ("gatekeepers", "most frequent reviewers before this pull request"),
 )
 
@@ -174,8 +176,12 @@ def matcher(identities: dict) -> Callable[[str], str | None]:
 
 
 def _top(counts: Counter, match: Callable[[str], str | None], authors: set[str], k: int) -> list[str]:
+    return _logins([name for name, _ in counts.most_common(k * 4)], match, authors, k)
+
+
+def _logins(names: list[str], match: Callable[[str], str | None], authors: set[str], k: int) -> list[str]:
     out: list[str] = []
-    for name, _ in counts.most_common(k * 4):
+    for name in names:
         login = match(name)
         if login and login not in authors and login not in out:
             out.append(login)
@@ -202,6 +208,7 @@ def score_pull(wt: Path, cfg: config.Config, pr: dict, match: Callable[[str], st
         "actual": actual, "requested": requested, "authors": sorted(authors),
         "tessri": [login for _, login in offered if login], "tessri_names": [name for name, _ in offered], "unmatched": [name for name, login in offered if not login],
         "recent": _top(touched, match, authors, k), "usual": _top(busy, match, authors, k),
+        "regulars": _logins([p["name"] for p in t["regulars"]["people"]], match, authors, k),
         "no_active_owner": sum(1 for f in t["files"] if f.get("ownership") == "no-active-owner"),
     }
 
@@ -277,7 +284,7 @@ def score(data: dict, root: Path, k: int = K, limit: int | None = None, log=None
         "reviewers": {"distinct": len(slots), "top": [{"login": login, "share": round(n / total, 3)} for login, n in slots.most_common(5)] if total else [],
                       "only_top3_share": round(sum(1 for r in judged if set(r["actual"]) <= top3) / len(judged), 3) if judged else None},
         "methods": [dict(metrics(rows, key, "actual", k), label=label) for key, label in METHODS],
-        "requested": [dict(metrics(rows, key, "requested", k), label=label) for key, label in METHODS[:3]],
+        "requested": [dict(metrics(rows, key, "requested", k), label=label) for key, label in METHODS if key != "gatekeepers"],
         "overlap": {"both": both, "tessri_only": tessri_only, "recent_only": recent_only, "neither": len(judged) - both - tessri_only - recent_only},
         "unmatched": {"offers": sum(unmatched.values()), "names": len(unmatched), "most": [{"name": n, "offers": c} for n, c in unmatched.most_common(10)]},
         "rows": rows,

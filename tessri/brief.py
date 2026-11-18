@@ -189,7 +189,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "not_analysed": [{"language": k, "files": v} for k, v in sorted(not_analysed.items())],
         },
         "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran), "report": held, "coverage": cover},
-        "people": {"reviewers": t["reviewers"], "nobody_else_can_look": nobody_else, "no_active_owner": no_owner},
+        "people": {"reviewers": t["reviewers"], "regulars": t["regulars"], "nobody_else_can_look": nobody_else, "no_active_owner": no_owner},
         "open": open_items,
         "triage": t,
         "check": c,
@@ -270,9 +270,11 @@ def markdown(b: dict) -> str:
         if a["total"] > a["shown"]:
             out += [f"{a['total'] - a['shown']} more files, in order, under `triage.files`.", ""]
         if p["reviewers"]:
-            out += ["Who can look, other than the authors: " + ", ".join(f"{r['name']} ({_many(r['files'], 'file')})" for r in p["reviewers"]) + ". Git cannot see who reviewed; these are the people who maintain the changed files.", ""]
+            out += [f"Who can look, other than the authors: {triage.people(p['reviewers'])}. {triage.CAVEAT}", ""]
         else:
             out += ["Nobody other than the authors maintains the changed files, as far as history shows.", ""]
+        if line := triage.regulars_line(p):
+            out += [line, ""]
 
     out += ["## What it did to the structure", ""]
     if not c["code_files"]:
