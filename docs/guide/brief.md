@@ -26,27 +26,27 @@ aims to stay under 800 words: every list it shortens carries its count, and the 
 $ tessri brief --since main --ran "python -m pytest tests/test_invoices.py: 2 passed (exit 0)"
 # Review brief: demo-brief
 
-`main` (base 6081a02cb) to the working tree: HEAD 9ef0fcdb0 plus 1 uncommitted file (`tests/test_invoices.py`). 8 code files changed (1 added, 5 modified, 2 deleted), **21** lines; 1 other file (2 lines of config, docs and the like).
+`main` (base 950d0cafb) to the working tree: HEAD c4aebc80d plus 1 uncommitted file (`tests/test_invoices.py`). 8 code files changed (1 added, 5 modified, 2 deleted), **25** lines.
 
 2 commits on the way, by Carol Chen, Dana Doe, in their words:
 
-- `9ef0fcdb0` feat: gross (Carol Chen)
-- `948b93b78` refactor: fold money into invoices (Carol Chen)
+- `c4aebc80d` feat: gross (Carol Chen)
+- `c2b8695f4` refactor: fold money into invoices (Carol Chen)
 
 ## Look first
 
 | # | File | Why | This change | Owners | Flags |
 |---:|---|---|---|---|---|
 | 1 | `billing/tax.py` | 2 commits in 90 days, 1 of them fixes or reverts | +4 -0 | Alice Adams 100% | author is not among the owners |
-| 2 | `billing/invoices.py` | quiet since 2025-10-02 | +3 -2 | Alice Adams 100% | author is not among the owners |
-| 3 | `tests/test_invoices.py` | quiet since 2025-10-02 | +4 -0 | Alice Adams 100% | author is not among the owners; test file |
+| 2 | `billing/invoices.py` | quiet since 2025-10-02 | +5 -2 | Alice Adams 100% | author is not among the owners |
+| 3 | `tests/test_invoices.py` | quiet since 2025-10-02 | +5 -1 | Alice Adams 100% | author is not among the owners; test file |
 | 4 | `billing/helpers.py` | new file | +2 -0 | - | new file; orphan: nothing reaches it |
-| 5 | `legacy/rates.py` | quiet since 2026-01-10 | +1 -1 | Bob Brown 100% (silent 300d) | no active owner; author is not among the owners |
+| 5 | `legacy/rates.py` | quiet since 2026-01-10 | +1 -1 | Bob Brown 100% (silent 312d) | no active owner; author is not among the owners |
 | 6 | `svc/main.go` | quiet since 2025-10-02 | +1 -1 | Alice Adams 100% | author is not among the owners |
 | 7 | `util/money.py` | quiet since 2025-10-02 | +0 -2 | - | deleted |
 | 8 | `util/__init__.py` | quiet since 2025-10-02 | +0 -0 | - | deleted |
 
-Who can look, other than the authors: Alice Adams (4 files). Git cannot see who reviewed; these are the people who maintain the changed files.
+Who can look, other than the authors: Alice Adams (4 files, 2 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
 ## What it did to the structure
 
@@ -87,7 +87,10 @@ Checks the host ran, as recorded:
 uncommitted work, the files it is in, because a commit id does not identify uncommitted contents; then the counts, and
 the commits on the way with their authors and subjects, which are the authors' words, never an intent inferred from
 the files. *Look first* is triage's order (commits in the last 90 days, then the size of the change) with its reasons,
-owners and flags, and who other than the authors maintains the changed files. *What it did to the structure* is
+owners and flags, and who can look: the people other than the authors who committed to the changed files in the last
+year, most commits first, then those who maintain them, and, when they are not already named, the repository's regulars
+of the last 90 days with their share of its commits, since where a few people review everything they are the reviewers
+whatever the files. *What it did to the structure* is
 check's findings, most serious first, each with its first files and what to do, then the code outside the change that
 imports it, and the changed files no analyzer covers, named rather than dropped. *Validation* keeps two things apart:
 the candidate tests, which are paths that reach the changed files, and the checks the host ran, which are only what
@@ -134,7 +137,8 @@ why the page says so. Everything structural rests on static imports between file
 `passed`, `failed`, `skipped`, `not_run` and `unmatched`, and `coverage`: null without `--coverage`, else `sources`,
 `measured`, `files` as path to `changed`, `statements`, `ran`, `not_run` and `not_run_ranges` as `[start, end]` runs,
 `not_measured` as path to its changed lines, the totals `changed`, `statements`, `ran` and `not_run`, and `unmatched`),
-`people` (`reviewers`, `nobody_else_can_look`, `no_active_owner`), `open` (each with `kind`, `text`, `files`; the kinds
+`people` (`reviewers`, each with `files` and `commits`, `regulars`, `nobody_else_can_look`, `no_active_owner`), `open` (each
+with `kind`, `text`, `files`; the kinds
 are the finding kinds that need a person, `only-the-author`, `not-analysed`, `candidate-failed`, `candidates-not-run`,
 `changed-lines-not-run`, `changed-files-not-measured` and `no-checks-recorded`), then
 `triage` and `check` whole, and `notes`. `meta` is the [shared block](json.md) with `meta.change` and `meta.analysis`,

@@ -16,7 +16,7 @@ from . import inventory
 
 HALF_LIFE_DAYS = 365  # when crediting ownership, a commit loses half its weight per year
 BULK_FILES = 300  # a commit touching this many files (mass reformat, vendor drop, first import) says little about who maintains each one
-_BOT = re.compile(r"\[bot\]|^(?:dependabot|renovate|github-actions|pre-commit-ci)\b", re.I)
+_BOT = re.compile(r"\[bot\]|^(?:dependabot|renovate|github-actions|pre-commit-ci)\b|[-_](?:ci|bot)$", re.I)  # a name, or the local part of an address, ending in -ci or -bot is automation
 # A commit that repairs something: `fix: x`, `fix(scope): x`, `Fix typo`, `Fixes #3`, `bugfix`, `hotfix`, `Revert "x"`.
 # Judged from the subject alone, so a repository that writes no such subjects simply shows no fix history.
 FIX_SUBJECT = re.compile(r"^(?:fix(?:es|ed)?|bug-?fix|hotfix|revert)\b", re.I)
@@ -39,6 +39,7 @@ class Author:
     name: str  # as written on their newest commit
     emails: set[str]  # every address they committed from, lowercase; identifies the person and never goes in a report
     last: int  # epoch seconds of their newest commit anywhere in the repository
+    commits_active: int = 0  # their commits inside the active window, merges included: in a merge-commit workflow the merger is often the reviewer
 
 
 @dataclass
@@ -49,6 +50,7 @@ class Activity:
     commits: int
     authors: dict[str, Author]  # identity -> author; bots and ignored authors are left out
     credit: dict[str, dict[str, float]]  # path -> identity -> commits, recent ones weighing more
+    recent: dict[str, dict[str, set[int]]] = field(default_factory=dict)  # path -> identity -> author times of their commits to it in the last 365 days: what `credit` counts, undecayed, bulk commits apart
 
 
 REASONS = ("not-a-repository", "no-commits", "git-not-found", "git-error", "not-requested")
@@ -149,7 +151,7 @@ def identity(name: str, email: str) -> str:
 
 def is_ignored(name: str, email: str, patterns: Sequence[str]) -> bool:
     """Bots never own code; `ignore_authors` globs are matched against the name and the email, ignoring case."""
-    if _BOT.search(name) or _BOT.search(email):
+    if _BOT.search(name) or _BOT.search(email) or _BOT.search(email.partition("@")[0]):
         return True
     return any(fnmatch.fnmatchcase(v.lower(), p.lower()) for p in patterns for v in (name, email))
 
@@ -324,6 +326,7 @@ def load(root: Path, now: float, active_days: int, ignore_authors: Sequence[str]
     authors: dict[str, Author] = {}
     credit: dict[str, dict[str, float]] = {}
     bulk: dict[str, dict[str, float]] = {}  # credit from bulk commits, used only for files nothing else touched
+    recent: dict[str, dict[str, set[int]]] = {}
     commits = 0
     names = _Names()
     for old, new in renames(root, rev).items():  # the working tree's names come first: history is read under them
@@ -343,6 +346,8 @@ def load(root: Path, now: float, active_days: int, ignore_authors: Sequence[str]
                 else:
                     known.emails.add(email.lower())
                     known.last = max(known.last, when)
+                if when >= active_cut:
+                    authors[person].commits_active += 1
             target = bulk if len(files) >= BULK_FILES else credit
             for path, changed in files:
                 entry = stats.get(path)
@@ -362,6 +367,8 @@ def load(root: Path, now: float, active_days: int, ignore_authors: Sequence[str]
                 if person and changed:
                     slot = target.setdefault(path, {})
                     slot[person] = slot.get(person, 0.0) + weight
+                    if target is credit and when >= year_cut:
+                        recent.setdefault(path, {}).setdefault(person, set()).add(when)
     if proc.returncode != 0 or commits == 0:
         return None
     for path, slot in bulk.items():
@@ -374,6 +381,7 @@ def load(root: Path, now: float, active_days: int, ignore_authors: Sequence[str]
         commits=commits,
         authors=authors,
         credit=credit,
+        recent=recent,
     )
 
 

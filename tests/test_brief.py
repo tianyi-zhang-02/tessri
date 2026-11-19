@@ -200,10 +200,12 @@ class CompositionTest(Repo):
         b = self.brief()
         self.assertEqual([item["kind"] for item in b["open"]], ["no-active-owner", "only-the-author", "not-analysed", "no-checks-recorded"])
         self.assertEqual(b["open"][0]["files"], ["util/helpers.py"])
-        self.assertEqual(b["people"], {"reviewers": b["triage"]["reviewers"], "nobody_else_can_look": ["util/helpers.py"], "no_active_owner": ["util/helpers.py"]})
-        self.assertEqual([r["name"] for r in b["people"]["reviewers"]], ["Alice Adams"])
+        self.assertEqual(b["people"], {"reviewers": b["triage"]["reviewers"], "regulars": b["triage"]["regulars"], "nobody_else_can_look": ["util/helpers.py"], "no_active_owner": ["util/helpers.py"]})
+        self.assertEqual([(r["name"], r["files"], r["commits"]) for r in b["people"]["reviewers"]], [("Alice Adams", 3, 2)])  # the app and the engine fix; Bob is gone
+        self.assertEqual(b["people"]["regulars"], {"window_days": 90, "commits": 1, "committers": 1, "people": [{"name": "Alice Adams", "commits": 1, "share": 1.0}]})
         text = brief.markdown(b)
-        self.assertIn("Who can look, other than the authors: Alice Adams (3 files).", text)
+        self.assertIn("Who can look, other than the authors: Alice Adams (3 files, 2 commits in the last year). Git cannot see who reviewed;", text)
+        self.assertNotIn("regulars", text)  # the one regular is already named
         self.assertIn("- 1 changed file nobody active maintains: Have a human who knows the code look before merging", text)
         self.assertIn("- Only the author maintains `util/helpers.py`: a second reader has to come from outside the file's history.", text)
         self.assertIn("**2 warn.**", text)

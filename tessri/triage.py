@@ -215,23 +215,39 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
     for rank, row in enumerate(rows, 1):
         row["rank"] = rank
 
-    # who can look: the people, other than the authors, who hold the changed files
+    # who can look: the people, other than the authors, who committed to the changed files in the last year or hold a share of
+    # them, most commits first: on two repositories' pull requests that count matched who reviewed better than the share did
+    # (docs/guide/reviewer-match.md); the share orders the rest
+    commits_to: dict[str, set[int]] = defaultdict(set)
     weight: dict[str, float] = defaultdict(float)
     covers: dict[str, set[str]] = defaultdict(set)
     nobody_else: list[str] = []
     for row in rows:
         found = own.files.get(row["path"])
         shares = found.shares if found else {}
-        able = [who for who, s in shares.items() if s >= LISTED_MIN and own.is_active(who) and who not in authors]
+        recent = a.activity.recent.get(row["path"], {})
+        able = [who for who in sorted({who for who, s in shares.items() if s >= LISTED_MIN} | set(recent)) if own.is_active(who) and who not in authors]
         if shares and not able:
             nobody_else.append(row["path"])
         for who in able:
-            weight[who] += row["lines"] * shares[who]
+            commits_to[who] |= recent.get(who, set())
+            weight[who] += row["lines"] * shares.get(who, 0.0)
             covers[who].add(row["path"])
     reviewers = [
-        {"name": own.authors[who].name, "files": len(covers[who]), "idle_days": own.idle_days(who), "weight": round(w, 1)}
-        for who, w in sorted(weight.items(), key=lambda kv: (-kv[1], own.authors[kv[0]].name))[:REVIEWERS_LISTED]
+        {"name": own.authors[who].name, "files": len(covers[who]), "commits": len(commits_to[who]), "idle_days": own.idle_days(who), "weight": round(weight[who], 1)}
+        for who in sorted(covers, key=lambda who: (-len(commits_to[who]), -weight[who], own.authors[who].name))[:REVIEWERS_LISTED]
     ]
+
+    # the repository's regulars: who committed most, repository-wide, in the active window; where a few people review
+    # everything they are the reviewers whatever the files, and on a small repository they beat the file-level list
+    window = sum(au.commits_active for au in own.authors.values())
+    busy = sorted((who for who, au in own.authors.items() if au.commits_active), key=lambda who: (-own.authors[who].commits_active, own.authors[who].name))
+    regulars = {
+        "window_days": cfg.active_days,
+        "commits": window,
+        "committers": len(busy),
+        "people": [{"name": own.authors[who].name, "commits": own.authors[who].commits_active, "share": round(own.authors[who].commits_active / window, 2)} for who in busy if who not in authors][:REVIEWERS_LISTED],
+    }
 
     by_module: dict[str, dict[str, int]] = defaultdict(lambda: {"direct": 0, "second": 0})
     for other, dist in ripple.items():
@@ -284,6 +300,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         "ripple_examples": sorted(ripple, key=lambda p: (ripple[p], p))[: 2 * LISTED],
         "tests": {"count": len(tests), "nearest": nearest[:LISTED], "paths": nearest},
         "reviewers": reviewers,
+        "regulars": regulars,
         "nobody_else_can_look": sorted(nobody_else)[:LISTED],
         "inactive_days": own.inactive_days,
         "notes": notes,
@@ -295,6 +312,32 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
 
 def _many(n: int, one: str, many: str | None = None) -> str:
     return f"{n:,} {one if n == 1 else many or one + 's'}"
+
+
+CAVEAT = "Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them."
+
+
+def people(reviewers: list[dict]) -> str:
+    """`Alice Adams (2 files, 5 commits in the last year)`, the same on the triage page and in the brief."""
+    return ", ".join(f"{r['name']} ({_many(r['files'], 'file')}, {_many(r['commits'], 'commit') + ' in the last year' if r['commits'] else 'no commits in the last year'})" for r in reviewers)
+
+
+def regulars_line(t: dict) -> str | None:
+    """The repository's regulars who are neither authors nor already offered, with their share of the window's commits;
+    None when there is nobody to add."""
+    g = t.get("regulars")
+    if not g:
+        return None
+    named = {r["name"] for r in t["reviewers"]}
+    rest = [p for p in g["people"] if p["name"] not in named]
+    if not rest:
+        return None
+    listed = ", ".join(f"{p['name']} ({_many(p['commits'], 'commit')}, {p['share']:.0%})" for p in rest)
+    apart = "apart from the authors and the people above" if named else "apart from the authors"
+    return (
+        f"The repository's regulars in the last {g['window_days']} days, {apart}: {listed}, of {_many(g['commits'], 'commit')} by {_many(g['committers'], 'person', 'people')}. "
+        "Where a few people review everything they are the reviewers whatever the files; where review is spread, the people behind the files are the better offer."
+    )
 
 
 def _why(row: dict, active_days: int) -> str:
@@ -346,8 +389,9 @@ def markdown(t: dict, limit: int = 20, active_days: int = 90) -> str:
     if len(t["files"]) > limit:
         out += [f"{len(t['files']) - limit} more files in the JSON output.", ""]
     if t["reviewers"]:
-        people = ", ".join(f"{r['name']} ({_many(r['files'], 'file')})" for r in t["reviewers"])
-        out += [f"Who can look, other than the authors: {people}. Git cannot see who reviewed; these are the people who maintain the changed files.", ""]
+        out += [f"Who can look, other than the authors: {people(t['reviewers'])}. {CAVEAT}", ""]
+    if line := regulars_line(t):
+        out += [line, ""]
     if t["nobody_else_can_look"]:
         out += ["Only the author maintains: " + ", ".join(f"`{p}`" for p in t["nobody_else_can_look"][:5]) + (" ..." if s["nobody_else_can_look"] > 5 else ""), ""]
     if t["ripple"]:

@@ -74,12 +74,40 @@ class FixSubjectTest(unittest.TestCase):
             self.assertFalse(gitlog.FIX_SUBJECT.match(subject), subject)
 
 
+class IgnoredAuthorsTest(unittest.TestCase):
+    def test_automation_never_owns_code(self):
+        for name, email in (("dependabot[bot]", "x@users.noreply.github.com"), ("svcnvidia-nemo-ci", "svc@example.com"), ("pre-commit-ci", "x@x"), ("Release Bot", "release_bot@example.com"), ("nemo-ci", "x@x"), ("x", "deploy-bot@users.noreply.github.com")):
+            self.assertTrue(gitlog.is_ignored(name, email, ()), name)
+        for name, email in (("Luci", "luci@example.com"), ("Abbot", "abbot@example.com"), ("Alice Adams", "alice@ci.example.com"), ("Ci Wang", "ci@example.com")):
+            self.assertFalse(gitlog.is_ignored(name, email, ()), name)
+        self.assertTrue(gitlog.is_ignored("Alice Adams", "alice@ci.example.com", ("*@ci.example.com",)))
+
+
 class HistoryTest(Repo):
     def test_fix_counts_per_file(self):
         act = gitlog.load(self.root, self.now, 90)
         self.assertEqual((act.files["core/a.py"].fixes_90, act.files["core/a.py"].fixes_year), (2, 2))
         self.assertEqual((act.files["core/b.py"].fixes_90, act.files["core/b.py"].fixes_year), (0, 1))
         self.assertEqual((act.files["util/c.py"].fixes_90, act.files["util/c.py"].fixes_year), (0, 0))
+
+    def test_recent_commits_are_kept_per_file_and_per_person(self):
+        act = gitlog.load(self.root, self.now, 90)
+        self.assertEqual({who: len(whens) for who, whens in act.recent["core/a.py"].items()}, {"alice adams": 4})  # 300, 60, 40 and 20 days ago
+        self.assertEqual({who: len(whens) for who, whens in act.recent["core/b.py"].items()}, {"alice adams": 2})
+        self.assertEqual(len(act.recent["core/a.py"]["alice adams"] | act.recent["core/b.py"]["alice adams"]), 5)  # the first commit touched both
+        self.assertEqual({who: len(whens) for who, whens in act.recent["util/c.py"].items()}, {"bob brown": 1})  # 300 days old: inside the year
+        self.assertEqual((act.authors["alice adams"].commits_active, act.authors["bob brown"].commits_active), (3, 0))
+
+    def test_a_merge_counts_for_the_person_but_touches_no_file(self):
+        git(self.root, "checkout", "-q", "-b", "side")
+        self.commit({"util/c.py": "def c():\n    return 2\n"}, ("Erin Ebert", "erin@example.com"), 10, "fix: c")
+        git(self.root, "checkout", "-q", "main")
+        when = time.strftime("%Y-%m-%dT%H:%M:%S+0000", time.gmtime(self.now - 9 * 86400))
+        git(self.root, "merge", "-q", "--no-ff", "-m", "Merge side", "side", when=when, author=ALICE)
+        act = gitlog.load(self.root, self.now, 90)
+        self.assertEqual((act.authors["alice adams"].commits_active, act.authors["erin ebert"].commits_active), (4, 1))  # the merge is hers
+        self.assertEqual(act.files["util/c.py"].commits_active, 1)  # Erin's commit; the merge lists no file
+        self.assertEqual(set(act.recent["util/c.py"]), {"bob brown", "erin ebert"})
 
     def test_history_can_be_read_up_to_a_base_commit(self):
         base = git_out(self.root, "rev-parse", "main")
@@ -159,8 +187,12 @@ class TriageTest(Repo):
 
     def test_who_can_look_excludes_the_author_and_the_gone(self):
         self.assertEqual([r["name"] for r in self.t["reviewers"]], ["Alice Adams"])
-        self.assertEqual(self.t["reviewers"][0]["files"], 2)  # a.py and b.py
+        self.assertEqual((self.t["reviewers"][0]["files"], self.t["reviewers"][0]["commits"]), (2, 5))  # a.py and b.py; five distinct commits in the year
         self.assertNotIn("Bob Brown", json.dumps(self.t["reviewers"]))
+
+    def test_the_regulars_are_the_busiest_committers_of_the_window_other_than_the_authors(self):
+        self.assertEqual(self.t["regulars"], {"window_days": 90, "commits": 3, "committers": 1, "people": [{"name": "Alice Adams", "commits": 3, "share": 1.0}]})
+        self.assertIsNone(triage.regulars_line(self.t))  # she is already offered
 
     def test_a_deleted_file_is_listed_with_its_history(self):
         git(self.root, "rm", "-q", "core/b.py")
@@ -181,6 +213,67 @@ class TriageTest(Repo):
         for want in ("# Change triage", "Look at these first", "`core/a.py`", "3 commits in 90 days, 2 of them fixes or reverts", "no active owner", "Who can look, other than the authors: Alice Adams", "Read this with care"):
             self.assertIn(want, text)
         self.assertLess(text.index("`core/a.py`"), text.index("`core/d.py`"))
+
+
+class RecencyTest(TempRepo):
+    """old.py: Alice wrote it long ago and Erin touched it once this year; hot.py: Alice committed to it twelve times this
+    year and Frank once, so Frank's share is under a tenth. Carol's branch then changes both."""
+
+    def setUp(self):
+        super().setUp()
+        self.now = time.time()
+        git(self.root, "init", "-q", "-b", "main")
+        git(self.root, "config", "user.name", "Dana Doe")
+        git(self.root, "config", "user.email", "dana@example.com")
+        for i, days in enumerate(range(450, 390, -10)):
+            self.commit({"old.py": f"OLD = {i}\n", "hot.py": "HOT = 0\n"}, ALICE, days, f"feat: old {i}")
+        for i, days in enumerate(range(150, 90, -5)):
+            self.commit({"hot.py": f"HOT = {i + 1}\n"}, ALICE, days, f"feat: hot {i + 1}")
+        self.commit({"old.py": "OLD = 6\nERIN = 1\n"}, ("Erin Ebert", "erin@example.com"), 20, "fix: old")
+        self.commit({"hot.py": "HOT = 11\nFRANK = 1\n"}, ("Frank Fox", "frank@example.com"), 15, "fix: hot")
+
+    def commit(self, files, who, days_ago, message):
+        write_tree(self.root, files)
+        git(self.root, "add", "-A")
+        when = time.strftime("%Y-%m-%dT%H:%M:%S+0000", time.gmtime(self.now - days_ago * 86400))
+        git(self.root, "commit", "-q", "-m", message, when=when, author=who)
+
+    def triage(self):
+        return triage.compute(self.root, config.load(self.root), "main", now=self.now)
+
+    def test_recent_commits_rank_before_share_and_a_small_share_with_a_commit_is_offered(self):
+        git(self.root, "checkout", "-q", "-b", "feature")
+        self.commit({"old.py": "OLD = 6\nERIN = 1\nCAROL = 1\n", "hot.py": "HOT = 11\nFRANK = 1\nCAROL = 1\n"}, CAROL, 1, "feat: carol")
+        t = self.triage()
+        rows = [(r["name"], r["files"], r["commits"]) for r in t["reviewers"]]
+        self.assertEqual(rows, [("Alice Adams", 2, 12), ("Erin Ebert", 1, 1), ("Frank Fox", 1, 1)])  # Alice's twelve are this year's; her six to old.py are not
+        self.assertLess(next(o["share"] for o in next(r for r in t["files"] if r["path"] == "hot.py")["owners"] if o["name"] == "Alice Adams"), 100)
+        self.assertNotIn("Frank Fox", json.dumps(next(r for r in t["files"] if r["path"] == "hot.py")["owners"]))  # under a tenth, so not an owner, yet offered
+        self.assertEqual(t["nobody_else_can_look"], [])
+        self.assertEqual(t["regulars"], {"window_days": 90, "commits": 2, "committers": 2, "people": [{"name": "Erin Ebert", "commits": 1, "share": 0.5}, {"name": "Frank Fox", "commits": 1, "share": 0.5}]})
+        self.assertIn("Who can look, other than the authors: Alice Adams (2 files, 12 commits in the last year), Erin Ebert (1 file, 1 commit in the last year), Frank Fox (1 file, 1 commit in the last year).", triage.markdown(t))
+
+    def test_a_holder_without_a_commit_this_year_is_offered_last_and_says_so(self):
+        git(self.root, "checkout", "-q", "-b", "feature")
+        self.commit({"old.py": "OLD = 6\nERIN = 1\nFRANK = 1\n"}, ("Frank Fox", "frank@example.com"), 1, "feat: frank")
+        t = self.triage()
+        self.assertEqual([(r["name"], r["files"], r["commits"]) for r in t["reviewers"]], [("Erin Ebert", 1, 1), ("Alice Adams", 1, 0)])
+        text = triage.markdown(t)
+        self.assertIn("Who can look, other than the authors: Erin Ebert (1 file, 1 commit in the last year), Alice Adams (1 file, no commits in the last year).", text)
+        self.assertNotIn("regulars", text)  # Erin is named, Frank is the author
+
+    def test_the_regulars_not_already_named_get_their_own_line(self):
+        git(self.root, "checkout", "-q", "-b", "feature")
+        self.commit({"old.py": "OLD = 6\nERIN = 1\nALICE = 1\n"}, ALICE, 1, "feat: alice again")
+        t = self.triage()
+        self.assertEqual([r["name"] for r in t["reviewers"]], ["Erin Ebert"])
+        self.assertEqual(t["regulars"]["people"], [{"name": "Erin Ebert", "commits": 1, "share": 0.5}, {"name": "Frank Fox", "commits": 1, "share": 0.5}])
+        self.assertEqual(
+            triage.regulars_line(t),
+            "The repository's regulars in the last 90 days, apart from the authors and the people above: Frank Fox (1 commit, 50%), of 2 commits by 2 people. "
+            "Where a few people review everything they are the reviewers whatever the files; where review is spread, the people behind the files are the better offer.",
+        )
+        self.assertIn(triage.regulars_line(t), triage.markdown(t))
 
 
 class RippleTest(Repo):

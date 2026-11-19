@@ -36,7 +36,7 @@ Look at these first:
 | 3 | `core/d.py` | new file | +6 -0 | - | 0 | new file; orphan: nothing reaches it |
 | 4 | `core/b.py` | quiet since 2026-04-13 | +2 -1 | Alice Adams 100% | 1 | author is not among the owners |
 
-Who can look, other than the authors: Alice Adams (2 files). Git cannot see who reviewed; these are the people who maintain the changed files.
+Who can look, other than the authors: Alice Adams (2 files, 5 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
 Only the author maintains: `util/c.py`
 
@@ -63,13 +63,17 @@ happened, the second what a mistake could reach; ownership is shown because it d
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
-old name (`from` names it, the flag reads `moved`) and its lines are the edits made on the way. *Who can look* lists the people
-who maintain the changed files, excluding the authors (the commits of the change, or whoever `git config user.name` is
-when the work is uncommitted); git cannot see who reviewed. That list was held against who did review, on two
-repositories' pull requests ([the reviewer match](reviewer-match.md)): it does not beat a plain count of who committed
-to the same files in the last year; it beats naming the repository's busiest people on a large repository and loses to
-them on a small one, where four people write and review most of the code; and on both, half the reviewing was done by
-two people whom git cannot name. Dependents are static imports only: importing `a.b.c`
+old name (`from` names it, the flag reads `moved`) and its lines are the edits made on the way. *Who can look* lists the
+people, other than the authors (the commits of the change, or whoever `git config user.name` is when the work is
+uncommitted), who committed to the changed files in the last year, most commits first, then those who hold a share of
+the files' history without a commit this year; git cannot see who reviewed. The order comes from holding the list
+against who did review, on two repositories' pull requests ([the reviewer match](reviewer-match.md)): ranked by share
+of the files' history it did not beat a plain count of who committed to the same files in the last year on either
+repository, so the count ranks and the share orders the rest. The same test found that the repository's busiest people
+lose to the file-level list on a large repository and beat it on a small one, where four people write and review most
+of the code, so the page adds *the repository's regulars* of the last 90 days, with their share of its commits, when
+they are not already named (merges count: in a merge-commit workflow the person who merged is often the one who
+reviewed); and that on both repositories half the reviewing was done by two people, whom git cannot name. Dependents are static imports only: importing `a.b.c`
 does not make a file depend on the package `a`, and dynamic loading and consumers outside the repository are invisible.
 
 `tessri brief --since main` puts this and `check` on one page from one analysis, with the commits and uncommitted
