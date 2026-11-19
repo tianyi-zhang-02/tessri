@@ -48,6 +48,15 @@ Dates are the day a version was tagged.
   up first among its regulars, so a name or address ending in `-ci` or `-bot` now counts as automation, like `[bot]`,
   dependabot, renovate, github-actions and pre-commit-ci, wherever Tessri reads history: such an account owns nothing
   and is offered to nobody. [The reviewer match](docs/guide/reviewer-match.md) has the numbers.
+- The backtest ran on a third repository, `vuejs/core`: TypeScript, a monorepo of 13 packages, squashed pull requests,
+  a small core team. The order `triage` uses holds there too: 0.66 against 0.57 for the size of the change over
+  twelve months, ahead in eight of twelve, 0.71 against 0.53 over 36; fix history is a point ahead for the first
+  time (0.67 against 0.66) and still does not rank; dependents trail again (0.56). Files one import apart co-changed
+  28 times as often as unrelated pairs, so the one-hop claim survives a change of language, while same-directory
+  pairs are too few in a monorepo of small packages to say much. The reviewer match found nothing to judge there:
+  15 of its 300 merged pull requests carry a review by someone other than the authors, so that page records the limit
+  rather than a table. The notes in the brief and in `triage` now say three repositories.
+  [The backtest](docs/guide/backtest.md) has the output.
 
 ## 0.4.0 (2026-11-14)
 
