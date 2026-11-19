@@ -27,9 +27,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import figures  # noqa: E402  (tools/figures.py: the drawings, one source for the site, the guide and the README)
+
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 GUIDE = ROOT / "docs" / "guide"
+FIGURES = GUIDE / "figures"  # the standalone SVG files, for Markdown viewers; the site inlines the same drawings
 REPO = "https://github.com/tianyi-zhang-02/tessri"
 SITE_URL = "https://tianyi-zhang-02.github.io/tessri/"  # where the site is served; link previews and the sitemap need absolute addresses
 DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other checkout is a preview and says so
@@ -386,6 +390,7 @@ _LINK = re.compile(r"\[([^\]]+)\]\(([^)\s]+)\)")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC = re.compile(r"(?<![\w*])\*([^*\s](?:[^*]*?[^*\s])?)\*(?![\w*])")
 _HEADING = re.compile(r"(#{1,6})\s+(.*?)\s*#*\s*$")
+_IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)\)")  # an image on a line of its own
 _BULLET = re.compile(r"[-*]\s+(.*)")
 _NUMBERED = re.compile(r"\d+\.\s+(.*)")
 
@@ -419,6 +424,16 @@ def inline(text: str) -> str:
     text = _BOLD.sub(r"<strong>\1</strong>", text)
     text = _ITALIC.sub(r"<em>\1</em>", text)
     return re.sub("\x00(\\d+)\x00", lambda m: spans[int(m.group(1))], text)
+
+
+def figure(alt: str, src: str) -> str:
+    """An image line of a guide page. One of the generated figures (`figures/<name>.svg`) is inlined, so it follows the
+    page's theme and its toggle, with the alt text as its caption; any other image is an image."""
+    name = src.removeprefix("figures/").removesuffix(".svg")
+    if src.startswith("figures/") and src.endswith(".svg") and name in figures.FIGURES:
+        kind = " chart" if figures.FIGURES[name].kind == "chart" else ""
+        return f'<figure class="fig{kind}"><div class="art">{figures.inline(name)}</div><figcaption>{inline(alt)}</figcaption></figure>'
+    return f'<p><img src="{html.escape(rewrite_link(src), quote=True)}" alt="{html.escape(plain(alt), quote=True)}"></p>'
 
 
 def plain(text: str) -> str:
@@ -505,6 +520,12 @@ def render_markdown(text: str) -> tuple[str, str]:
                 rows.append(lines[i])
                 i += 1
             out.append(_table(rows))
+            continue
+        image = _IMAGE.fullmatch(line.strip())
+        if image:
+            flush()
+            out.append(figure(image.group(1), image.group(2)))
+            i += 1
             continue
         bullet, numbered = _BULLET.match(line), _NUMBERED.match(line)
         if bullet or numbered:
@@ -854,6 +875,7 @@ def landing(demo: dict | None) -> str:
         .replace("{{scripts}}", SCRIPTS)
     )
     filled = re.sub(r"{{icon:([\w-]+)}}", lambda m: icon(m.group(1)), filled)
+    filled = re.sub(r"{{fig:([\w-]+)}}", lambda m: figures.inline(m.group(1)), filled)
     filled = re.sub(r"{{copy:([^}]+)}}", lambda m: copy_button(m.group(1)), filled)
     left = re.findall(r"{{[\w:-]+}}", filled)
     if left:
@@ -1051,6 +1073,7 @@ def search_entries(where: str, title: str, body: str) -> list[dict]:
     text. `where` is the page's address under the site root."""
 
     def text(fragment: str) -> str:
+        fragment = re.sub(r"<svg\b.*?</svg>", " ", fragment, flags=re.S)  # a drawing's labels are not the page's words
         return html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", fragment))).strip()
 
     parts = re.split(r'(?=<h2 id=")', body)
@@ -1111,6 +1134,11 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     shutil.copyfile(ICONS / "LICENSE", out / "icons" / "LICENSE")
     written.append(out / "icons" / "LICENSE")
     write("index.html", landing(content))
+    if FIGURES.is_dir():  # the files Markdown viewers show; the pages themselves inline the drawings
+        (out / "guide" / "figures").mkdir()
+        for svg in sorted(FIGURES.glob("*.svg")):
+            shutil.copyfile(svg, out / "guide" / "figures" / svg.name)
+            written.append(out / "guide" / "figures" / svg.name)
     pages = guide_index()
     known = {s for s, _ in pages}
     entries: list[dict] = []

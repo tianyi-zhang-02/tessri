@@ -15,6 +15,8 @@ able to look, what the change did to the structure and what nobody maintains, wi
 - Find what nothing reaches and what nobody maintains.
 - Check what a change did to the structure, as Markdown, JSON or SARIF, with an exit code for CI.
 
+![A layer between whoever writes the code and whoever answers for it: an agent or a person writes a change, Tessri reads the code and its git history, and the person who stands behind the code gets four answers with their evidence.](docs/guide/figures/layer.svg)
+
 What the analysis cannot see, it says it cannot see. See it on this repository, rebuilt on every push to `main`:
 [the brief of the latest change](https://tianyi-zhang-02.github.io/tessri/demo/) and
 [the HTML report](https://tianyi-zhang-02.github.io/tessri/demo/report.html) with the module graph and the
@@ -32,6 +34,8 @@ Python 3.11 or newer, no dependencies. To run it once without installing: `uvx t
 
 The same questions, where the agent and the reviewer already are. Each line installs with a receipt and
 `tessri integration remove` takes it out again; the [integration](docs/guide/integration.md) page has every option.
+
+![Six stations of a change in a loop: arriving in a project with scan, graph and why; before a change, impact; while the agent edits, hooks give impact after each edit and check when it stops; review with triage; done with check; hand over with brief as a pull request comment.](docs/guide/figures/loop.svg)
 
 | Where | Install | What it gives |
 |---|---|---|
@@ -112,6 +116,8 @@ That's it. `tessri why tessri/graph.py` shows the evidence behind any line of it
 the recognized imports and leaves the string references at the frontier.
 
 ## How does it work?
+
+![One pass over the files and the history: inventory, the analyzers for Python and JavaScript with the names found in configs and docs, and the graph go into one analysis; gitlog and ownership join it; scan, why, graph, impact, triage, check and brief are views of that one picture.](docs/guide/figures/pipeline.svg)
 
 Tessri lists the files, parses Python with Python's own parser and JavaScript/TypeScript with its own scanner,
 builds the import graph, reads who changed what from git, and answers every question from that one picture. No

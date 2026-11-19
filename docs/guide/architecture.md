@@ -6,11 +6,7 @@ checkout as `tessri graph . --level file --format json` reads it, and `tessri gr
 layering does not keep: `analyzers/python.py` imports the dotted-name patterns of `textrefs`, so `tessri` and
 `tessri/analyzers` depend on each other, a cycle the tool lists against itself.
 
-```text
-repository ─► inventory ─► analyzers ─► graph ─► analyze ─► Analysis ─► one view per command ─► cli
- (files, git)      │       (python, javascript)   ▲            ▲                  │
-                   └─► textrefs (config, CI, docs) ┘   gitlog ─► ownership         meta (on every JSON object)
-```
+![One pass over the files and the history: inventory, textrefs and the analyzers feed the graph and the analysis; gitlog and ownership join it; every command is a view of the one `Analysis`, and the cache sits beside the analyzers.](figures/pipeline.svg)
 
 | Stage | Modules | What happens |
 |---|---|---|
