@@ -57,6 +57,12 @@ Dates are the day a version was tagged.
   15 of its 300 merged pull requests carry a review by someone other than the authors, so that page records the limit
   rather than a table. The notes in the brief and in `triage` now say three repositories.
   [The backtest](docs/guide/backtest.md) has the output.
+- The landing page says less and shows more. Each idea has one drawing and a caption: the layer Tessri is, between
+  whoever writes the code and whoever answers for it; the pipeline, one pass and one view per question; the backtest
+  on three repositories as a chart; the six stations of a change and their commands. The five questions are one row
+  of icon, question and command; the example shows the opening of the real output and folds the rest under a
+  summary; the three cards about how it works, the three quotes and the three long steps are gone. The hand-off brief
+  in the hero and the drawing of the example's reach stay as they were.
 
 ## 0.4.0 (2026-11-14)
 

@@ -808,12 +808,23 @@ def cmdline(command: str) -> str:
 
 
 def example_panel() -> str:
-    """The README's example as a reader sees it: the command line, then the Markdown output rendered."""
+    """The README's example as a reader sees it: the command line, the opening sentence and its counts, then the rest of
+    the output (the table, the people, the tests, the dependencies and the caveat) folded under a summary that says
+    what it holds, so the page shows the shape of the answer and keeps the whole of it one click away."""
     first, _, rest = readme_example().partition("\n")
     if not first.startswith("$ "):
         raise BuildError("the README example should start with the command that produced it")
-    _, body = render_markdown(rest)
-    return f'{cmdline(first[2:])}\n<div class="output prose">\n{body}\n</div>'
+    head, sep, tail = rest.partition("\n\n| ")
+    if not sep:  # an example without a table is shown whole
+        _, body = render_markdown(rest)
+        return f'{cmdline(first[2:])}\n<div class="output prose">\n{body}\n</div>'
+    _, top = render_markdown(head)
+    _, more = render_markdown("| " + tail)
+    return (
+        f'{cmdline(first[2:])}\n<div class="output prose">\n{top}\n'
+        '<details class="fold"><summary>The rest of the output: the modules, the people, the tests and what the analysis cannot see</summary>\n'
+        f'{more}\n</details>\n</div>'
+    )
 
 
 LANDING_DESCRIPTION = (
