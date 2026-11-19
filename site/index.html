@@ -36,7 +36,7 @@
       <li>{{icon:shield-check}} Never edits your code</li>
     </ul>
     <h1>Keep code understandable.</h1>
-    <p class="lede">Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing else installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.</p>
+    <p class="lede">Agents write more of the code; people still stand behind it. Tessri reads the code and its git history and hands the person four answers with their evidence: where to look first, who can look, what the change did to the structure, and what nobody maintains.</p>
     <div class="actions">
       <a class="button cta" href="guide/getting-started.html">Get started {{icon:arrow-right}}</a>
       <a class="button quiet" href="guide/">Read the guide</a>
@@ -56,104 +56,199 @@
 
   <section class="band" id="questions">
     <span class="label">What it answers</span>
-    <h2>Four questions, answered from one picture of the code and its history, and one page that hands a change over.</h2>
-    <div class="questions grid">
-      <article class="lead">
-        <span class="tile">{{icon:scroll-text}}</span>
-        <h3>One page that hands a change over.</h3>
-        <p>Where to look first, who is able to look, what the change did to the structure, which tests reach it and which checks ran, and what needs a person: from one analysis of the base and one of the working tree, with the evidence for every line.</p>
-        <ol class="sections" aria-label="The sections of the page">
-          <li><b>Look first</b><span>The changed files, ranked by history: commits in 90 days, fixes and reverts, and who went quiet.</span></li>
-          <li><b>What it did to the structure</b><span>New orphans, cycles, dangling imports, changed code nobody active maintains, and what outside the change imports it.</span></li>
-          <li><b>Validation</b><span>The tests that reach the change, kept apart from the checks the host recorded as run.</span></li>
-          <li><b>Open for a person</b><span>What the analysis cannot settle: a decision, a second reader, a check nobody ran.</span></li>
-          <li><b>Read this with care</b><span>What every line rests on, and what it cannot see.</span></li>
-        </ol>
-        <span class="cmd"><code>tessri brief --since main</code></span>
-      </article>
-      <article>
-        <span class="tile">{{icon:network}}</span>
-        <h3>How does the system fit together?</h3>
-        <p>The modules, the cycles, and the few dependencies that would break them if cut.</p>
-        <span class="cmd"><code>tessri graph</code></span>
-      </article>
-      <article>
-        <span class="tile">{{icon:radar}}</span>
-        <h3>What can this change reach?</h3>
-        <p>The files that depend on it, the tests that reach it, and who is able to review it.</p>
-        <span class="cmd"><code>tessri impact &lt;path&gt;</code></span>
-      </article>
-      <article>
-        <span class="tile">{{icon:scan-search}}</span>
-        <h3>What does nothing reach, and what does nobody maintain?</h3>
-        <p>Every file's status from entry points, tests and configs; owners from history, and who went quiet.</p>
-        <span class="cmd"><code>tessri scan .</code></span>
-      </article>
-      <article>
-        <span class="tile">{{icon:git-compare}}</span>
-        <h3>What did this change do to the structure?</h3>
-        <p>New orphans, new cycles, imports of deleted files, changed code nobody active maintains. Markdown, JSON or SARIF, with an exit code for CI.</p>
-        <span class="cmd"><code>tessri check</code></span>
-      </article>
-    </div>
+    <h2>Four answers, from one analysis.</h2>
+    <figure class="fig">
+      <div class="art"><svg viewBox="0 0 880 220" role="img" aria-label="An agent or a person writes a change. Tessri reads the code and its git history, offline, and hands the person who stands behind the code four answers: where to look first, who can look, what changed in the structure, what nobody maintains.">
+        <defs><marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+        <rect class="box" x="20" y="60" width="176" height="100" rx="8"/>
+        <text class="t" x="108" y="104" text-anchor="middle">An agent, or a person</text>
+        <text class="mut" x="108" y="126" text-anchor="middle">writes a change</text>
+        <line class="edge" x1="196" y1="110" x2="288" y2="110" marker-end="url(#arrow-a)"/>
+        <text class="mut" x="242" y="100" text-anchor="middle">a change</text>
+        <rect class="box hi" x="290" y="30" width="290" height="160" rx="10"/>
+        <text class="acc" x="435" y="68" text-anchor="middle">Tessri</text>
+        <text x="435" y="94" text-anchor="middle">reads the code and its git history</text>
+        <text class="mut" x="435" y="116" text-anchor="middle">offline · no model · zero dependencies</text>
+        <text class="mut" x="435" y="136" text-anchor="middle">never edits the code</text>
+        <text class="mut" x="435" y="168" text-anchor="middle">every line traceable with <tspan class="mono">tessri why</tspan></text>
+        <line class="edge" x1="580" y1="62" x2="688" y2="62" marker-end="url(#arrow-a)"/>
+        <line class="edge" x1="580" y1="97" x2="688" y2="97" marker-end="url(#arrow-a)"/>
+        <line class="edge" x1="580" y1="132" x2="688" y2="132" marker-end="url(#arrow-a)"/>
+        <line class="edge" x1="580" y1="167" x2="688" y2="167" marker-end="url(#arrow-a)"/>
+        <text x="634" y="54" text-anchor="middle">where to look first</text>
+        <text x="634" y="89" text-anchor="middle">who can look</text>
+        <text x="634" y="124" text-anchor="middle">what changed in the structure</text>
+        <text x="634" y="159" text-anchor="middle">what nobody maintains</text>
+        <rect class="box" x="690" y="40" width="172" height="150" rx="8"/>
+        <text class="t" x="776" y="106" text-anchor="middle">The person who</text>
+        <text class="t" x="776" y="124" text-anchor="middle">stands behind it</text>
+        <text class="mut" x="776" y="150" text-anchor="middle">reviews · maintains · decides</text>
+      </svg></div>
+      <figcaption>A layer between whoever writes the code and whoever answers for it. It generates nothing and decides nothing; it points attention and shows its evidence.</figcaption>
+    </figure>
+    <ul class="answers grid" aria-label="The questions and their commands">
+      <li><span class="tile">{{icon:scroll-text}}</span><b>Hand a change over on one page</b><code>tessri brief --since main</code></li>
+      <li><span class="tile">{{icon:radar}}</span><b>What can this change reach?</b><code>tessri impact &lt;path&gt;</code></li>
+      <li><span class="tile">{{icon:git-compare}}</span><b>What did it do to the structure?</b><code>tessri check</code></li>
+      <li><span class="tile">{{icon:network}}</span><b>How do the modules fit together?</b><code>tessri graph</code></li>
+      <li><span class="tile">{{icon:scan-search}}</span><b>What does nothing reach, and nobody maintain?</b><code>tessri scan .</code></li>
+    </ul>
   </section>
 
   <section class="band" id="example">
     <span class="label">A complete example</span>
     <h2>What can a change to one file affect?</h2>
-    <p class="intro">Real output on Tessri's own repository, as the Markdown renders.</p>
+    <p class="intro">Real output on Tessri's own repository.</p>
     <div class="example grid{{drawing_class}}">
       <div class="panel">
 {{example}}
       </div>
 {{drawing}}
-      <p class="after">That's it. <code>tessri why tessri/graph.py</code> shows the evidence behind any line of it, and <code>--edges imports</code> keeps to the recognized imports and leaves the string references at the frontier.</p>
+      <p class="after"><code>tessri why tessri/graph.py</code> shows the evidence behind any line of it.</p>
     </div>
   </section>
 
   <section class="band" id="how">
     <span class="label">How does it work?</span>
     <h2>One pass over the files and the history, then one view per question.</h2>
-    <div class="how">
-      <div class="lead">
-        <p>No model, no network, no service, and it never edits your code. The order <code>triage</code> puts files in was <a href="guide/backtest.html">backtested on real history</a>; the composite risk score we tried did not beat its parts, so there is none.</p>
-      </div>
-      <div>
-        <div class="head"><span class="tile">{{icon:file-search}}</span><span class="num">01</span></div>
-        <h3>Read</h3>
-        <p>Lists the files, parses Python with Python's own parser and JavaScript and TypeScript with its own scanner, and reads configs, scripts and docs for the files they name.</p>
-      </div>
-      <div>
-        <div class="head"><span class="tile">{{icon:git-merge}}</span><span class="num">02</span></div>
-        <h3>Join</h3>
-        <p>Builds the import graph with the kind of evidence behind every edge, and reads from git who changed what, following files through renames.</p>
-      </div>
-      <div>
-        <div class="head"><span class="tile">{{icon:message-square-text}}</span><span class="num">03</span></div>
-        <h3>Answer</h3>
-        <p>Each command is one view of that picture: reachability, ownership, module graph, impact, triage and the check of a change.</p>
-      </div>
-    </div>
+    <figure class="fig">
+      <div class="art"><svg viewBox="0 0 980 300" role="img" aria-label="The files go through inventory, the analyzers for Python and JavaScript with the names found in configs and docs, and the graph, into one analysis; the git history goes through gitlog and ownership into the same analysis; scan, why, graph, impact, triage, check and brief are views of it; the cache sits beside the analyzers.">
+        <defs><marker id="arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+        <rect class="box" x="10" y="100" width="96" height="46" rx="6"/>
+        <text class="t" x="58" y="120" text-anchor="middle">Repository</text>
+        <text class="mut" x="58" y="138" text-anchor="middle">files · git</text>
+        <line class="edge" x1="106" y1="123" x2="138" y2="123" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="140" y="100" width="108" height="46" rx="6"/>
+        <text class="mono" x="194" y="120" text-anchor="middle">inventory</text>
+        <text class="mut" x="194" y="138" text-anchor="middle">files, languages, lines</text>
+        <path class="edge" d="M248 123 C266 123 266 73 282 73" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M248 123 C266 123 266 173 282 173" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="284" y="50" width="144" height="46" rx="6"/>
+        <text class="mono" x="356" y="70" text-anchor="middle">textrefs</text>
+        <text class="mut" x="356" y="88" text-anchor="middle">names in configs, CI, docs</text>
+        <rect class="box" x="284" y="150" width="144" height="46" rx="6"/>
+        <text class="mono" x="356" y="170" text-anchor="middle">analyzers</text>
+        <text class="mut" x="356" y="188" text-anchor="middle">python · javascript</text>
+        <line class="edge dash" x1="356" y1="196" x2="356" y2="236"/>
+        <text class="mut" x="364" y="220">reads, keeps</text>
+        <rect class="box dash" x="284" y="236" width="144" height="46" rx="6"/>
+        <text class="mono" x="356" y="256" text-anchor="middle">cache</text>
+        <text class="mut" x="356" y="274" text-anchor="middle">by content, in your cache dir</text>
+        <path class="edge" d="M428 73 C448 73 448 123 466 123" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M428 173 C448 173 448 123 466 123" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="468" y="100" width="96" height="46" rx="6"/>
+        <text class="mono" x="516" y="120" text-anchor="middle">graph</text>
+        <text class="mut" x="516" y="138" text-anchor="middle">entries and tests as roots</text>
+        <line class="edge" x1="564" y1="123" x2="598" y2="123" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="600" y="100" width="96" height="46" rx="6"/>
+        <text class="mono" x="648" y="120" text-anchor="middle">analyze</text>
+        <text class="mut" x="648" y="138" text-anchor="middle">one record per file</text>
+        <line class="edge" x1="696" y1="123" x2="730" y2="123" marker-end="url(#arrow-b)"/>
+        <rect class="box hi" x="732" y="100" width="104" height="46" rx="6"/>
+        <text class="acc" x="784" y="120" text-anchor="middle">Analysis</text>
+        <text class="mut" x="784" y="138" text-anchor="middle">one picture</text>
+        <path class="edge" d="M58 146 L58 292 L516 292 L516 284" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="464" y="236" width="104" height="46" rx="6"/>
+        <text class="mono" x="516" y="256" text-anchor="middle">gitlog</text>
+        <text class="mut" x="516" y="274" text-anchor="middle">history, up to a rev</text>
+        <line class="edge" x1="568" y1="259" x2="598" y2="259" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="600" y="236" width="96" height="46" rx="6"/>
+        <text class="mono" x="648" y="256" text-anchor="middle">ownership</text>
+        <text class="mut" x="648" y="274" text-anchor="middle">who maintains what</text>
+        <line class="edge" x1="648" y1="236" x2="648" y2="148" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M836 123 C856 123 856 42 870 42" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M836 123 C856 123 856 98 870 98" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M836 123 C856 123 856 154 870 154" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M836 123 C856 123 856 210 870 210" marker-end="url(#arrow-b)"/>
+        <path class="edge" d="M836 123 C856 123 856 266 870 266" marker-end="url(#arrow-b)"/>
+        <rect class="box" x="872" y="24" width="100" height="36" rx="6"/>
+        <text class="mono" x="922" y="46" text-anchor="middle">scan · why</text>
+        <rect class="box" x="872" y="80" width="100" height="36" rx="6"/>
+        <text class="mono" x="922" y="102" text-anchor="middle">graph · impact</text>
+        <rect class="box" x="872" y="136" width="100" height="36" rx="6"/>
+        <text class="mono" x="922" y="158" text-anchor="middle">triage</text>
+        <rect class="box" x="872" y="192" width="100" height="36" rx="6"/>
+        <text class="mono" x="922" y="214" text-anchor="middle">check</text>
+        <rect class="box" x="872" y="248" width="100" height="36" rx="6"/>
+        <text class="mono" x="922" y="270" text-anchor="middle">brief</text>
+      </svg></div>
+      <figcaption>No model, no network, no service, and it never edits your code. What it read from each file stays in your cache directory, keyed by content, so the next run parses only what changed and answers the same. <a href="guide/architecture.html">Architecture</a>.</figcaption>
+    </figure>
   </section>
 
   <section class="band" id="evidence">
-    <span class="label">Evidence, not adjectives</span>
-    <h2>Every claim can be traced, and what the analysis cannot see it says it cannot see.</h2>
-    <div class="evidence">
-      <blockquote><b>17 test files</b> reaching it (candidates to run, not runs)<span class="src">tessri impact</span></blockquote>
-      <blockquote>13 names in configs, scripts or code fit several files each and so name none of them: <b>utils.py (15)</b>, config.py (12), …<span class="src">tessri scan, caveats</span></blockquote>
-      <blockquote>Dependencies are static imports between files of this repository. A deleted or moved file that an untouched config, script or document still names, or that untouched code still names in a string or a dynamic import, is reported with the kind of each name; a name in a string is a guess that the file is loaded at run time, so that one is for a person. Registries and consumers outside the repository are invisible, so a clean result does <b>not</b> mean nothing else depends on the change.<span class="src">tessri check</span></blockquote>
-    </div>
+    <span class="label">Tested, not assumed</span>
+    <h2>The order is backtested, and what it cannot see it says it cannot see.</h2>
+    <figure class="fig chart">
+      <div class="art"><svg viewBox="0 0 780 214" role="img" aria-label="On three repositories' history, Tessri's order of the changed files predicts a fix within 30 days better than ordering by the size of the change: nemo-rl 0.79 against 0.52, pytest 0.64 against 0.54, vuejs/core 0.66 against 0.57, as AUC where 0.5 is random.">
+        <circle class="grey" cx="262" cy="22" r="5"/><text x="274" y="26">largest diff first</text>
+        <circle class="viol" cx="414" cy="22" r="5"/><text x="426" y="26">Tessri's order: commits in 90 days, then size</text>
+        <line class="edge dash soft" x1="344" y1="52" x2="344" y2="186"/>
+        <text class="mut" x="344" y="46" text-anchor="middle">random 0.50</text>
+        <line class="soft" x1="250" y1="188" x2="730" y2="188"/>
+        <text class="mut" x="344" y="206" text-anchor="middle">0.5</text>
+        <text class="mut" x="438" y="206" text-anchor="middle">0.6</text>
+        <text class="mut" x="532" y="206" text-anchor="middle">0.7</text>
+        <text class="mut" x="626" y="206" text-anchor="middle">0.8</text>
+        <text class="mut" x="730" y="206" text-anchor="end">AUC</text>
+        <text x="236" y="80" text-anchor="end">nemo-rl · large, squashed</text>
+        <line class="rod" x1="363" y1="76" x2="617" y2="76"/>
+        <circle class="grey" cx="363" cy="76" r="6"/><circle class="viol" cx="617" cy="76" r="6"/>
+        <text class="mut" x="352" y="80" text-anchor="end">0.52</text><text x="628" y="80">0.79</text>
+        <text x="236" y="120" text-anchor="end">pytest · small, merge commits</text>
+        <line class="rod" x1="382" y1="116" x2="476" y2="116"/>
+        <circle class="grey" cx="382" cy="116" r="6"/><circle class="viol" cx="476" cy="116" r="6"/>
+        <text class="mut" x="371" y="120" text-anchor="end">0.54</text><text x="487" y="120">0.64</text>
+        <text x="236" y="160" text-anchor="end">vuejs/core · TypeScript monorepo</text>
+        <line class="rod" x1="410" y1="156" x2="494" y2="156"/>
+        <circle class="grey" cx="410" cy="156" r="6"/><circle class="viol" cx="494" cy="156" r="6"/>
+        <text class="mut" x="399" y="160" text-anchor="end">0.57</text><text x="505" y="160">0.66</text>
+      </svg></div>
+      <figcaption>How well each order predicts a fix within 30 days, on twelve months of three public repositories' history; 0.5 is random. The composite risk score we tried did not beat its parts, so there is none. <a href="guide/backtest.html">The backtest</a>, with the script that runs it on yours.</figcaption>
+    </figure>
+    <p class="limit">And every page ends with what it cannot see: registries, dynamic loading and consumers outside the repository are invisible to static analysis, so a clean result is never a proof. Missing history says <code>unavailable</code> and why.</p>
   </section>
 
   <section class="band" id="getting-started">
-    <span class="label">Getting started</span>
-    <h2>Three steps.</h2>
-    <ol class="steps">
-      <li><b>Scan a repository.</b> <code>tessri scan .</code> prints the report; <code>--format html --out report.html</code> writes one offline page with the explorer.</li>
-      <li><b>Ask before, during and after a change.</b> <code>tessri impact &lt;path&gt;</code> before, <code>tessri triage</code> to review one, <code>tessri check</code> when it is done, <code>tessri brief</code> to hand it over on one page; without <code>--since</code>, a branch is judged against the default branch.</li>
-      <li><b>Give it to your agent, and to every pull request.</b> <code>tessri integration install --agent claude</code> (or <code>codex</code>) installs the skill with a receipt, <code>--agent review</code> posts the brief on every pull request; <code>tessri integration remove</code> takes it all out again.</li>
-    </ol>
+    <span class="label">In the loop</span>
+    <h2>Every station of a change has its question.</h2>
+    <figure class="fig">
+      <div class="art"><svg viewBox="0 0 980 268" role="img" aria-label="Six stations in a loop: arriving in a project with scan, graph and why; before a change, impact; while the agent edits, hooks give impact after each edit and check when it stops; review with triage; done with check; hand over with brief as a pull request comment; then back to the start.">
+        <defs><marker id="arrow-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+        <text class="mut" x="90" y="76" text-anchor="middle">a person</text>
+        <text class="mut" x="250" y="76" text-anchor="middle">a person, or an agent</text>
+        <text class="mut" x="410" y="76" text-anchor="middle">the agent, through hooks</text>
+        <text class="mut" x="570" y="76" text-anchor="middle">a person</text>
+        <text class="mut" x="730" y="76" text-anchor="middle">CI, or a person</text>
+        <text class="mut" x="890" y="76" text-anchor="middle">person to person</text>
+        <rect class="box" x="22" y="88" width="136" height="56" rx="8"/><text class="t" x="90" y="121" text-anchor="middle">Arriving</text>
+        <rect class="box" x="182" y="88" width="136" height="56" rx="8"/><text class="t" x="250" y="121" text-anchor="middle">Before a change</text>
+        <rect class="box" x="342" y="88" width="136" height="56" rx="8"/><text class="t" x="410" y="121" text-anchor="middle">While it is made</text>
+        <rect class="box" x="502" y="88" width="136" height="56" rx="8"/><text class="t" x="570" y="121" text-anchor="middle">Review</text>
+        <rect class="box" x="662" y="88" width="136" height="56" rx="8"/><text class="t" x="730" y="121" text-anchor="middle">Done</text>
+        <rect class="box hi" x="822" y="88" width="136" height="56" rx="8"/><text class="t" x="890" y="121" text-anchor="middle">Hand over</text>
+        <line class="edge" x1="158" y1="116" x2="180" y2="116" marker-end="url(#arrow-c)"/>
+        <line class="edge" x1="318" y1="116" x2="340" y2="116" marker-end="url(#arrow-c)"/>
+        <line class="edge" x1="478" y1="116" x2="500" y2="116" marker-end="url(#arrow-c)"/>
+        <line class="edge" x1="638" y1="116" x2="660" y2="116" marker-end="url(#arrow-c)"/>
+        <line class="edge" x1="798" y1="116" x2="820" y2="116" marker-end="url(#arrow-c)"/>
+        <text class="mono" x="90" y="172" text-anchor="middle">scan · graph · why</text>
+        <text class="mono" x="250" y="172" text-anchor="middle">impact &lt;path&gt;</text>
+        <text x="410" y="172" text-anchor="middle">after an edit <tspan class="mono">impact</tspan></text>
+        <text x="410" y="190" text-anchor="middle">on stop <tspan class="mono">check</tspan></text>
+        <text class="mono" x="570" y="172" text-anchor="middle">triage --since</text>
+        <text class="mono" x="730" y="172" text-anchor="middle">check --fail-on</text>
+        <text x="890" y="172" text-anchor="middle"><tspan class="mono">brief</tspan> → a PR comment</text>
+        <path class="edge" d="M890 144 L890 236 L90 236 L90 146" marker-end="url(#arrow-c)"/>
+        <text class="mut" x="490" y="258" text-anchor="middle">the next change, or the next person: the same picture, not a rebuilt context</text>
+      </svg></div>
+      <figcaption>The same answers, where people and agents already are: terminal, JSON, SARIF, MCP tools, the agent's hooks, a pull request comment. Each one installs with a receipt and comes out again whole.</figcaption>
+    </figure>
+    <ul class="steps">
+      <li><code>tessri scan .</code><span>the report; <code>--format html</code> writes one offline page with the explorer.</span></li>
+      <li><code>tessri integration install --agent claude</code><span>the skill (or <code>codex</code>, <code>copilot</code>, <code>mcp</code>); <code>--agent claude-hooks</code> puts it in the agent's loop.</span></li>
+      <li><code>tessri integration install --agent review</code><span>the brief on every pull request; <code>integration remove</code> takes it all out.</span></li>
+    </ul>
   </section>
 
 </main>
