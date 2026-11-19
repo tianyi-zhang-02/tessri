@@ -22,6 +22,17 @@ Dates are the day a version was tagged.
   loop and a table of the questions and their commands; the repository gains a contributing guide, a security policy,
   two issue forms (something broke; Tessri said something wrong, with the evidence it gave) and a pull request
   template.
+- The backtest and the reviewer match ran on a second repository: `pytest`, small, old, maintained by a few core
+  developers and merged with merge commits, where `nemo-rl` is large, young and squashed. The order `triage` uses
+  holds there, by less: 0.64 against 0.54 for the size of the change over twelve months, 0.66 against 0.53 with
+  pytest's own bug-fix changelog fragments as the label, 0.69 against 0.57 over 36 months; fix history and dependents
+  add nothing on either repository; files one import apart still change together far more often than files that
+  merely share a directory, though the multiplier is not comparable between repositories. *Who can look* on its pull
+  requests: the ownership list and a plain count of recent committers to the same files are about even again, two
+  people again take half the review slots, and naming the repository's busiest people, which lost on the large
+  repository, wins on the small one, where four people write and review most of the code.
+  [The backtest](docs/guide/backtest.md) and [the reviewer match](docs/guide/reviewer-match.md) carry both outputs,
+  and the brief's note on the order now says two repositories.
 
 ## 0.4.0 (2026-11-14)
 

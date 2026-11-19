@@ -36,8 +36,8 @@ BUDGET = 800  # words the page aims to stay under
 NOTES = [
     "This page selects from `tessri triage` and `tessri check`, run from one analysis of the base and one of the working tree; "
     "the JSON carries both objects whole, so a list shortened here hides nothing there.",
-    "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in a backtest on "
-    "one repository that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that "
+    "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in backtests on "
+    "two repositories that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that "
     "this change is wrong, and a new file has no history, so it sorts by its size.",
     "Dependents, candidate tests and findings rest on what the analyzers see between files of this repository, static imports above all; "
     "a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, "

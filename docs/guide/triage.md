@@ -53,21 +53,23 @@ Tests that reach it, nearest first: `tests/test_a.py`
 this change touches. We tested that rather than assuming it, and the test is in the repository: `tools/backtest.py`
 scores the files every change of the last twelve months touched with what git knew when the change landed, and asks
 which of them a fix touched in the following 30 days ([the backtest](backtest.md) has the method and the full output).
-On one large repository the order scored an AUC of 0.79, against 0.52 for "largest diff first", and beat it in
-eleven of twelve months. Two things we expected to help did not, so they are shown but do not move a file: knowing
-which of those commits were fixes or reverts (`fixes_90`) added nothing beyond activity, and how many files import it
-scored 0.62 on its own. The first describes trouble that already happened, the second what a mistake could reach;
-ownership is shown because it describes who can catch it, which a "will it need a fix" score does not measure. One
-repository is a hint, not a proof; the script runs on yours.
+On a large repository the order scored an AUC of 0.79, against 0.52 for "largest diff first", and beat it in
+eleven of twelve months; on a small one 0.64 against 0.54, and 0.66 against 0.53 with that project's own bug-fix
+label, so the order holds there too, by less. Two things we expected to help did not on either, so they are shown
+but do not move a file: knowing which of those commits were fixes or reverts (`fixes_90`) added nothing beyond
+activity, and how many files import it scored 0.62 and 0.59 on its own. The first describes trouble that already
+happened, the second what a mistake could reach; ownership is shown because it describes who can catch it, which a
+"will it need a fix" score does not measure. Two repositories are a hint, not a proof; the script runs on yours.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
 old name (`from` names it, the flag reads `moved`) and its lines are the edits made on the way. *Who can look* lists the people
 who maintain the changed files, excluding the authors (the commits of the change, or whoever `git config user.name` is
-when the work is uncommitted); git cannot see who reviewed. That list was held against who did review, on one
-repository's pull requests ([the reviewer match](reviewer-match.md)): it beats naming the repository's busiest people,
-it does not beat a plain count of who committed to the same files in the last year, and most reviewing there was done
-by two people whom git cannot name. Dependents are static imports only: importing `a.b.c`
+when the work is uncommitted); git cannot see who reviewed. That list was held against who did review, on two
+repositories' pull requests ([the reviewer match](reviewer-match.md)): it does not beat a plain count of who committed
+to the same files in the last year; it beats naming the repository's busiest people on a large repository and loses to
+them on a small one, where four people write and review most of the code; and on both, half the reviewing was done by
+two people whom git cannot name. Dependents are static imports only: importing `a.b.c`
 does not make a file depend on the package `a`, and dynamic loading and consumers outside the repository are invisible.
 
 `tessri brief --since main` puts this and `check` on one page from one analysis, with the commits and uncommitted
