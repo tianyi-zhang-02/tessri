@@ -6,6 +6,8 @@ both are tested on history rather than assumed. `tools/backtest.py` runs the tes
 its method and its output on three: a large, young repository that squashes every pull request, a small, old one
 that merges them with merge commits, and a TypeScript monorepo with a small core team.
 
+![How well each order predicts a fix within 30 days, as AUC over twelve months of each repository's history, where 0.5 is random: Tessri's order against the size of the change, 0.79 against 0.52, 0.64 against 0.54, 0.66 against 0.57.](figures/backtest.svg)
+
 ```bash
 python3 tools/backtest.py path/to/repository --months 12                   # from a checkout of Tessri
 python3 tools/backtest.py path/to/repository --format json --out backtest.json

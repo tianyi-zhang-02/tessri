@@ -63,6 +63,13 @@ Dates are the day a version was tagged.
   of icon, question and command; the example shows the opening of the real output and folds the rest under a
   summary; the three cards about how it works, the three quotes and the three long steps are gone. The hand-off brief
   in the hero and the drawing of the example's reach stay as they were.
+- The drawings have one source and reach the README and the guide. `tools/figures.py` holds the five figures (the
+  layer, the pipeline, the backtest chart, the six stations, the anatomy of the brief) and gives each as an inline
+  SVG for the site, where the stylesheet colours it and the theme toggle applies, and as a standalone file under
+  `docs/guide/figures/`, styled for light and for dark on an opaque card, for Markdown viewers that show an SVG as
+  an image; `--check` says whether the files are current, and a test keeps them so. A guide page places a figure
+  with an ordinary image line, which the site inlines and GitHub shows as the file; the README shows the layer, the
+  six stations and the pipeline, and the architecture, backtest, when and brief pages each show theirs.
 
 ## 0.4.0 (2026-11-14)
 

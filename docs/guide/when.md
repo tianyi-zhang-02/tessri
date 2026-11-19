@@ -4,6 +4,8 @@ Every command is one view of the same picture of the code and its history, so th
 you are at. The MCP tool is the same question for an agent that speaks the protocol; it returns the command's JSON
 and its text from one analysis.
 
+![Six stations of a change in a loop, each with its command: arriving (scan, graph, why), before a change (impact), while it is made (the hooks: impact after an edit, check on stop), review (triage), done (check), hand over (brief, as a pull request comment).](figures/loop.svg)
+
 | Moment | Command | MCP tool | Read first |
 | --- | --- | --- | --- |
 | Getting to know a repository | `tessri scan .`, or `--format html --out report.html` for the explorer | `tessri_scan` | the summary, the per-directory table, then `caveats` |

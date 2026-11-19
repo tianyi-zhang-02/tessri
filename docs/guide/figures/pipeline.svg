@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 300" width="980" height="300" role="img" aria-labelledby="title">
+<title id="title">The files go through inventory, the analyzers for Python and JavaScript with the names found in configs and docs, and the graph, into one analysis; the git history goes through gitlog and ownership into the same analysis; scan, why, graph, impact, triage, check and brief are views of it; the cache sits beside the analyzers.</title>
+<style>svg{color:#4e4863}text{font-family:Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;font-size:12px;fill:#4e4863}.t{font-size:13.5px;font-weight:500;fill:#17151e}.mut{font-size:11px;fill:#7b7590}.mono{font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace;font-size:11.5px}.acc{font-size:15px;font-weight:600;fill:#5544b4}.box{fill:#ffffff;stroke:#4e4863;stroke-width:1.1}.hi{stroke:#5544b4;stroke-width:1.6}.edge{fill:none;stroke:#4e4863;stroke-width:1.1}.dash{stroke-dasharray:4 4}.soft{stroke:#e0dcf0}.rod{stroke:#e0dcf0;stroke-width:2}.grey{fill:#7b7590;stroke:#ffffff;stroke-width:2}.viol{fill:#5544b4;stroke:#ffffff;stroke-width:2}.well{fill:#f0eef8}.bg{fill:#ffffff}@media (prefers-color-scheme: dark){svg{color:#c1bacf}text{font-family:Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;font-size:12px;fill:#c1bacf}.t{font-size:13.5px;font-weight:500;fill:#f0eef6}.mut{font-size:11px;fill:#8b86a0}.mono{font-family:ui-monospace, "SF Mono", Menlo, Consolas, monospace;font-size:11.5px}.acc{font-size:15px;font-weight:600;fill:#b0a0ff}.box{fill:#151222;stroke:#c1bacf;stroke-width:1.1}.hi{stroke:#b0a0ff;stroke-width:1.6}.edge{fill:none;stroke:#c1bacf;stroke-width:1.1}.dash{stroke-dasharray:4 4}.soft{stroke:#2b2842}.rod{stroke:#2b2842;stroke-width:2}.grey{fill:#8b86a0;stroke:#151222;stroke-width:2}.viol{fill:#b0a0ff;stroke:#151222;stroke-width:2}.well{fill:#171424}.bg{fill:#151222}}</style>
+<rect class="bg" width="980" height="300" rx="12"/>
+<defs><marker id="arrow-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+<rect class="box" x="10" y="100" width="96" height="46" rx="6"/>
+<text class="t" x="58" y="120" text-anchor="middle">Repository</text>
+<text class="mut" x="58" y="138" text-anchor="middle">files · git</text>
+<line class="edge" x1="106" y1="123" x2="138" y2="123" marker-end="url(#arrow-b)"/>
+<rect class="box" x="140" y="100" width="108" height="46" rx="6"/>
+<text class="mono" x="194" y="120" text-anchor="middle">inventory</text>
+<text class="mut" x="194" y="138" text-anchor="middle">files, languages, lines</text>
+<path class="edge" d="M248 123 C266 123 266 73 282 73" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M248 123 C266 123 266 173 282 173" marker-end="url(#arrow-b)"/>
+<rect class="box" x="284" y="50" width="144" height="46" rx="6"/>
+<text class="mono" x="356" y="70" text-anchor="middle">textrefs</text>
+<text class="mut" x="356" y="88" text-anchor="middle">names in configs, CI, docs</text>
+<rect class="box" x="284" y="150" width="144" height="46" rx="6"/>
+<text class="mono" x="356" y="170" text-anchor="middle">analyzers</text>
+<text class="mut" x="356" y="188" text-anchor="middle">python · javascript</text>
+<line class="edge dash" x1="356" y1="196" x2="356" y2="236"/>
+<text class="mut" x="364" y="220">reads, keeps</text>
+<rect class="box dash" x="284" y="236" width="144" height="46" rx="6"/>
+<text class="mono" x="356" y="256" text-anchor="middle">cache</text>
+<text class="mut" x="356" y="274" text-anchor="middle">by content, in your cache dir</text>
+<path class="edge" d="M428 73 C448 73 448 123 466 123" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M428 173 C448 173 448 123 466 123" marker-end="url(#arrow-b)"/>
+<rect class="box" x="468" y="100" width="96" height="46" rx="6"/>
+<text class="mono" x="516" y="120" text-anchor="middle">graph</text>
+<text class="mut" x="516" y="138" text-anchor="middle">entries and tests as roots</text>
+<line class="edge" x1="564" y1="123" x2="598" y2="123" marker-end="url(#arrow-b)"/>
+<rect class="box" x="600" y="100" width="96" height="46" rx="6"/>
+<text class="mono" x="648" y="120" text-anchor="middle">analyze</text>
+<text class="mut" x="648" y="138" text-anchor="middle">one record per file</text>
+<line class="edge" x1="696" y1="123" x2="730" y2="123" marker-end="url(#arrow-b)"/>
+<rect class="box hi" x="732" y="100" width="104" height="46" rx="6"/>
+<text class="acc" x="784" y="120" text-anchor="middle">Analysis</text>
+<text class="mut" x="784" y="138" text-anchor="middle">one picture</text>
+<path class="edge" d="M58 146 L58 292 L516 292 L516 284" marker-end="url(#arrow-b)"/>
+<rect class="box" x="464" y="236" width="104" height="46" rx="6"/>
+<text class="mono" x="516" y="256" text-anchor="middle">gitlog</text>
+<text class="mut" x="516" y="274" text-anchor="middle">history, up to a rev</text>
+<line class="edge" x1="568" y1="259" x2="598" y2="259" marker-end="url(#arrow-b)"/>
+<rect class="box" x="600" y="236" width="96" height="46" rx="6"/>
+<text class="mono" x="648" y="256" text-anchor="middle">ownership</text>
+<text class="mut" x="648" y="274" text-anchor="middle">who maintains what</text>
+<line class="edge" x1="648" y1="236" x2="648" y2="148" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M836 123 C856 123 856 42 870 42" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M836 123 C856 123 856 98 870 98" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M836 123 C856 123 856 154 870 154" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M836 123 C856 123 856 210 870 210" marker-end="url(#arrow-b)"/>
+<path class="edge" d="M836 123 C856 123 856 266 870 266" marker-end="url(#arrow-b)"/>
+<rect class="box" x="872" y="24" width="100" height="36" rx="6"/>
+<text class="mono" x="922" y="46" text-anchor="middle">scan · why</text>
+<rect class="box" x="872" y="80" width="100" height="36" rx="6"/>
+<text class="mono" x="922" y="102" text-anchor="middle">graph · impact</text>
+<rect class="box" x="872" y="136" width="100" height="36" rx="6"/>
+<text class="mono" x="922" y="158" text-anchor="middle">triage</text>
+<rect class="box" x="872" y="192" width="100" height="36" rx="6"/>
+<text class="mono" x="922" y="214" text-anchor="middle">check</text>
+<rect class="box" x="872" y="248" width="100" height="36" rx="6"/>
+<text class="mono" x="922" y="270" text-anchor="middle">brief</text>
+      
+</svg>

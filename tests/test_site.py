@@ -45,6 +45,14 @@ class RenderTest(unittest.TestCase):
     def setUp(self):
         self.title, self.body = build_site.render_markdown(SAMPLE)
 
+    def test_an_image_line_is_a_figure_when_it_is_one_of_the_drawings_and_an_image_otherwise(self):
+        _, body = build_site.render_markdown("# T\n\n![The layer, in words.](figures/layer.svg)\n\n![A photo](shots/one.png)\n")
+        self.assertIn('<figure class="fig"><div class="art"><svg viewBox="0 0 880 220" role="img" aria-label="', body)
+        self.assertIn("</svg></div><figcaption>The layer, in words.</figcaption></figure>", body)
+        self.assertIn('<p><img src="https://github.com/tianyi-zhang-02/tessri/blob/main/docs/guide/shots/one.png" alt="A photo"></p>', body)
+        _, chart = build_site.render_markdown("![AUC.](figures/backtest.svg)\n")
+        self.assertIn('<figure class="fig chart">', chart)
+
     def test_the_title_is_the_first_heading_without_markup(self):
         self.assertEqual(self.title, "A page title")
         self.assertIn('<h1 id="a-page-title">A page <em>title</em></h1>', self.body)

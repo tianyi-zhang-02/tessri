@@ -4,6 +4,8 @@
 with the exact state the evidence describes, the candidate tests kept apart from the checks that actually ran, and
 what needs a person.
 
+![The six parts of the page and the principle each carries: the scope line names the state the evidence describes; Look first orders by two things; the structure is compared on the graph alone; candidates are kept apart from what ran; what has no evidence needs a person; what it cannot see is said with its reason.](figures/brief.svg)
+
 ```bash
 tessri brief --since main                                                        # a branch against main, plus uncommitted work
 tessri brief                                                                     # the same against the default branch (origin/HEAD, else main or master)
