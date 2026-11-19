@@ -7,7 +7,8 @@ repository's own pull requests, do the names match who actually reviewed? The te
 ranked by share of the files' history; what it found changed the order, and the last section measures the list as it
 now ships.
 `tools/reviewer_match.py` runs the test on any repository on GitHub; this page is its method and its output on two: a
-large repository with a company's team behind it, and a small one maintained by a handful of core developers.
+large repository with a company's team behind it, and a small one maintained by a handful of core developers. A third,
+a TypeScript monorepo, gave it nothing to judge, and the page says why.
 
 ```bash
 python3 tools/reviewer_match.py collect owner/name path/to/checkout --limit 300 --out pulls.json   # through gh, signed in
@@ -242,10 +243,28 @@ Read it this way:
   them (0.80) is where the data git does not hold would have to come from.
 
 
+## A third repository the test cannot judge
+
+The public `vuejs/core` repository, its 300 most recently merged pull requests, read on 2026-11-19:
+
+```text
+300 scored; 15 had a reviewer other than the authors (bots and service accounts apart), 0.06 per pull request;
+112 changed no code file and are left out, so 14 are judged.
+```
+
+The 300 span 2024-01-08 to 2026-11-19, a third of them opened by a dependency bot, and the core team merges without
+recording reviews on GitHub: fifteen pull requests carry a review by someone other than the authors, fourteen of
+those changed code. The script prints a table on them, as it does on any input; fourteen rows are noise, so the table
+is not reproduced here. Two other limits showed on the way: 165 of triage's offers (41 distinct names) matched no
+login, because contributors there commit under names unlike their handles, and the past-reviewers baseline never
+reached the twenty review slots it needs. The test needs a repository that reviews on GitHub; the backtest, which
+needs only history, ran on this one and holds ([the backtest](backtest.md)).
+
 ## What it does not measure
 
 - Two repositories, and 300 pull requests of each; a repository that assigns reviewers by file owner, or one with
-  many reviewers per change, will look different.
+  many reviewers per change, will look different, and one whose team merges without recording reviews on GitHub
+  gives the test nothing to judge, as the third did.
 - Whether the reviewer was the right one: a review by whoever was free counts as much as one by the person who knew
   the code. Review quality and time to review need data the API does not give.
 - Identities: logins are matched by name and address, so a person whose commits carry a different name than their

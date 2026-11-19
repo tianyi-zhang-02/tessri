@@ -178,7 +178,7 @@ python3 tools/build_site.py --out _site --demo && python3 -m http.server --direc
 against its first parent.
 
 The order `triage` uses and the import graph's claim to predict what changes together are tested on history, not
-assumed. The test runs on any repository, and [the backtest](docs/guide/backtest.md) in the guide is its output on two:
+assumed. The test runs on any repository, and [the backtest](docs/guide/backtest.md) in the guide is its output on three:
 
 ```bash
 python3 tools/backtest.py path/to/repository --months 12
@@ -192,7 +192,8 @@ python3 tools/deletions.py path/to/repository --days 365
 ```
 
 The brief's *who can look* is held against who actually reviewed, on a repository's own pull requests through the
-GitHub command line, and [the reviewer match](docs/guide/reviewer-match.md) in the guide is its output on two:
+GitHub command line, and [the reviewer match](docs/guide/reviewer-match.md) in the guide is its output on two, and the
+third repository on which it had nothing to judge:
 
 ```bash
 python3 tools/reviewer_match.py collect owner/name path/to/checkout --out pulls.json && python3 tools/reviewer_match.py score pulls.json path/to/checkout

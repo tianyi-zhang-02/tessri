@@ -1,9 +1,9 @@
 """Change triage: for a branch, a range or uncommitted work, which files deserve a human first, what else the
 change can ripple into, and who is able to look.
 
-The order is the one a backtest on one large repository found hard to beat (`tools/backtest.py`, which runs the
+The order is the one backtests on three repositories found hard to beat (`tools/backtest.py`, which runs the
 test on any repository): files that were committed to most in the last 90 days first, then by how much this change
-touches. Which of those commits were fixes added nothing, so fix history is shown but does not move a file; the
+touches. Which of those commits were fixes added nothing on two of them and a point on the third, so fix history is shown but does not move a file; the
 number of dependents ranked far below activity, so blast radius is shown as what a mistake would cost, and ownership
 as who can catch it, which no such score measures. History is read up to the base of the change, so the change's own
 commits neither count as activity nor make their author an owner.
@@ -261,9 +261,9 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
     nearest = sorted(tests, key=lambda p: (tests[p], p))
 
     notes = [
-        "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches. In a backtest on one large repository "
-        "that predicted later fixes about as well as anything simple, and better than the size of the change alone; it says where trouble tends to be, not that this change is wrong. "
-        "Fix and revert history is shown but does not reorder: it added nothing beyond activity.",
+        "Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches. In backtests on three repositories "
+        "that predicted later fixes better than the size of the change alone; it says where trouble tends to be, not that this change is wrong. "
+        "Fix and revert history is shown but does not reorder: it added little or nothing beyond activity.",
         "Dependents, tests and owners are context: they show what a mistake could reach and who is able to look; dependents predicted later fixes far less well than activity, and ownership is not a prediction at all. "
         "Dependents are static imports; dynamic loading and consumers outside the repository are invisible.",
         "History is read up to the base of the change and under the name each file has now, so a moved file keeps its past, "

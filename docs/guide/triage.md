@@ -55,11 +55,13 @@ scores the files every change of the last twelve months touched with what git kn
 which of them a fix touched in the following 30 days ([the backtest](backtest.md) has the method and the full output).
 On a large repository the order scored an AUC of 0.79, against 0.52 for "largest diff first", and beat it in
 eleven of twelve months; on a small one 0.64 against 0.54, and 0.66 against 0.53 with that project's own bug-fix
-label, so the order holds there too, by less. Two things we expected to help did not on either, so they are shown
-but do not move a file: knowing which of those commits were fixes or reverts (`fixes_90`) added nothing beyond
-activity, and how many files import it scored 0.62 and 0.59 on its own. The first describes trouble that already
-happened, the second what a mistake could reach; ownership is shown because it describes who can catch it, which a
-"will it need a fix" score does not measure. Two repositories are a hint, not a proof; the script runs on yours.
+label, so the order holds there too, by less; on a TypeScript monorepo 0.66 against 0.57, ahead in eight of twelve
+months. Two things we expected to help did not, or barely, so they are shown but do not move a file: knowing which
+of those commits were fixes or reverts (`fixes_90`) added nothing beyond activity on two repositories and a point on
+the third, and how many files import it scored 0.62, 0.59 and 0.56 on its own. The first describes trouble that
+already happened, the second what a mistake could reach; ownership is shown because it describes who can catch it,
+which a "will it need a fix" score does not measure. Three repositories are a hint, not a proof; the script runs on
+yours.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
@@ -67,7 +69,8 @@ old name (`from` names it, the flag reads `moved`) and its lines are the edits m
 people, other than the authors (the commits of the change, or whoever `git config user.name` is when the work is
 uncommitted), who committed to the changed files in the last year, most commits first, then those who hold a share of
 the files' history without a commit this year; git cannot see who reviewed. The order comes from holding the list
-against who did review, on two repositories' pull requests ([the reviewer match](reviewer-match.md)): ranked by share
+against who did review, on two repositories' pull requests (a third records too few reviews on GitHub to judge;
+[the reviewer match](reviewer-match.md)): ranked by share
 of the files' history it did not beat a plain count of who committed to the same files in the last year on either
 repository, so the count ranks and the share orders the rest. The same test found that the repository's busiest people
 lose to the file-level list on a large repository and beat it on a small one, where four people write and review most

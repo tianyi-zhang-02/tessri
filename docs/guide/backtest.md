@@ -3,8 +3,8 @@
 `tessri triage` orders the files of a change by recent activity and then by the size of the change, and
 `tessri impact` treats the files one import away as the review set. Both are claims about what happens next, so
 both are tested on history rather than assumed. `tools/backtest.py` runs the test on any repository; this page is
-its method and its output on two: a large, young repository that squashes every pull request, and a small, old one
-that merges them with merge commits.
+its method and its output on three: a large, young repository that squashes every pull request, a small, old one
+that merges them with merge commits, and a TypeScript monorepo with a small core team.
 
 ```bash
 python3 tools/backtest.py path/to/repository --months 12                   # from a checkout of Tessri
@@ -139,16 +139,70 @@ Two checks on the same repository, because the sample is small and the fix label
 
 So the second repository says what the first said, more quietly: order by activity, break ties by size, show the rest.
 
+## The result on a TypeScript repository
+
+The public `vuejs/core` repository at commit `da101a4ca`: TypeScript, a monorepo of 13 packages under
+`packages/` with 332 code files, tests apart (and 208 test files), squashed pull requests, a small core
+team and a dependency bot that writes a third of the commits. Read on 2026-11-19, in about a minute:
+
+```text
+Tessri backtest of core at da101a4ca (history 2018-09-19 to 2026-11-19, 6,575 changes on the first-parent line)
+
+Rows: 624 code files touched by 426 changes in 12 months (2025-11 to 2026-10); the outcome, a fix or revert
+commit touching the file within 30 days, holds for 29% of them. Activity is commits in the 90 days before the
+change; a deleted file is left out; a moved file counts under its new name.
+
+Order                            pooled AUC  mean of months  ahead of size  within a change (changes)
+activity, then size (triage)           0.66            0.66        8 of 12                  0.64 (64)
+size                                   0.57            0.56              -                  0.51 (64)
+activity                               0.66            0.65        8 of 12                  0.66 (64)
+fixes, then activity, then size        0.67            0.67        9 of 12                  0.64 (64)
+dependents, then size                  0.56            0.60        6 of 12                  0.59 (64)
+
+Pairs of code files (tests apart) in the tree at each month's start, and whether one change of the month
+touched both; 0 changes touching more than 50 code files left out.
+
+Pairs                pairs  co-changed   rate  x unrelated  over the months
+one import apart    14,173          98  0.69%         28.5     9.9 to 131.5
+two imports apart  173,993         239  0.14%          5.7      0.0 to 21.5
+same directory       1,599           0  0.00%          0.0       0.0 to 0.0
+unrelated          466,277         113  0.02%          1.0       1.0 to 1.0
+```
+
+Read it this way:
+
+- **The order holds a third time, in another language.** Activity then size scores 0.66 against 0.57 for size,
+  ahead in eight of twelve months, and 0.64 against 0.51 within a change (64 changes). The outcome holds for 29% of
+  the rows: this repository writes `fix:` subjects, so the tool's label catches far more here than in `pytest` (14%).
+- **Fix history is a point ahead here; dependents are not.** Fixes first scores 0.67 against 0.66, nine months
+  against eight, and the same 0.64 within a change. On the other two repositories it added nothing, so one point on
+  one repository of three is not a reason to reorder; it stays shown and does not rank. Dependents then size scores
+  0.56, below activity on every repository so far.
+- **The first class of the graph holds; the finer classes are thin here.** Files one import apart co-changed 28 times
+  as often as unrelated pairs (0.69% of them in a month, against 0.02%), two apart 5.7 times. Same-directory pairs
+  without an import are rare in a monorepo of small packages, 1,599 pairs, and co-changed not once in the year.
+
+Over 36 months (3,715 rows from 1,513 changes) the order scores 0.71 against 0.53, ahead in 23 of 31 months, and
+0.66 against 0.50 within a change (240 changes); fixes first 0.71 pooled, 25 of 31 months and 0.67 within a change,
+again a point ahead; dependents 0.60. The pairs over 36 months: one import apart 11.5 times unrelated (2.17% against
+0.19%), two apart 3.5, the same directory 5.0 (45 co-changes in 4,725 pairs), with four changes over 50 files left
+out: the second class and the directory trade places on thin numbers, while the first class is far ahead on every
+repository.
+
+So the third repository says what the first two said: order by activity, break ties by size, show the rest; and the
+import graph's one-hop claim survives a change of language.
+
 ## What it does not measure
 
 - Severity and cost: an outcome is any fix or revert touching the file, a typo as much as an incident, and a
   repository that does not write `fix:` in its subjects shows no outcomes at all.
 - Capacity: who was able to look, and whether a file with no active owner is riskier, need review or incident data
   that git does not hold. `triage` shows ownership because it answers who can look, not where trouble lands.
-- Other repositories: two histories are a hint, not a proof, and they already disagree on the size of the effect; a
-  JavaScript or TypeScript repository is the natural next run. An earlier run on the first repository, with a slightly
-  different method and scripts that were never published, reached the same conclusions (0.72 against 0.64 for the
-  order); this script replaces it.
+- Other repositories: three histories are a hint, not a proof, and they disagree on the size of the effect (0.79,
+  0.64 and 0.66 against the size of the change); a repository that does not write `fix:` in its subjects, or one in
+  a language the analyzers do not read, would show the limits of the label and of the graph. An earlier run on the
+  first repository, with a slightly different method and scripts that were never published, reached the same
+  conclusions (0.72 against 0.64 for the order); this script replaces it.
 - Dates are commit dates, so in a repository that merges without rebasing a commit can count as activity a little
   before it landed; and a moved file's earlier history stays under its old name, unlike in `triage`, so it looks
   quieter than it was.
