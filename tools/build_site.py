@@ -25,6 +25,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -34,6 +35,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 GUIDE = ROOT / "docs" / "guide"
 FIGURES = GUIDE / "figures"  # the standalone SVG files, for Markdown viewers; the site inlines the same drawings
+BLOG = ROOT / "docs" / "blog"  # posts as `YYYY-MM-DD-slug.md` (or `YYYY-MM-DD-NN-slug.md` to order a day's posts): a level-one heading, a first paragraph that is the summary, figures as image lines
 REPO = "https://github.com/tianyi-zhang-02/tessri"
 SITE_URL = "https://tianyi-zhang-02.github.io/tessri/"  # where the site is served; link previews and the sitemap need absolute addresses
 DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other checkout is a preview and says so
@@ -690,12 +692,13 @@ def head(title: str, description: str, depth: int, path: str = "", base: bool = 
 
 def top(depth: int, current: str | None, demo: bool = False) -> str:
     up = "../" * depth
-    guide = ' aria-current="page"' if current == "guide" else ""
-    here = ' aria-current="page"' if current == "demo" else ""
-    demo_link = f'<a href="{up}demo/"{here}>Demo</a>' if demo else ""
+    def mark(name: str) -> str:
+        return ' aria-current="page"' if current == name else ""
+
+    demo_link = f'<a href="{up}demo/"{mark("demo")}>Demo</a>' if demo else ""
     return (
         f'<div class="sky">\n<header class="wrap top">\n  <a class="wordmark" href="{up or "./"}" aria-label="Tessri home">{MARK}<span>tessri<span class="dot">.</span></span></a>\n'
-        f'  <nav aria-label="Site"><a href="{up}guide/"{guide}>Guide</a>{demo_link}<a class="repo" href="{REPO}">GitHub {icon("arrow-up-right")}</a>{search_button()}{theme_button()}</nav>\n</header>\n</div>\n'
+        f'  <nav aria-label="Site"><a href="{up}guide/"{mark("guide")}>Guide</a><a href="{up}blog/"{mark("blog")}>Blog</a>{demo_link}<a class="repo" href="{REPO}">GitHub {icon("arrow-up-right")}</a>{search_button()}{theme_button()}</nav>\n</header>\n</div>\n'
     )
 
 
@@ -717,11 +720,12 @@ def search_dialog(depth: int) -> str:
     )
 
 
-def foot(depth: int) -> str:
+def foot(depth: int, board: bool = False) -> str:
     up = "../" * depth
+    board_link = f'<a href="{up}board/">Board</a>' if board else ""
     return (
         f'<footer class="wrap foot">\n  <span class="brand">{MARK}<span>tessri<span class="dot">.</span></span></span>\n  <nav aria-label="Footer">'
-        f'<a href="{up}guide/">Guide</a><a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
+        f'<a href="{up}guide/">Guide</a><a href="{up}blog/">Blog</a>{board_link}<a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
         f'<a href="{up}guide/limits.html">Limits</a><a href="{BLOB}CHANGELOG.md">Changelog</a><a href="{REPO}">GitHub</a></nav>\n'
         f'  <span>MIT. <a href="{up}guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span>\n</footer>\n'
         + search_dialog(depth)
@@ -805,7 +809,7 @@ def guide_page(name: str, title: str, body: str, pages: list[tuple[str, str]], d
         + skip()
         + top(1, "guide", demo)
         + f'<div class="wrap guide">\n{nav(pages, current)}\n{article}\n{rail(body)}</div>\n'
-        + foot(1)
+        + foot(1, demo)
         + SCRIPTS
         + "\n</body>\n</html>\n"
     )
@@ -871,7 +875,7 @@ def landing(demo: dict | None) -> str:
         .replace("{{example}}", example)
         .replace("{{drawing}}", drawing(demo["reach"]) if demo else "")
         .replace("{{drawing_class}}", " with-drawing" if demo else "")
-        .replace("{{foot}}", foot(0))
+        .replace("{{foot}}", foot(0, bool(demo)))
         .replace("{{scripts}}", SCRIPTS)
     )
     filled = re.sub(r"{{icon:([\w-]+)}}", lambda m: icon(m.group(1)), filled)
@@ -964,6 +968,143 @@ def handoff(demo: dict) -> str:
     )
 
 
+# --- The blog: notes from building Tessri, illustrated -----------------------------------------------------------------
+
+POST_NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})-(?:(\d{2})-)?([a-z][a-z0-9-]*)\.md$")  # an optional two-digit ordinal orders posts of one day
+MONTHS = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")
+
+
+def posts() -> list[dict]:
+    """The posts under docs/blog, newest first: `date` and `slug` from the file name, `title` from the level-one heading,
+    `summary` from the first paragraph, `figure` the first drawing the post places, `body` the rendered Markdown."""
+    found = []
+    if not BLOG.is_dir():
+        return found
+    for md in sorted(BLOG.glob("*.md")):
+        m = POST_NAME.match(md.name)
+        if not m:
+            raise BuildError(f"docs/blog/{md.name}: a post is named YYYY-MM-DD-slug.md, or YYYY-MM-DD-NN-slug.md to order a day's posts")
+        text = md.read_text(encoding="utf-8")
+        title, body = render_markdown(text)
+        if not title:
+            raise BuildError(f"docs/blog/{md.name} has no level-one heading")
+        first = re.search(r"<p>(.*?)</p>", body, re.S)
+        summary = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", first.group(1))).strip() if first else ""
+        figure = re.search(r"!\[[^\]]*\]\(figures/([\w-]+)\.svg\)", text)
+        found.append({"date": m.group(1), "order": m.group(2) or "", "slug": m.group(3), "title": title, "summary": html.unescape(summary), "figure": figure.group(1) if figure and figure.group(1) in figures.FIGURES else None, "body": body, "source": f"docs/blog/{md.name}"})
+    found.sort(key=lambda p: (p["order"], p["slug"]))
+    found.sort(key=lambda p: p["date"], reverse=True)  # newest day first, a day's posts in their own order
+    return found
+
+
+def _day(date: str) -> str:
+    """`2026-11-20` as `20 November 2026`."""
+    year, month, day = date.split("-")
+    return f"{int(day)} {MONTHS[int(month) - 1]} {year}"
+
+
+def blog_index(all_posts: list[dict], demo: bool = False) -> str:
+    cards = []
+    for post in all_posts:
+        art = f'<div class="art">{figures.inline(post["figure"])}</div>' if post["figure"] else ""
+        cards.append(
+            f'<article class="post-card">{art}<div class="text"><time datetime="{post["date"]}">{_day(post["date"])}</time>'
+            f'<h2><a href="{post["slug"]}.html">{html.escape(post["title"])}</a></h2><p>{html.escape(post["summary"])}</p></div></article>'
+        )
+    body = (
+        '<div class="wrap blog" id="main">\n<header class="blog-head"><span class="label">Blog</span><h1>Notes from building Tessri</h1>'
+        "<p>How the numbers were tested, what the pages are for and how the code is put together, with the drawings: for the people who read Tessri's output, and for the ones who might change its code.</p></header>\n"
+        + ('<div class="posts">\n' + "\n".join(cards) + "\n</div>" if cards else "<p>No posts yet.</p>")
+        + "\n</div>\n"
+    )
+    return head("Blog · Tessri", "Notes from building Tessri: how the numbers were tested, what the pages are for, how the code is put together.", 1, "blog/") + "<body>\n" + skip() + top(1, "blog", demo) + body + foot(1, demo) + SCRIPTS + "\n</body>\n</html>\n"
+
+
+def post_page(post: dict, all_posts: list[dict], demo: bool = False) -> str:
+    i = next(k for k, p in enumerate(all_posts) if p["slug"] == post["slug"])
+    older = all_posts[i + 1] if i + 1 < len(all_posts) else None
+    newer = all_posts[i - 1] if i > 0 else None
+    links = []
+    if newer:
+        links.append(f'<a class="prev" rel="prev" href="{newer["slug"]}.html"><span>Newer</span>{html.escape(newer["title"])}</a>')
+    if older:
+        links.append(f'<a class="next" rel="next" href="{older["slug"]}.html"><span>Older</span>{html.escape(older["title"])}</a>')
+    body = post["body"].replace("</h1>", f'</h1>\n<p class="date"><time datetime="{post["date"]}">{_day(post["date"])}</time></p>', 1)
+    article = (
+        f'<article class="prose post" id="main">\n{body}\n<p class="source">Source: <a href="{BLOB}{post["source"]}">{post["source"]}</a>, Markdown in the repository; this page is built from it. '
+        f'<a href="{REPO}/edit/main/{post["source"]}">Edit it on GitHub</a>.</p>\n'
+        + (f'<nav class="pager" aria-label="Other posts">{"".join(links)}</nav>\n' if links else "")
+        + "</article>"
+    )
+    return (
+        head(f"{post['title']} · Tessri blog", post["summary"][:300] or post["title"], 1, f"blog/{post['slug']}.html")
+        + "<body>\n" + skip() + top(1, "blog", demo)
+        + f'<div class="wrap blog">\n{article}\n</div>\n'
+        + foot(1, demo) + SCRIPTS + "\n</body>\n</html>\n"
+    )
+
+
+# --- The board: Tessri on its own history, for fun ---------------------------------------------------------------------
+
+BOARD_ROWS = 12
+
+
+def board_content(analysis, now: float | None = None) -> dict:
+    """Who committed in the last 90 days, who maintains what and who has been quiet, from this checkout's history as
+    Tessri reads it: bots and ignored authors apart, names as git has them, never an address."""
+    from tessri import gitlog  # noqa: E402  (the package in this checkout)
+
+    now = time.time() if now is None else now
+    act = analysis.activity
+    if act is None:
+        raise BuildError("the board needs git history")
+    total: dict[str, int] = {}
+    for line in _git("log", "--format=%aN%x09%aE").splitlines():
+        name, _, email = line.partition("\t")
+        if name and not gitlog.is_ignored(name, email, ()):
+            who = gitlog.identity(name, email)
+            total[who] = total.get(who, 0) + 1
+    maintained: dict[str, int] = {}
+    for rec in analysis.records.values():
+        if rec.kind == "code" and rec.owner:
+            maintained[rec.owner] = maintained.get(rec.owner, 0) + 1
+    rows = [
+        {"name": a.name, "recent": a.commits_active, "total": total.get(who, 0), "maintains": maintained.get(a.name, 0), "idle_days": max(0, int((now - a.last) // 86400))}
+        for who, a in act.authors.items()
+    ]
+    rows.sort(key=lambda r: (-r["recent"], -r["total"], r["name"]))
+    return {
+        "rows": rows[:BOARD_ROWS], "people": len(rows), "commits": act.commits, "window_days": 90,
+        "inactive_days": analysis.ownership.inactive_days if analysis.ownership else 180,
+        "code_files": sum(1 for r in analysis.records.values() if r.kind == "code"),
+        "built": time.strftime("%Y-%m-%d", time.gmtime(now)),
+    }
+
+
+def board_page(board: dict) -> str:
+    top_recent = max([r["recent"] for r in board["rows"]] + [1])
+    lines = []
+    for i, r in enumerate(board["rows"], 1):
+        quiet = f' <span class="quiet">quiet for {r["idle_days"]} days</span>' if r["idle_days"] > board["inactive_days"] else ""
+        width = round(100 * r["recent"] / top_recent)
+        lines.append(
+            f'<li><span class="rank">{i}</span><span class="who">{html.escape(r["name"])}{quiet}</span>'
+            f'<span class="bar" style="--w:{width}%"><i></i><b>{r["recent"]}</b></span>'
+            f'<span class="num">{r["total"]:,}</span><span class="num">{r["maintains"]}</span></li>'
+        )
+    body = (
+        '<div class="wrap blog board" id="main">\n<header class="blog-head"><span class="label">The board</span><h1>Who keeps Tessri understandable</h1>'
+        f"<p>Tessri on its own history, for fun. {board['people']} {'person has' if board['people'] == 1 else 'people have'} committed to this repository, {board['commits']:,} commits in all, {board['code_files']} code files. "
+        "Commits in the last 90 days first, then all time, then the code files each person maintains most, as <code>tessri scan</code> credits them: a recent commit weighs more than an old one, a year halves it, and a bot owns nothing. "
+        f"Built from the checkout on {_day(board['built'])}; the names are git author names.</p></header>\n"
+        '<ol class="standings"><li class="head"><span class="rank">#</span><span class="who">Who</span><span class="bar">Commits, 90 days</span><span class="num">All time</span><span class="num">Files maintained</span></li>\n'
+        + "\n".join(lines)
+        + "\n</ol>\n"
+        f'<p class="join">Want on it? <a href="{BLOB}CONTRIBUTING.md">CONTRIBUTING.md</a> says what the code keeps and where things live; a page of the guide that reads badly is a way in, and so is a number you can show to be wrong.</p>\n</div>\n'
+    )
+    return head("The board · Tessri", "Tessri on its own history, for fun: who committed lately, who maintains what, who has been quiet.", 1, "board/") + "<body>\n" + skip() + top(1, "board", True) + body + foot(1, True) + SCRIPTS + "\n</body>\n</html>\n"
+
+
 # --- The demo: Tessri on this checkout --------------------------------------------------------------------------
 
 
@@ -1011,7 +1152,7 @@ def demo_content() -> dict:
     found = EXAMPLE_TARGET.search(readme_example().partition("\n")[0])
     if not found:
         raise BuildError("the README example should be a `tessri impact <path>` command, for the drawing beside it")
-    return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base, "reach": reach(analysis.graph, found.group(1))}
+    return {"report": htmlreport.build_html(analysis, build_report(analysis)), "brief": page, "change": latest_change(), "base": base, "reach": reach(analysis.graph, found.group(1)), "board": board_content(analysis)}
 
 
 def _demote(body: str) -> str:
@@ -1062,7 +1203,7 @@ def demo_page(demo: dict) -> str:
         + skip()
         + top(1, "demo", True)
         + f'<div class="wrap demo-page">\n{article}\n</div>\n'
-        + foot(1)
+        + foot(1, True)
         + SCRIPTS
         + "\n</body>\n</html>\n"
     )
@@ -1098,7 +1239,7 @@ def not_found(demo: bool) -> str:
         '<p>The address may be from an older version of the site, or mistyped. <a href="guide/">The guide</a> lists every page Tessri has, '
         'and <kbd>/</kbd> searches it from any page.</p>\n'
         f'<p class="actions"><a class="button cta" href="./">Home {icon("arrow-right")}</a><a class="button quiet" href="guide/">The guide</a></p>\n</main>\n'
-        + foot(0)
+        + foot(0, demo)
         + SCRIPTS
         + "\n</body>\n</html>\n"
     )
@@ -1154,11 +1295,21 @@ def build(out: Path, demo: bool = False) -> list[Path]:
         write(f"guide/{'index' if name == 'README' else name}.html", guide_page(name, title, body, pages, demo))
         entries.extend(search_entries(where, title, body))
         addresses.append(where)
+    all_posts = posts()
+    (out / "blog").mkdir()
+    write("blog/index.html", blog_index(all_posts, bool(content)))
+    addresses.append("blog/")
+    for post in all_posts:
+        write(f"blog/{post['slug']}.html", post_page(post, all_posts, bool(content)))
+        entries.extend(search_entries(f"blog/{post['slug']}.html", post["title"], post["body"]))
+        addresses.append(f"blog/{post['slug']}.html")
     if content:
         (out / "demo").mkdir()
         write("demo/report.html", content["report"])
         write("demo/index.html", demo_page(content))
-        addresses.extend(["demo/", "demo/report.html"])
+        (out / "board").mkdir()
+        write("board/index.html", board_page(content["board"]))
+        addresses.extend(["demo/", "demo/report.html", "board/"])
     write("search.json", json.dumps(entries, ensure_ascii=False, separators=(",", ":")))
     write("404.html", not_found(bool(content)))
     write("sitemap.xml", sitemap(addresses))

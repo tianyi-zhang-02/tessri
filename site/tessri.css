@@ -554,6 +554,7 @@ section.band { padding: 88px 0 0; }
 .fig svg .rod { stroke: var(--line); stroke-width: 2; }
 .fig svg .grey { fill: var(--muted); stroke: var(--panel); stroke-width: 2; }
 .fig svg .viol { fill: var(--accent-text); stroke: var(--panel); stroke-width: 2; }
+.fig svg .ring { fill: var(--panel); stroke: var(--ink-2); stroke-width: 1.6; }
 .fig figcaption { margin-top: 12px; max-width: 740px; font-size: 14.5px; line-height: 22px; color: var(--muted); }
 .fig figcaption a { color: var(--accent-text); }
 
@@ -659,6 +660,41 @@ footer.foot .brand .dot { color: var(--accent-text); }
 footer.foot nav { display: flex; flex-wrap: wrap; gap: 18px; }
 footer.foot a { color: var(--ink-2); }
 
+/* Blog and board: one reading column, a header with the label and a sentence, then cards or standings. A card leads
+   with its drawing, small, and the text under it; the standings are a list with a bar per person, no table lines. */
+
+.blog { max-width: 1040px; padding-top: 40px; }
+.blog-head { max-width: 740px; }
+.blog-head h1 { margin-top: 14px; }
+.blog-head p { margin-top: 14px; color: var(--ink-2); font-size: 17px; line-height: 27px; }
+.posts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin-top: 40px; }
+.post-card { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--line-soft); border-radius: 16px; background: var(--panel); overflow: hidden; }
+.post-card .art { padding: 14px 16px 0; color: var(--ink-2); background: var(--bg-2); overflow: hidden; }
+.post-card .art svg { display: block; width: 100%; height: auto; max-height: 180px; }
+.post-card .text { padding: 18px 20px 22px; }
+.post-card time, .post .date { display: block; font-size: 12.5px; line-height: 16px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.post-card h2 { margin-top: 8px; font-size: 20px; line-height: 27px; letter-spacing: -0.015em; }
+.post-card h2 a { color: var(--ink); }
+.post-card h2 a:hover { color: var(--accent-text); text-decoration: none; }
+.post-card p { margin-top: 8px; color: var(--ink-2); font-size: 15px; line-height: 23px; }
+.post .date { margin-top: 6px; }
+.post .date + * { margin-top: 24px; }
+.post .fig { margin-top: 24px; }
+
+.standings { list-style: none; margin: 36px 0 0; padding: 0; }
+.standings li { display: grid; grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 2fr) 80px 120px; gap: 0 16px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line-soft); }
+.standings li:last-child { border-bottom: 1px solid var(--line-soft); }
+.standings .head { color: var(--muted); font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; border-top: 0; padding-top: 0; }
+.standings .rank { font-family: var(--mono); color: var(--muted); }
+.standings li:nth-child(2) .rank { color: var(--accent-text); font-weight: 500; }
+.standings .who { min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+.standings .quiet { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+.standings .bar { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.standings .bar i { display: block; height: 10px; width: var(--w, 0%); min-width: 2px; border-radius: 5px; background: var(--accent-text); }
+.standings .bar b { font-weight: 500; font-variant-numeric: tabular-nums; }
+.standings .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.join { margin-top: 28px; max-width: 740px; color: var(--ink-2); }
+
 /* Guide */
 
 .wrap.guide { max-width: 1280px; }
@@ -733,6 +769,12 @@ footer.foot a { color: var(--ink-2); }
 
 @media (max-width: 672px) {
   .wrap { padding: 0 16px; }
+  .posts { grid-template-columns: minmax(0, 1fr); }
+  .standings li { grid-template-columns: 28px minmax(0, 1fr) 72px; gap: 0 10px; }
+  .standings li > :nth-child(4) { grid-column: 3; grid-row: 1; }  /* all time, beside the name */
+  .standings .bar { grid-column: 2 / 4; grid-row: 2; margin-top: 6px; }
+  .standings .num:last-child { display: none; }  /* files maintained waits for a wider screen */
+  .blog { padding-top: 24px; }
   .home .wrap { padding-left: 16px; padding-right: 16px; }
   .home .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 16px; }
   .hero.with-handoff .pitch, .handoff, .answers li, .answers li:first-child, .example.with-drawing .panel, .drawing { grid-column: span 4; }

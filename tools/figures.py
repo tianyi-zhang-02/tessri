@@ -55,6 +55,7 @@ def _rules(t: dict[str, str]) -> str:
         f".rod{{stroke:{t['line']};stroke-width:2}}"
         f".grey{{fill:{t['muted']};stroke:{t['panel']};stroke-width:2}}"
         f".viol{{fill:{t['accent']};stroke:{t['panel']};stroke-width:2}}"
+        f".ring{{fill:{t['panel']};stroke:{t['ink2']};stroke-width:1.6}}"
         f".well{{fill:{t['well']}}}"
         f".bg{{fill:{t['panel']}}}"
     )
@@ -257,6 +258,32 @@ FIGURES: dict[str, Figure] = {
 <text x="490" y="285">Where there is no evidence it says "needs a person", never "safe"</text>
 <line class="soft" x1="434" y1="309" x2="484" y2="309"/>
 <text x="490" y="313">What it cannot see, with the reason, instead of a blank</text>""",
+    ),
+    "reviewers": Figure(
+        viewbox="0 0 780 236",
+        kind="chart",
+        label="On two repositories' pull requests, the share where at least one offered name actually reviewed: Tessri's list 0.47 and 0.59, a plain count of recent committers 0.46 and 0.61, the busiest committers 0.36 and 0.71, and the people who reviewed most before, whom git cannot see, 0.80 and 0.87.",
+        body="""<circle class="viol" cx="238" cy="22" r="6"/><text x="250" y="26">large repository, squashed, a company's team</text>
+<circle class="ring" cx="538" cy="22" r="6"/><text x="550" y="26">small repository, merge commits, a few core developers</text>
+<line class="soft" x1="250" y1="190" x2="730" y2="190"/>
+<text class="mut" x="250" y="208" text-anchor="middle">0.3</text>
+<text class="mut" x="370" y="208" text-anchor="middle">0.45</text>
+<text class="mut" x="490" y="208" text-anchor="middle">0.6</text>
+<text class="mut" x="610" y="208" text-anchor="middle">0.75</text>
+<text class="mut" x="730" y="208" text-anchor="middle">0.9</text>
+<text class="mut" x="490" y="226" text-anchor="middle">share of pull requests where at least one offered name reviewed</text>
+<text class="t" x="236" y="66" text-anchor="end">who can look, as Tessri offers it</text>
+<line class="rod" x1="386" y1="62" x2="482" y2="62"/><circle class="viol" cx="386" cy="62" r="6"/><circle class="ring" cx="482" cy="62" r="6"/>
+<text class="mut" x="375" y="66" text-anchor="end">0.47</text><text x="493" y="66">0.59</text>
+<text x="236" y="102" text-anchor="end">committers to the changed files, last year</text>
+<line class="rod" x1="378" y1="98" x2="498" y2="98"/><circle class="grey" cx="378" cy="98" r="6"/><circle class="ring" cx="498" cy="98" r="6"/>
+<text class="mut" x="367" y="102" text-anchor="end">0.46</text><text x="509" y="102">0.61</text>
+<text x="236" y="138" text-anchor="end">busiest committers, last 90 days</text>
+<line class="rod" x1="298" y1="134" x2="578" y2="134"/><circle class="grey" cx="298" cy="134" r="6"/><circle class="ring" cx="578" cy="134" r="6"/>
+<text class="mut" x="287" y="138" text-anchor="end">0.36</text><text x="589" y="138">0.71</text>
+<text x="236" y="174" text-anchor="end">most frequent past reviewers (git cannot see them)</text>
+<line class="rod" x1="650" y1="170" x2="706" y2="170"/><circle class="grey" cx="650" cy="170" r="6"/><circle class="ring" cx="706" cy="170" r="6"/>
+<text class="mut" x="639" y="174" text-anchor="end">0.80</text><text x="717" y="174">0.87</text>""",
     ),
 }
 

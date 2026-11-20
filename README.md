@@ -149,6 +149,8 @@ starter `.tessri.toml` with every option commented out.
 - [Guide](docs/guide/README.md): every question Tessri answers, one page each, with real output, and
   [which command, when](docs/guide/when.md).
 - [Demo](https://tianyi-zhang-02.github.io/tessri/demo/): Tessri on itself, rebuilt on every push.
+- [Blog](https://tianyi-zhang-02.github.io/tessri/blog/): notes from building it, with the drawings: how the numbers were
+  tested, what the pages are for, how the code is put together.
 - [Integration](docs/guide/integration.md): skills, AGENTS.md, [hooks](docs/guide/hooks.md) and CI, with copyable recipes in
   [workflow-recipes.md](docs/workflow-recipes.md); [MCP](docs/guide/mcp.md): the questions as tools for any agent
   that speaks the protocol.

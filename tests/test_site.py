@@ -131,6 +131,34 @@ class BuildTest(unittest.TestCase):
                     target = target / "index.html"
                 self.assertTrue(target.exists(), (page.name, href))
 
+    def test_the_blog_is_built_from_the_posts_newest_first_with_a_card_per_post(self):
+        posts = build_site.posts()
+        self.assertGreaterEqual(len(posts), 4)
+        dates = [p["date"] for p in posts]
+        self.assertEqual(dates, sorted(dates, reverse=True))
+        index = self.pages[self.out / "blog" / "index.html"]
+        self.assertIn("<h1>Notes from building Tessri</h1>", index)
+        for post in posts:
+            with self.subTest(post=post["slug"]):
+                self.assertIn(f'<h2><a href="{post["slug"]}.html">', index)
+                page = self.pages[self.out / "blog" / f"{post['slug']}.html"]
+                self.assertIn(f"<title>{html.escape(post['title'])} · Tessri blog</title>", page)
+                self.assertIn('<p class="date"><time datetime="', page)
+                self.assertIn(f'<a href="../blog/" aria-current="page">Blog</a>', page)
+                if post["figure"]:
+                    self.assertIn('<figure class="fig', page)
+                    self.assertIn('<div class="art"><svg viewBox=', index)  # the card shows the drawing
+        self.assertIn('href="blog/">Blog</a>', self.pages[self.out / "index.html"])
+        entries = json.loads((self.out / "search.json").read_text())
+        self.assertTrue(any(e["u"].startswith("blog/") for e in entries))
+        self.assertIn(f"{build_site.SITE_URL}blog/{posts[0]['slug']}.html", (self.out / "sitemap.xml").read_text())
+
+    def test_a_post_file_name_carries_its_date_and_an_optional_order(self):
+        self.assertTrue(build_site.POST_NAME.match("2026-11-20-why.md"))
+        self.assertEqual(build_site.POST_NAME.match("2026-11-20-03-one-page.md").groups(), ("2026-11-20", "03", "one-page"))
+        self.assertIsNone(build_site.POST_NAME.match("why.md"))
+        self.assertEqual(build_site._day("2026-11-05"), "5 November 2026")
+
     def test_the_landing_page_carries_the_readme_example(self):
         index = self.pages[self.out / "index.html"]
         example = build_site.readme_example()
@@ -194,6 +222,13 @@ class BuildTest(unittest.TestCase):
         self.assertIn('<a href="../demo/" aria-current="page">Demo</a>', demo)
         self.assertIn("<title>Tessri: ", report)
         self.assertIn('<a href="../demo/">Demo</a>', self.pages[self.out / "guide" / "brief.html"])
+        board = self.pages[self.out / "board" / "index.html"]
+        self.assertIn("<h1>Who keeps Tessri understandable</h1>", board)
+        self.assertIn('<ol class="standings">', board)
+        self.assertIn('<li><span class="rank">1</span><span class="who">', board)
+        self.assertNotIn("@", board.split('<ol class="standings">')[1].split("</ol>")[0])  # names, never addresses
+        self.assertIn('<a href="../board/">Board</a>', demo)
+        self.assertIn('href="board/">Board</a>', index)
         change = build_site.latest_change()
         self.assertEqual(set(change), {"sha", "pr", "title", "branch"})
         self.assertIn(html.escape(change["title"]), demo)
