@@ -3,6 +3,7 @@ import random
 import re
 import shutil
 import subprocess
+import sys
 import unittest
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -123,6 +124,7 @@ class PageTest(Committed):
         self.assertIn(f"{report['summary']['code_lines']:,}", text)
         self.assertIn(self.root.name, text)
 
+    @unittest.skipIf(sys.platform == "win32", "a file name Windows forbids")
     def test_markup_in_names_cannot_reach_the_page(self):
         self.assertNotIn(self.PERSON[0], self.html)
         self.assertIn("Eve &quot;O&#x27;Neil&quot; &amp; Co", self.html)
@@ -132,6 +134,7 @@ class PageTest(Committed):
         self.assertIn("&lt;b&gt;&amp;&quot;q&#x27;", html)
         self.assertEqual(parse(html).problems, [])
 
+    @unittest.skipIf(sys.platform == "win32", "a file name Windows forbids")
     def test_embedded_data_is_valid_json_and_cannot_close_its_script(self):
         write_tree(self.root, {"core/</script><script>alert(1)</script>.py": "VALUE = 1\n"})
         html = page_for(scan(self.root))

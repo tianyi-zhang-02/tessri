@@ -127,6 +127,20 @@ is a conflict too.
 | --- | --- | --- |
 | `mcp` | `.mcp.json`: `{"mcpServers": {"tessri": {"command": "tessri", "args": ["mcp"]}}}` | Claude Code (project scope; it asks you to approve the project's servers on first use), and other hosts that read `.mcp.json` |
 | `vscode` | `.vscode/mcp.json`: `{"servers": {"tessri": {"type": "stdio", "command": "tessri", "args": ["mcp"]}}}` | editors that read it in agent mode |
+| `cursor` | `.cursor/mcp.json`, the `.mcp.json` entry | Cursor |
+| `gemini` | `.gemini/settings.json`, the `.mcp.json` entry beside whatever else the settings hold | Gemini CLI |
+| `junie` | `.junie/mcp/mcp.json`, the `.mcp.json` entry | JetBrains Junie |
+| `roo` | `.roo/mcp.json`, the `.mcp.json` entry | Roo Code |
+| `kiro` | `.kiro/settings/mcp.json`, the `.mcp.json` entry | Kiro |
+| `warp` | `.warp/.mcp.json`, the `.mcp.json` entry | Warp |
+| `factory` | `.factory/mcp.json`, the `.mcp.json` entry | Factory Droid |
+
+Hosts without a project file take the same entry in your own configuration: Windsurf under `mcpServers` in
+`~/.codeium/windsurf/mcp_config.json`, Claude Desktop in its `claude_desktop_config.json`, Codex with
+`codex mcp add tessri -- tessri mcp`, Zed as `context_servers` in its settings. Continue, OpenCode and the agent files
+of Amazon Q have shapes of their own, which their documentation gives. The paths above are each host's documentation
+as read on 2026-11-20; hosts move these files, so when one does not pick the server up, its documentation is the place
+to check, and `tessri integration status` says which file was written for which host.
 | `copilot` | `.github/instructions/tessri.instructions.md` with `applyTo: "**"` and the skill's text | Copilot, in projects that keep its own files rather than an `AGENTS.md` |
 
 Codex reads MCP servers from your own configuration, not the project's, so `tessri integration status` prints the

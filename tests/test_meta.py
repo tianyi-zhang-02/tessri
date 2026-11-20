@@ -52,6 +52,8 @@ class GitScenario(TempRepo):
 
     @contextlib.contextmanager
     def fake_git(self, failing: str, code: int = 128, message: str = "fatal: boom"):
+        if sys.platform == "win32":
+            self.skipTest("the stand-in git is a shell script")
         real = shutil.which("git")
         with tempfile.TemporaryDirectory() as shim:
             script = Path(shim) / "git"

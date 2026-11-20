@@ -17,7 +17,7 @@ def write_tree(root: Path, files: dict[str, str]) -> None:
     for rel, text in files.items():
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="")  # byte-exact: no CRLF translation on Windows
 
 
 def git(root: Path, *args: str, when: str | None = None, author: tuple[str, str] | None = None) -> None:

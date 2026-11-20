@@ -1,5 +1,7 @@
-# The test suite on every push to main and every pull request. It needs git (always on the runner) and node for one
-# differential test that compares the JavaScript scanner with a real JS parse; that test is skipped without node.
+# The test suite on every push to main and every pull request: both supported Pythons on Linux, and the newest on
+# Windows and macOS, since paths, line endings, code pages and the git on each differ. It needs git (always on the
+# runner) and node for one differential test that compares the JavaScript scanner with a real JS parse; that test is
+# skipped without node.
 name: tests
 
 on:
@@ -12,11 +14,18 @@ permissions:
 
 jobs:
   unittest:
-    runs-on: ubuntu-latest
+    name: unittest (${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.11", "3.12"]
+        include:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
     steps:
       - uses: actions/checkout@v4
         with:

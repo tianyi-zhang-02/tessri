@@ -21,7 +21,7 @@ TEMPLATE_EXTS = (".vue", ".svelte", ".astro", ".mdx")
 
 _SCRIPT = re.compile(r"<script\b([^>]*)>(.*?)</script\s*>", re.S | re.I)
 _SRC_ATTR = re.compile(r"""\bsrc\s*=\s*["']([^"']+)["']""")
-_FRONTMATTER = re.compile(r"\A---[ \t]*\n(.*?)\n---", re.S)
+_FRONTMATTER = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---", re.S)  # CRLF files keep their frontmatter
 _MDX_IMPORT = re.compile(r"""^(?:import|export)\b[^'"`;]*?\bfrom\s*(['"])([^'"\n]+)\1|^import\s*(['"])([^'"\n]+)\3""", re.M)
 
 # Files a tool loads by name or by glob rather than by import.

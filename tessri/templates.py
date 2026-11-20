@@ -285,10 +285,13 @@ kept can go under `keep` in `.tessri.toml`. Delete in small changes and run the 
 COPILOT_INSTRUCTIONS = '---\napplyTo: "**"\n---\n' + SKILL.split("---\n", 2)[2]
 
 # One entry each in the MCP configuration files hosts read from a project; the receipt records the entry, not the file.
-MCP_SERVER = {"command": "tessri", "args": ["mcp"]}  # `.mcp.json`, key mcpServers.tessri
+# The plain entry is what `.mcp.json` takes and what Cursor, Gemini CLI, Junie, Roo Code, Kiro, Warp and Factory read
+# from their own project files; VS Code wants `servers` and a `type`.
+MCP_SERVER = {"command": "tessri", "args": ["mcp"]}  # key mcpServers.tessri
 VSCODE_SERVER = {"type": "stdio", "command": "tessri", "args": ["mcp"]}  # `.vscode/mcp.json`, key servers.tessri
-# Copilot's coding agent takes its servers from the repository's settings page; this is the JSON to paste there.
-COPILOT_AGENT_SERVERS = {"mcpServers": {"tessri": {"command": "tessri", "args": ["mcp"], "tools": ["*"]}}}
+# Copilot's coding agent takes its servers from the repository's settings page; this is the JSON to paste there
+# (`type` local for a command it runs itself, `tools` required).
+COPILOT_AGENT_SERVERS = {"mcpServers": {"tessri": {"type": "local", "command": "tessri", "args": ["mcp"], "tools": ["*"]}}}
 CODEX_MCP_COMMAND = "codex mcp add tessri -- tessri mcp"  # Codex keeps MCP servers in the user's configuration, not the project's
 
 # The lifecycle hooks Claude Code (`.claude/settings.json`) and Codex (`.codex/hooks.json`) run. Both read this shape:

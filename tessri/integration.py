@@ -75,6 +75,14 @@ PROFILES = {
     "copilot": Profile("copilot", ".github/instructions/tessri.instructions.md", "file", "Copilot reads the file on its next request in this repository", body="COPILOT_INSTRUCTIONS"),
     "mcp": Profile("mcp", ".mcp.json", "key", "a host that reads .mcp.json starts the server on its next session, after asking you to approve the project's servers", body="MCP_SERVER", key=("mcpServers", "tessri")),
     "vscode": Profile("vscode", ".vscode/mcp.json", "key", "an editor that reads .vscode/mcp.json starts the server on its next agent request", body="VSCODE_SERVER", key=("servers", "tessri")),
+    # the hosts whose project file takes the `.mcp.json` entry as it is (each path from the host's documentation, read 2026-11-20)
+    "cursor": Profile("cursor", ".cursor/mcp.json", "key", "Cursor reads .cursor/mcp.json for this project and starts the server on its next agent session here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "gemini": Profile("gemini", ".gemini/settings.json", "key", "Gemini CLI reads .gemini/settings.json for this project and starts the server on its next start here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "junie": Profile("junie", ".junie/mcp/mcp.json", "key", "Junie reads .junie/mcp/mcp.json for this project and starts the server on its next task here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "roo": Profile("roo", ".roo/mcp.json", "key", "Roo Code reads .roo/mcp.json for this project and starts the server on its next session here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "kiro": Profile("kiro", ".kiro/settings/mcp.json", "key", "Kiro reads .kiro/settings/mcp.json for this project and starts the server on its next session here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "warp": Profile("warp", ".warp/.mcp.json", "key", "Warp reads .warp/.mcp.json for this folder and starts the server on its next agent session here", body="MCP_SERVER", key=("mcpServers", "tessri")),
+    "factory": Profile("factory", ".factory/mcp.json", "key", "Factory Droid reads .factory/mcp.json for this project and starts the server on its next session here", body="MCP_SERVER", key=("mcpServers", "tessri")),
     "claude-hooks": Profile("claude-hooks", ".claude/settings.json", "hooks", "Claude Code runs them from your next session in this project, once the folder's trust dialog is accepted; `/hooks` lists them", body="HOOKS"),
     "codex-hooks": Profile("codex-hooks", ".codex/hooks.json", "hooks", "Codex runs them once the project is trusted and the hooks are trusted in `/hooks`; a changed hook has to be trusted again", body="HOOKS"),
     "config": Profile("config", ".tessri.toml", "seed", "edit it; every option is optional, and the file is yours from now on (update leaves it alone, remove keeps it once edited)", body="CONFIG", host=False),
@@ -90,6 +98,14 @@ HOSTS = (
     ("Codex", ("codex", "agents"), None, f"run `{templates.CODEX_MCP_COMMAND}` (Codex keeps MCP servers in your own configuration)", "codex-hooks"),
     ("Copilot coding agent", ("agents", "copilot"), None, "paste into the repository's settings, Copilot, Coding agent, MCP configuration: " + json.dumps(templates.COPILOT_AGENT_SERVERS) + "; put `pip install tessri` in copilot-setup-steps.yml", None),
     ("editors reading .vscode/mcp.json", ("agents", "copilot", "claude", "codex"), "vscode", None, None),
+    ("Cursor", ("agents",), "cursor", None, None),
+    ("Gemini CLI", (), "gemini", "Gemini CLI reads GEMINI.md: add `AGENTS.md` to `context.fileName` in .gemini/settings.json, or copy the block from AGENTS.md into GEMINI.md", None),
+    ("JetBrains Junie", ("agents",), "junie", None, None),
+    ("Roo Code", ("agents",), "roo", None, None),
+    ("Kiro", ("agents",), "kiro", None, None),
+    ("Warp", ("agents",), "warp", None, None),
+    ("Factory Droid", ("agents",), "factory", None, None),
+    ("Windsurf", ("agents",), None, "add the entry from .mcp.json under `mcpServers` in ~/.codeium/windsurf/mcp_config.json (Windsurf keeps MCP servers in your own configuration)", None),
 )
 
 
@@ -146,9 +162,20 @@ def _read(path: Path) -> bytes | None:
     try:
         return path.read_bytes()
     except FileNotFoundError:
+        blocker = _file_in_the_way(path)
+        if blocker is not None:  # POSIX says NotADirectoryError here; Windows says the path does not exist
+            raise IntegrationError(f"cannot read {path}: {blocker} is a file, not a directory")
         return None
     except OSError as exc:
         raise IntegrationError(f"cannot read {path}: {exc.strerror}") from exc
+
+
+def _file_in_the_way(path: Path) -> Path | None:
+    """The nearest existing ancestor of `path` when it is not a directory, else None."""
+    for parent in path.parents:
+        if parent.exists():
+            return None if parent.is_dir() else parent
+    return None
 
 
 def _symlink_in(root: Path, rel: str) -> str | None:
@@ -901,7 +928,7 @@ def _hosts(rows: list[dict]) -> list[dict]:
         instructions = next((installed[p] for p in reads if p in installed), None)
         pointed = installed.get(server) if server else None
         todo = []
-        if instructions is None:
+        if reads and instructions is None:
             todo.append(f"tessri integration install --agent {reads[0]}")
         if server and pointed is None:
             todo.append(f"tessri integration install --agent {server}")
