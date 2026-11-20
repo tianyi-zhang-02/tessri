@@ -2,6 +2,7 @@ import json
 import subprocess
 import tempfile
 import time
+import sys
 import unittest
 from pathlib import Path
 
@@ -453,6 +454,7 @@ class ExtractTest(Branchy):
         self.assertTrue((dest / "core/hidden.py").is_file())
         self.assertEqual((dest / "util/helpers.py").read_text(), BASE["util/helpers.py"])
 
+    @unittest.skipIf(sys.platform == "win32", "symlinks need a privilege on Windows")
     def test_large_files_links_and_skipped_paths_are_not_written(self):
         big = "x = 1\n" * 400_000  # over the size the analysis reads
         self.commit({**BASE, "big.py": big, "vendor/lib.py": "VALUE = 1\n"})

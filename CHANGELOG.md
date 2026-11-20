@@ -75,6 +75,10 @@ Dates are the day a version was tagged.
   the way a reader names them (`Shape.area`): the diff's hunks say which lines moved, Python's own parser says which
   `def` or `class` holds each line, in the working tree and at the base. Each row carries it as `symbols`. Definitions
   are read for Python only; a file in another language, or one the parser cannot read, says so instead of guessing.
+- The command line writes UTF-8 whatever its stream was opened with. A pipe or a file on Windows takes the legacy
+  code page, which has no arrow, no middle dot and none of the scripts a path can hold, and Python would have
+  stopped at the first such character; the pages and the JSON are UTF-8 wherever they go now. The test suite runs
+  on Windows and macOS in CI beside Linux, and the package says it is operating-system independent.
 
 ## 0.4.0 (2026-11-14)
 

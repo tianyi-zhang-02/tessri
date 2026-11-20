@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import time
+import sys
 import unittest
 from pathlib import Path
 
@@ -136,6 +137,7 @@ def run_cli(*argv):
     return code, out.getvalue(), err.getvalue()
 
 
+@unittest.skipIf(sys.platform == "win32", "the root is a POSIX absolute path")
 class CliTest(TempRepo):
     """A branch that deletes a file another file still imports: one block finding, plus whatever else the check says."""
 

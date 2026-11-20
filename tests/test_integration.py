@@ -650,6 +650,8 @@ esac
 """
 
     def post(self, existing: str) -> tuple[list[str], str]:
+        if sys.platform == "win32":
+            self.skipTest("the stand-in git is a shell script")
         with tempfile.TemporaryDirectory() as tmp:
             work = pathlib.Path(tmp)
             (work / "bin").mkdir()

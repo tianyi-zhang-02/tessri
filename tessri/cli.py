@@ -322,7 +322,23 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _utf8(stream) -> None:
+    """Write UTF-8 whatever the stream was opened with. A console on Windows is UTF-8 already, but a pipe or a file
+    there takes the legacy code page, which has no arrow, no middle dot and none of the scripts a path can hold, and
+    Python would stop at the first such character; the pages and the JSON are UTF-8 wherever they go."""
+    if (getattr(stream, "encoding", None) or "").lower().replace("-", "") == "utf8":
+        return
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is not None:
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):  # closed, detached or not a text stream after all
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    for stream in (sys.stdout, sys.stderr):
+        _utf8(stream)
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
