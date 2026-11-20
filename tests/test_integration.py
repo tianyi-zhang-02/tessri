@@ -137,7 +137,8 @@ class InstallTest(Project):
         self.assertFalse(self.receipt()["targets"][0]["created"])
         run(self.root, "remove", None)
         self.assertEqual((self.root / "AGENTS.md").read_bytes(), original)
-        self.assertEqual(os.stat(self.root / "AGENTS.md").st_mode & 0o777, mode)
+        if sys.platform != "win32":
+            self.assertEqual(os.stat(self.root / "AGENTS.md").st_mode & 0o777, mode)
         self.assertFalse((self.root / RECEIPT).exists())
 
     def test_span_after_trailing_newline_leaves_one_blank_line(self):
@@ -187,7 +188,7 @@ class InstallTest(Project):
 class UpdateTest(Project):
     def setUp(self):
         super().setUp()
-        (self.root / "AGENTS.md").write_text("# Agents\n\nHouse rules.\n")
+        (self.root / "AGENTS.md").write_text("# Agents\n\nHouse rules.\n", newline="")  # byte-exact on Windows too
         run(self.root, "install", ["claude", "agents"])
 
     def test_update_is_a_no_op_when_current(self):
@@ -619,7 +620,7 @@ class SeedAndReportTest(Project):
         self.assertEqual(self.states(), {"report": "user-modified"})
         doc = run(self.root, "update", None)
         self.assertEqual((self.conflicts(doc), doc["applied"]), ({"report": "modified"}, False))
-        path.write_text(templates.REPORT_WORKFLOW)
+        path.write_text(templates.REPORT_WORKFLOW, newline="")  # restored byte for byte, so it is ours again
         doc = run(self.root, "remove", None)
         self.assertEqual(self.actions(doc), {"report": "remove"})
         self.assertFalse((self.root / ".github").exists())
