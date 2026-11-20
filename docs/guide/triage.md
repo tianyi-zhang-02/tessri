@@ -36,6 +36,13 @@ Look at these first:
 | 3 | `core/d.py` | new file | +6 -0 | - | 0 | new file; orphan: nothing reaches it |
 | 4 | `core/b.py` | quiet since 2026-04-13 | +2 -1 | Alice Adams 100% | 1 | author is not among the owners |
 
+What changed in them, by definition:
+
+- `core/a.py`: added `carol`; module-level code
+- `util/c.py`: added `c2`, `c3`; module-level code
+- `core/d.py`: added `d`
+- `core/b.py`: changed `b`; module-level code
+
 Who can look, other than the authors: Alice Adams (2 files, 5 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
 Only the author maintains: `util/c.py`
@@ -62,6 +69,13 @@ the third, and how many files import it scored 0.62, 0.59 and 0.56 on its own. T
 already happened, the second what a mistake could reach; ownership is shown because it describes who can catch it,
 which a "will it need a fix" score does not measure. Three repositories are a hint, not a proof; the script runs on
 yours.
+
+Under the table, *What changed in them, by definition* names the functions and classes the change touched in each
+file, from the diff's hunks and Python's own parser: a definition whose name is new is *added*, one whose name is
+gone is *removed*, the rest a hunk touches is *changed*, named the way a reader names it (`Shape.area`), and lines
+outside every definition are *module-level code*; a renamed function is a removal and an addition. Each row carries
+it as `symbols` (`changed`, `added`, `removed`, `module_level`). Definitions are read for Python only; a file in
+another language, or one the parser cannot read, says so there instead of guessing.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its

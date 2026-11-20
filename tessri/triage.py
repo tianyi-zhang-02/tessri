@@ -17,7 +17,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, gitlog, inventory, meta
+from . import __version__, gitlog, inventory, meta, symbols
 from . import since as since_mod
 from .analyze import Analysis, analyze
 from .config import Config
@@ -211,9 +211,13 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         if change.origin:
             row["from"] = change.origin
         rows.append(row)
+    by_path = {r["path"]: r for r in rows}
     rows.sort(key=lambda r: (-r["commits_active"], -r["lines"], r["path"]))
     for rank, row in enumerate(rows, 1):
         row["rank"] = rank
+    # what the change did to each file's definitions: the functions and classes its hunks touch, from Python's parser
+    for path, s in symbols.compute(root, base, [(r["path"], r["change"], r.get("from"), r["language"]) for r in rows]).items():
+        by_path[path]["symbols"] = s
 
     # who can look: the people, other than the authors, who committed to the changed files in the last year or hold a share of
     # them, most commits first: on two repositories' pull requests that count matched who reviewed better than the share did
@@ -386,6 +390,8 @@ def markdown(t: dict, limit: int = 20, active_days: int = 90) -> str:
         rows.append([r["rank"], f"`{r['path']}`", _why(r, active_days), f"+{r['added']} -{r['deleted']}", who, r["dependents"]["direct"], "; ".join(flags) or "-"])
     out += ["Look at these first:", ""]
     out += _table(["#", "File", "Why", "This change", "Owners", "Imported by", "Flags"], rows, {0, 5})
+    if named := symbols.lines(t["files"][:limit]):
+        out += [*named, ""]
     if len(t["files"]) > limit:
         out += [f"{len(t['files']) - limit} more files in the JSON output.", ""]
     if t["reviewers"]:

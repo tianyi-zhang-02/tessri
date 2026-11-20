@@ -70,6 +70,11 @@ Dates are the day a version was tagged.
   an image; `--check` says whether the files are current, and a test keeps them so. A guide page places a figure
   with an ordinary image line, which the site inlines and GitHub shows as the file; the README shows the layer, the
   six stations and the pipeline, and the architecture, backtest, when and brief pages each show theirs.
+- `triage` and the brief name the functions and classes a change touched. Under the *Look first* table, one line per
+  file says which definitions the change added, changed or removed, and whether it touched module-level code, named
+  the way a reader names them (`Shape.area`): the diff's hunks say which lines moved, Python's own parser says which
+  `def` or `class` holds each line, in the working tree and at the base. Each row carries it as `symbols`. Definitions
+  are read for Python only; a file in another language, or one the parser cannot read, says so instead of guessing.
 
 ## 0.4.0 (2026-11-14)
 
