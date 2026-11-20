@@ -45,7 +45,7 @@ class FragmentTest(TempRepo):
 
     def run_jobs(self, jobs):
         (self.root / "jobs.json").write_text(json.dumps(jobs), encoding="utf-8")
-        run = subprocess.run(["node", str(self.root / "run.js"), str(self.root / "page.html"), str(self.root / "jobs.json")], capture_output=True, text=True, timeout=60)
+        run = subprocess.run(["node", str(self.root / "run.js"), str(self.root / "page.html"), str(self.root / "jobs.json")], capture_output=True, text=True, encoding="utf-8", timeout=60)
         self.assertEqual(run.returncode, 0, run.stderr)
         return json.loads(run.stdout)
 

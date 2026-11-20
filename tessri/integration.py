@@ -162,9 +162,20 @@ def _read(path: Path) -> bytes | None:
     try:
         return path.read_bytes()
     except FileNotFoundError:
+        blocker = _file_in_the_way(path)
+        if blocker is not None:  # POSIX says NotADirectoryError here; Windows says the path does not exist
+            raise IntegrationError(f"cannot read {path}: {blocker} is a file, not a directory")
         return None
     except OSError as exc:
         raise IntegrationError(f"cannot read {path}: {exc.strerror}") from exc
+
+
+def _file_in_the_way(path: Path) -> Path | None:
+    """The nearest existing ancestor of `path` when it is not a directory, else None."""
+    for parent in path.parents:
+        if parent.exists():
+            return None if parent.is_dir() else parent
+    return None
 
 
 def _symlink_in(root: Path, rel: str) -> str | None:

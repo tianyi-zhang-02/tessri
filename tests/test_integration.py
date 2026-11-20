@@ -132,7 +132,8 @@ class InstallTest(Project):
         data = (self.root / "AGENTS.md").read_bytes()
         self.assertTrue(data.startswith(original + b"\r\n\r\n" + BEGIN.encode() + b"\r\n"))
         self.assertNotIn(b"\n\n", data.replace(b"\r\n", b""))  # the block itself uses CRLF
-        self.assertEqual(os.stat(self.root / "AGENTS.md").st_mode & 0o777, mode)
+        if sys.platform != "win32":  # Windows has no mode bits to keep
+            self.assertEqual(os.stat(self.root / "AGENTS.md").st_mode & 0o777, mode)
         self.assertFalse(self.receipt()["targets"][0]["created"])
         run(self.root, "remove", None)
         self.assertEqual((self.root / "AGENTS.md").read_bytes(), original)

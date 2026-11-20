@@ -3,6 +3,7 @@ repository, the lines a change added or changed, and the one held against the ot
 
 import json
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 
@@ -87,6 +88,7 @@ class ReadTest(unittest.TestCase):
 
 
 class ChangedLinesTest(TempRepo):
+    @unittest.skipIf(sys.platform == "win32", "a file name Windows forbids")
     def test_the_new_side_of_every_hunk_and_whole_new_files(self):
         git(self.root, "init", "-q", "-b", "main")
         write_tree(self.root, {"pkg/__init__.py": "", "pkg/core.py": CORE, "pkg/old.py": "O = 1\nP = 2\nQ = 3\nR = 4\n", "pkg/util.py": "A = 1\n", 'pkg/odd"ü.py': "A = 1\nB = 2\n"})

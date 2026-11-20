@@ -78,7 +78,10 @@ Dates are the day a version was tagged.
 - The command line writes UTF-8 whatever its stream was opened with. A pipe or a file on Windows takes the legacy
   code page, which has no arrow, no middle dot and none of the scripts a path can hold, and Python would have
   stopped at the first such character; the pages and the JSON are UTF-8 wherever they go now. The test suite runs
-  on Windows and macOS in CI beside Linux, and the package says it is operating-system independent.
+  on Windows and macOS in CI beside Linux, and the package says it is operating-system independent. The first run
+  on Windows found two things in the code: an Astro file with CRLF line endings lost its frontmatter imports, and
+  `integration install` noticed a file standing where a directory is needed only after writing, since Windows reports
+  that path as missing rather than as not a directory; both are fixed, and the rest was the suite's own fixtures.
 - The server goes into more hosts' project files. `tessri integration install --agent cursor`, `gemini`, `junie`, `roo`,
   `kiro`, `warp` or `factory` puts the `.mcp.json` entry into the file that host reads for the project (`.cursor/mcp.json`,
   `.gemini/settings.json` beside whatever else the settings hold, `.junie/mcp/mcp.json`, `.roo/mcp.json`,

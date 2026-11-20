@@ -234,6 +234,15 @@ class ResolutionTest(TempRepo):
         self.assertEqual(a.records["src/util.ts"].roots, ["package.json: exports ./util"])
         self.assertEqual(a.records["src/pages/Page.astro"].roots, ["Astro convention"])
 
+    def test_an_astro_file_with_crlf_line_endings_keeps_its_frontmatter_imports(self):
+        write_tree(self.root, {
+            "package.json": '{"dependencies": {"astro": "5"}}',
+            "src/pages/Page.astro": '---\r\nimport { f } from "../lib/front";\r\n---\r\n<h1>hi</h1>\r\n',
+            "src/lib/front.ts": "export const f = 1;\r\n",
+        })
+        a = analyze(self.root, config.load(self.root))
+        self.assertEqual(statuses(a, "ORPHAN"), set())  # front.ts is reached through the frontmatter
+
     def test_other_framework_conventions(self):
         cases = [
             ("@sveltejs/kit", "src/routes/+page.ts", "SvelteKit"),
