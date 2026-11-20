@@ -39,7 +39,7 @@ The same questions, where the agent and the reviewer already are. Each line inst
 
 | Where | Install | What it gives |
 |---|---|---|
-| Any MCP host | `tessri integration install --agent mcp` | the questions as tools (`tessri_impact`, `tessri_triage`, `tessri_check`, `tessri_brief`, `tessri_why`, `tessri_scan`, `tessri_graph`), served by `tessri mcp`; see [MCP](docs/guide/mcp.md) |
+| Any MCP host | `tessri integration install --agent mcp`; `cursor`, `gemini`, `junie`, `roo`, `kiro`, `warp`, `factory` or `vscode` for the file that host reads | the questions as tools (`tessri_impact`, `tessri_triage`, `tessri_check`, `tessri_brief`, `tessri_why`, `tessri_scan`, `tessri_graph`), served by `tessri mcp`; see [MCP](docs/guide/mcp.md) |
 | Claude Code, Codex | `--agent claude-hooks`, `--agent codex-hooks` | after each edit, what the edited file reaches; when the agent stops, what the uncommitted work did to the structure; see [hooks](docs/guide/hooks.md) |
 | Skills and instructions | `--agent claude`, `codex`, `agents`, `copilot` | when to ask which question, as the agent's own instructions |
 | Every pull request | `--agent review` | the brief below, posted as a comment |

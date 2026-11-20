@@ -11,6 +11,7 @@ tessri integration install --agent claude --agent codex             # project sk
 tessri integration install --agent agents                           # one marked block in AGENTS.md
 tessri integration install --agent copilot                          # Copilot's instructions file
 tessri integration install --agent mcp --agent vscode               # .mcp.json and .vscode/mcp.json entries for the server
+tessri integration install --agent cursor --agent gemini             # the same entry in Cursor's and Gemini CLI's project files; also junie, roo, kiro, warp, factory
 tessri integration install --agent claude-hooks --agent codex-hooks # the hooks each host runs: impact after an edit, findings at a stop
 tessri integration install --agent config                           # a .tessri.toml with every option commented out, to start from
 tessri integration install --agent report                           # a weekly scan workflow that keeps the report
@@ -25,7 +26,10 @@ Every form takes the project root as `--repo PATH` or as its first argument (def
 `integration` keeps a receipt, `.tessri-integration.json`, at the project root: which profiles are installed
 (`claude` writes `.claude/skills/tessri/SKILL.md`, `codex` writes `.agents/skills/tessri/SKILL.md`, `agents`
 inserts one marked block into `AGENTS.md`, `copilot` writes `.github/instructions/tessri.instructions.md`, `mcp`
-adds the `mcpServers.tessri` entry to `.mcp.json`, `vscode` the `servers.tessri` entry to `.vscode/mcp.json`,
+adds the `mcpServers.tessri` entry to `.mcp.json`, `vscode` the `servers.tessri` entry to `.vscode/mcp.json`, `cursor`,
+`gemini`, `junie`, `roo`, `kiro`, `warp` and `factory` the `.mcp.json` entry to the project file each of those hosts
+reads (`.cursor/mcp.json`, `.gemini/settings.json`, `.junie/mcp/mcp.json`, `.roo/mcp.json`, `.kiro/settings/mcp.json`,
+`.warp/.mcp.json`, `.factory/mcp.json`),
 `claude-hooks` adds Tessri's two hook groups to `.claude/settings.json` and `codex-hooks` to `.codex/hooks.json`,
 `config` writes `.tessri.toml`, `report` writes `.github/workflows/tessri-report.yml` and `review` writes
 `.github/workflows/tessri-review.yml`),

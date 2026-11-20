@@ -79,6 +79,12 @@ Dates are the day a version was tagged.
   code page, which has no arrow, no middle dot and none of the scripts a path can hold, and Python would have
   stopped at the first such character; the pages and the JSON are UTF-8 wherever they go now. The test suite runs
   on Windows and macOS in CI beside Linux, and the package says it is operating-system independent.
+- The server goes into more hosts' project files. `tessri integration install --agent cursor`, `gemini`, `junie`, `roo`,
+  `kiro`, `warp` or `factory` puts the `.mcp.json` entry into the file that host reads for the project (`.cursor/mcp.json`,
+  `.gemini/settings.json` beside whatever else the settings hold, `.junie/mcp/mcp.json`, `.roo/mcp.json`,
+  `.kiro/settings/mcp.json`, `.warp/.mcp.json`, `.factory/mcp.json`), with the receipt and the removal the other profiles
+  have; `status` lists those hosts and Windsurf, whose configuration is yours alone, with what is left to do; the
+  Copilot coding agent's entry to paste carries its `type`. Each path is the host's documentation as read on 2026-11-20.
 
 ## 0.4.0 (2026-11-14)
 

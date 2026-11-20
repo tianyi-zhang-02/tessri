@@ -749,6 +749,33 @@ class ServerProfilesTest(Project):
         self.assertEqual(self.actions(run(self.root, "update", None)), {"vscode": "create"})
         self.assertEqual(json.loads((self.root / self.VSCODE).read_text())["servers"]["tessri"]["command"], "tessri")
 
+    PROJECT_FILES = {"cursor": ".cursor/mcp.json", "gemini": ".gemini/settings.json", "junie": ".junie/mcp/mcp.json", "roo": ".roo/mcp.json", "kiro": ".kiro/settings/mcp.json", "warp": ".warp/.mcp.json", "factory": ".factory/mcp.json"}
+
+    def test_the_hosts_that_take_the_plain_entry_get_it_in_their_own_project_file(self):
+        write_tree(self.root, {".gemini/settings.json": '{"theme": "Default", "mcpServers": {"other": {"command": "x"}}}\n'})  # a settings file with more in it
+        doc = run(self.root, "install", list(self.PROJECT_FILES))
+        self.assertEqual(self.actions(doc), {name: ("update" if name == "gemini" else "create") for name in self.PROJECT_FILES})
+        for name, rel in self.PROJECT_FILES.items():
+            with self.subTest(profile=name):
+                data = json.loads((self.root / rel).read_text())
+                self.assertEqual(data["mcpServers"]["tessri"], {"command": "tessri", "args": ["mcp"]})
+        gemini = json.loads((self.root / ".gemini/settings.json").read_text())
+        self.assertEqual((gemini["theme"], gemini["mcpServers"]["other"]), ("Default", {"command": "x"}))  # the rest of the settings stay
+        hosts = {h["host"]: h for h in status(self.root)["hosts"]}
+        self.assertEqual(hosts["Cursor"], {"host": "Cursor", "instructions": None, "server": ".cursor/mcp.json", "next": "tessri integration install --agent agents"})
+        self.assertEqual(hosts["Gemini CLI"]["server"], ".gemini/settings.json")
+        self.assertIn("GEMINI.md", hosts["Gemini CLI"]["next"])
+        self.assertTrue(hosts["Gemini CLI"]["next"].startswith("Gemini CLI reads"))  # no instruction profile to install for it
+        self.assertEqual(hosts["Windsurf"]["server"], None)
+        self.assertIn("mcp_config.json", hosts["Windsurf"]["next"])
+        for host, name in (("JetBrains Junie", "junie"), ("Roo Code", "roo"), ("Kiro", "kiro"), ("Warp", "warp"), ("Factory Droid", "factory")):
+            self.assertEqual(hosts[host]["server"], self.PROJECT_FILES[name], host)
+        run(self.root, "remove", None)
+        for name, rel in self.PROJECT_FILES.items():
+            if name != "gemini":
+                self.assertFalse((self.root / rel).exists(), rel)
+        self.assertEqual(json.loads((self.root / ".gemini/settings.json").read_text()), {"theme": "Default", "mcpServers": {"other": {"command": "x"}}})
+
     def test_status_says_what_each_host_has_and_what_is_next(self):
         hosts = {h["host"]: h for h in status(self.root)["hosts"]}
         self.assertEqual(hosts["Claude Code"], {"host": "Claude Code", "instructions": None, "server": None, "next": "tessri integration install --agent claude; tessri integration install --agent mcp", "hooks": None})
@@ -759,7 +786,7 @@ class ServerProfilesTest(Project):
         self.assertNotIn("hooks", hosts["Copilot coding agent"])  # no hooks to install for a host that runs none
         self.assertEqual((hosts["Codex"]["instructions"], hosts["Codex"]["server"]), ("AGENTS.md", None))
         self.assertIn("run `codex mcp add tessri -- tessri mcp`", hosts["Codex"]["next"])
-        self.assertIn('"tools": ["*"]', hosts["Copilot coding agent"]["next"])
+        self.assertIn('"type": "local", "command": "tessri", "args": ["mcp"], "tools": ["*"]', hosts["Copilot coding agent"]["next"])
         self.assertEqual(hosts["editors reading .vscode/mcp.json"]["next"], "tessri integration install --agent vscode")
         from tessri.integration import text
 
