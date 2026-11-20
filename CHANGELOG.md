@@ -4,6 +4,15 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- The site has a blog and a board. `docs/blog/` holds posts as Markdown, `YYYY-MM-DD-slug.md` with an optional
+  order for a day's posts; the build renders each with the guide's chrome and the drawings inline, lists them newest
+  first with the post's first drawing as its card, indexes them for the search and adds them to the sitemap. Four
+  posts open it: why there is no risk score, who can look held against who reviewed, one page to hand a change over,
+  and how the code is put together for whoever wants to change it. A sixth drawing, the reviewer match on two
+  repositories, joins the five. With `--demo`, the board at `board/` is Tessri on its own history, for fun: who
+  committed in the last 90 days, all time, and the code files each person maintains most, from the same reading of
+  the history the demo uses, names as git has them and never an address; the footer links it, and *Blog* sits in the
+  top bar.
 - Faster, and a cache. The Python analyzer reads a tree in one pass: the statements for imports and docstrings, and
   the expressions of a statement only when one of its lines holds a quote, which every string literal does, so the
   walk that was most of a scan now takes a fifth of the time and finds the same things. What the analyzers read from
