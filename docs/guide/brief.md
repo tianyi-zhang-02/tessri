@@ -43,10 +43,21 @@ $ tessri brief --since main --ran "python -m pytest tests/test_invoices.py: 2 pa
 | 2 | `billing/invoices.py` | quiet since 2025-10-02 | +5 -2 | Alice Adams 100% | author is not among the owners |
 | 3 | `tests/test_invoices.py` | quiet since 2025-10-02 | +5 -1 | Alice Adams 100% | author is not among the owners; test file |
 | 4 | `billing/helpers.py` | new file | +2 -0 | - | new file; orphan: nothing reaches it |
-| 5 | `legacy/rates.py` | quiet since 2026-01-10 | +1 -1 | Bob Brown 100% (silent 312d) | no active owner; author is not among the owners |
+| 5 | `legacy/rates.py` | quiet since 2026-01-10 | +1 -1 | Bob Brown 100% (silent 314d) | no active owner; author is not among the owners |
 | 6 | `svc/main.go` | quiet since 2025-10-02 | +1 -1 | Alice Adams 100% | author is not among the owners |
 | 7 | `util/money.py` | quiet since 2025-10-02 | +0 -2 | - | deleted |
 | 8 | `util/__init__.py` | quiet since 2025-10-02 | +0 -0 | - | deleted |
+
+What changed in them, by definition:
+
+- `billing/tax.py`: added `gross`; module-level code
+- `billing/invoices.py`: added `cents`; changed `total`; module-level code
+- `tests/test_invoices.py`: added `test_gross`; module-level code
+- `billing/helpers.py`: added `fmt`
+- `legacy/rates.py`: changed `old_rate`
+- `util/money.py`: removed `cents`
+
+Not named for 1 file: definitions are read for Python only, not Go.
 
 Who can look, other than the authors: Alice Adams (4 files, 2 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
@@ -79,7 +90,7 @@ Checks the host ran, as recorded:
 ## Read this with care
 
 - This page selects from `tessri triage` and `tessri check`, run from one analysis of the base and one of the working tree; the JSON carries both objects whole, so a list shortened here hides nothing there.
-- Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in backtests on two repositories that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that this change is wrong, and a new file has no history, so it sorts by its size.
+- Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in backtests on three repositories that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that this change is wrong, and a new file has no history, so it sorts by its size.
 - Dependents, candidate tests and findings rest on what the analyzers see between files of this repository, static imports above all; a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.
 - History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.
 - Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.
@@ -89,7 +100,8 @@ Checks the host ran, as recorded:
 uncommitted work, the files it is in, because a commit id does not identify uncommitted contents; then the counts, and
 the commits on the way with their authors and subjects, which are the authors' words, never an intent inferred from
 the files. *Look first* is triage's order (commits in the last 90 days, then the size of the change) with its reasons,
-owners and flags, and who can look: the people other than the authors who committed to the changed files in the last
+owners and flags, then the functions and classes the change touched in each of those files, named from the diff and
+Python's parser (added, changed, removed, module-level code; other languages say they are not read), and who can look: the people other than the authors who committed to the changed files in the last
 year, most commits first, then those who maintain them, and, when they are not already named, the repository's regulars
 of the last 90 days with their share of its commits, since where a few people review everything they are the reviewers
 whatever the files. *What it did to the structure* is
@@ -133,7 +145,7 @@ why the page says so. Everything structural rests on static imports between file
 
 `--format json` prints `kind: "brief"`: `change` (`since`, the full `base` and `head`, `uncommitted`,
 `uncommitted_files`, `authors`, `commits` as `id`, `author`, `subject`, and the counts), `attention` (the first
-`--limit` rows of triage's `files`, `shown`, `total`), `consequences` (`counts`, `findings`, `ripple`, `by_area`,
+`--limit` rows of triage's `files`, each with its `symbols`, `shown`, `total`), `consequences` (`counts`, `findings`, `ripple`, `by_area`,
 `modules_touched`, `not_analysed` as `language` and `files`), `validation` (`candidates` with `count` and `nearest`,
 `ran`, `report`: null without `--report`, else `sources`, `cases`, `ran` as path to `passed`, `failed` or `skipped`,
 `passed`, `failed`, `skipped`, `not_run` and `unmatched`, and `coverage`: null without `--coverage`, else `sources`,

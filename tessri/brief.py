@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
-from . import __version__, coverage, inventory, meta, since, triage
+from . import __version__, coverage, inventory, meta, since, symbols, triage
 from . import runs as testruns
 from .analyze import analyze
 from .config import Config
@@ -267,6 +267,8 @@ def markdown(b: dict) -> str:
             flags = [f"moved from `{r['from']}`" if f == "moved" and r.get("from") else f for f in r["flags"]]
             rows.append([r["rank"], f"`{r['path']}`", triage._why(r, a["window_days"]), f"+{r['added']} -{r['deleted']}", _owners(r["owners"], a["inactive_days"]) if r["owners"] else "-", "; ".join(flags) or "-"])
         out += _table(["#", "File", "Why", "This change", "Owners", "Flags"], rows, {0})
+        if named := symbols.lines(a["files"]):
+            out += [*named, ""]
         if a["total"] > a["shown"]:
             out += [f"{a['total'] - a['shown']} more files, in order, under `triage.files`.", ""]
         if p["reviewers"]:
