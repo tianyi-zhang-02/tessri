@@ -45,7 +45,7 @@ MARKER = ".tessri-site"
 ASSETS = ("tessri.css", "favicon.svg", "liquid.js", "og.png")  # og.png is the card a link to the site shows elsewhere
 FONTS = SITE / "fonts"  # the type, served next to its notices
 ICONS = SITE / "icons"  # the icon set, inlined where a page uses one; its notice ships at icons/LICENSE
-NOTICES = "<!-- Type: Inter and Commit Mono, SIL Open Font License, the notices in fonts/. Icons: Lucide, ISC licence, icons/LICENSE. -->"
+NOTICES = "<!-- Type: Inter, Newsreader and Commit Mono, SIL Open Font License, the notices in fonts/. Icons: Lucide, ISC licence, icons/LICENSE. -->"
 
 # The guide's navigation: README.md (the guide index) gives the labels and the order; this gives the groups. A page
 # the index names but no group claims lands under "More", so adding a page never hides it.
@@ -68,6 +68,16 @@ SCRIPTS = r"""<script>
 (function () {
   var root = document.documentElement;
   var motion = matchMedia("(prefers-reduced-motion: no-preference)").matches;
+  var looks = Array.prototype.slice.call(document.querySelectorAll(".look select"));  // the top bar's and the footer's, kept in step
+  looks.forEach(function (look) {
+    look.value = root.getAttribute("data-look") || "editorial";
+    look.addEventListener("change", function () {
+      if (motion) { root.classList.add("switching"); setTimeout(function () { root.classList.remove("switching"); }, 300); }
+      root.setAttribute("data-look", look.value);
+      looks.forEach(function (other) { other.value = look.value; });
+      try { localStorage.setItem("tessri-look", look.value); } catch (e) {}
+    });
+  });
   var button = document.querySelector(".theme");
   if (button) {
     button.addEventListener("click", function () {
@@ -280,7 +290,12 @@ SCRIPTS = r"""<script>
 })();
 </script>"""
 
-THEME_BOOT = '<script>try{var t=localStorage.getItem("tessri-theme");if(t)document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>'
+LOOKS = (("editorial", "Editorial"), ("panel", "Panel"), ("swiss", "Swiss"))  # the visitor's pick; the first is the default
+THEME_BOOT = (
+    '<script>(function(r){try{var t=localStorage.getItem("tessri-theme");if(t)r.setAttribute("data-theme",t);'
+    'var l=localStorage.getItem("tessri-look");r.setAttribute("data-look",l==="panel"||l==="swiss"?l:"editorial")}'
+    'catch(e){r.setAttribute("data-look","editorial")}})(document.documentElement)</script>'
+)
 
 
 class BuildError(Exception):
@@ -301,6 +316,11 @@ def icon(name: str, cls: str = "icon") -> str:
     attrs = re.sub(r"\s+", " ", attrs).strip()
     body = re.sub(r">\s+<", "><", m.group(2).strip())
     return f'<svg class="{cls} icon-{name}" aria-hidden="true" {attrs}>{body}</svg>'
+
+
+def look_control() -> str:
+    options = "".join(f'<option value="{value}">{label}</option>' for value, label in LOOKS)
+    return f'<label class="look"><select aria-label="Look of the site">{options}</select></label>'
 
 
 def theme_button() -> str:
@@ -698,7 +718,7 @@ def top(depth: int, current: str | None, demo: bool = False) -> str:
     demo_link = f'<a href="{up}demo/"{mark("demo")}>Demo</a>' if demo else ""
     return (
         f'<div class="sky">\n<header class="wrap top">\n  <a class="wordmark" href="{up or "./"}" aria-label="Tessri home">{MARK}<span>tessri<span class="dot">.</span></span></a>\n'
-        f'  <nav aria-label="Site"><a href="{up}guide/"{mark("guide")}>Guide</a><a href="{up}blog/"{mark("blog")}>Blog</a>{demo_link}<a class="repo" href="{REPO}">GitHub {icon("arrow-up-right")}</a>{search_button()}{theme_button()}</nav>\n</header>\n</div>\n'
+        f'  <nav aria-label="Site"><a href="{up}guide/"{mark("guide")}>Guide</a><a href="{up}blog/"{mark("blog")}>Blog</a>{demo_link}<a class="repo" href="{REPO}">GitHub {icon("arrow-up-right")}</a>{search_button()}{look_control()}{theme_button()}</nav>\n</header>\n</div>\n'
     )
 
 
@@ -722,12 +742,12 @@ def search_dialog(depth: int) -> str:
 
 def foot(depth: int, board: bool = False) -> str:
     up = "../" * depth
-    board_link = f'<a href="{up}board/">Board</a>' if board else ""
+    demo_links = f'<a href="{up}demo/">Demo</a><a href="{up}board/">Board</a>' if board else ""
     return (
         f'<footer class="wrap foot">\n  <span class="brand">{MARK}<span>tessri<span class="dot">.</span></span></span>\n  <nav aria-label="Footer">'
-        f'<a href="{up}guide/">Guide</a><a href="{up}blog/">Blog</a>{board_link}<a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
+        f'<a href="{up}guide/">Guide</a><a href="{up}blog/">Blog</a>{demo_links}<a href="{up}guide/integration.html">Integration</a><a href="{up}guide/json.html">JSON</a>'
         f'<a href="{up}guide/limits.html">Limits</a><a href="{BLOB}CHANGELOG.md">Changelog</a><a href="{REPO}">GitHub</a></nav>\n'
-        f'  <span>MIT. <a href="{up}guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span>\n</footer>\n'
+        f'  <span class="foot-end">{look_control()}<span>MIT. <a href="{up}guide/formerly-repolife.html">Formerly repolife</a>, until 0.2.x.</span></span>\n</footer>\n'
         + search_dialog(depth)
     )
 
@@ -865,7 +885,8 @@ def landing(demo: dict | None) -> str:
         template.replace("{{mark}}", MARK)
         .replace("{{repo}}", REPO)
         .replace("{{notices}}", NOTICES)
-        .replace("{{theme_button}}", theme_button())
+        .replace("{{theme_boot}}", THEME_BOOT)
+        .replace("{{theme_button}}", look_control() + theme_button())
         .replace("{{search_button}}", search_button())
         .replace("{{social}}", social("Tessri", LANDING_DESCRIPTION, ""))
         .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
