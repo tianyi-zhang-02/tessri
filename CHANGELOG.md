@@ -4,6 +4,21 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- The site has three looks, and the visitor picks. A control in the top bar, beside the theme switch, chooses
+  *Editorial*, *Panel* or *Swiss*; the choice is kept in the browser and read before the page paints. Editorial, the
+  default, puts the violet band away, sets the headings in Newsreader, a serif served from `fonts/` beside its
+  notice, and keeps the violet for links and for Tessri in the drawings; Panel is the band, the glass panel and the
+  cards as they were; Swiss keeps the sans, trades fills and radii for rules and draws the figures in ink. All three
+  take their colours from the same light and dark values, and the looks are token overrides on one stylesheet. The
+  landing page now restores the theme before it paints, as the other pages did. The README opens with the drawing
+  and the four answers.
+- The blog's posts are engineering stories now. The four posts were rewritten around what happened and what the
+  numbers were: the risk score that lost its own backtest and the test that replaced it, with the large
+  repository's table; the reviewer match on both repositories, the rerank it caused and the two things that had to
+  change to measure it; a real brief walked through section by section with the rule behind each; and the map of
+  the code with the analyzer interface and the suite's style. Two posts are new: the one-pass analyzer and the cache,
+  with the numbers and the rules the cache keeps; and the first run of the suite on Windows and macOS, the eleven
+  failures by cause and the two that were the code's.
 - The site has a blog and a board. `docs/blog/` holds posts as Markdown, `YYYY-MM-DD-slug.md` with an optional
   order for a day's posts; the build renders each with the guide's chrome and the drawings inline, lists them newest
   first with the post's first drawing as its card, indexes them for the search and adds them to the sitemap. Four

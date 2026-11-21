@@ -20,6 +20,14 @@
 }
 
 @font-face {
+  font-family: "Newsreader";
+  src: url("fonts/newsreader-latin-opsz-wght.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: "Commit Mono";
   src: url("fonts/commit-mono-latin-400.woff2") format("woff2");
   font-weight: 400;
@@ -30,6 +38,8 @@
 :root {
   --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "Commit Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --display: var(--sans);  /* the headings' face; the editorial look sets the serif */
 
   --band: #5a46c2;
   --band-ink: #ffffff;
@@ -113,6 +123,110 @@
   color-scheme: dark;
 }
 
+/* Three looks on the same pages, the visitor's pick in the top bar (`tessri-look` in localStorage, read before paint).
+   Without script the base tokens above stand: the panel look. Editorial puts the band away, sets the headings in the
+   serif and keeps the violet for links and the drawings' Tessri; Swiss keeps the sans, trades fills and radii for
+   rules and draws the figures in ink. Both take their colours from the same light and dark values. */
+
+:root[data-look="editorial"] {
+  --display: var(--serif);
+  --band: var(--bg);
+  --band-deep: var(--bg);
+  --band-ink: var(--ink);
+  --band-ink-2: var(--ink-2);
+  --band-muted: var(--muted);
+  --band-line: var(--line);
+  --band-well: var(--bg-2);
+  --band-selection: var(--selection);
+  --band-dots: transparent;
+  --glass: var(--panel);
+  --mark: var(--accent-text);
+  --dot: var(--accent-text);
+  --cta: var(--ink);
+  --cta-text: var(--bg);
+  --highlight: var(--accent-text);
+}
+:root[data-look="editorial"] .sky::after { display: none; }
+:root[data-look="editorial"] .sky { border-bottom: 1px solid var(--line-soft); }
+:root[data-look="editorial"] .home .sky { background: var(--bg); }
+:root[data-look="editorial"] h1, :root[data-look="editorial"] h2 { letter-spacing: -0.012em; }
+:root[data-look="editorial"] .hero h1 { font-size: 66px; line-height: 68px; letter-spacing: -0.015em; }
+:root[data-look="editorial"] .hero.with-handoff h1 { font-size: 54px; line-height: 56px; }
+:root[data-look="editorial"] .blog-head h1, :root[data-look="editorial"] .prose h1 { font-size: 46px; line-height: 50px; }
+:root[data-look="editorial"] .handoff { border: 1px solid var(--line); box-shadow: none; }
+:root[data-look="editorial"] .cmdline { background: var(--bg-2); color: var(--ink); }
+:root[data-look="editorial"] .cmdline b { color: var(--ink); }
+:root[data-look="editorial"] .cmdline .dots i { background: var(--line); }
+:root[data-look="editorial"] .cmdline .dots i:first-child { background: var(--accent-text); }
+:root[data-look="editorial"] .cmdline .caret { background: var(--ink); }
+
+:root[data-look="swiss"] {
+  --band: var(--bg);
+  --band-deep: var(--bg);
+  --band-ink: var(--ink);
+  --band-ink-2: var(--ink-2);
+  --band-muted: var(--muted);
+  --band-line: var(--ink);
+  --band-well: var(--bg-2);
+  --band-selection: var(--selection);
+  --band-dots: transparent;
+  --glass: var(--bg);
+  --mark: var(--ink);
+  --dot: var(--accent-text);
+  --panel: var(--bg);
+  --bg-2: var(--bg);
+  --code-bg: var(--bg);
+  --tile: transparent;
+  --line: var(--ink);
+  --line-soft: var(--muted);
+  --cta: var(--ink);
+  --cta-text: var(--bg);
+  --highlight: var(--ink);
+  --shadow: none;
+}
+:root[data-look="swiss"] :is(.handoff, .example .panel, .drawing, .fig .art, .post-card, .post-card .art, .tile, .button, .install, .facts li, .pager a, .search-panel, .code pre, .cmdline, .search-open, .theme, .look select, .standings .bar i, .copy, .step) { border-radius: 0; }
+:root[data-look="swiss"] .sky::after { display: none; }
+:root[data-look="swiss"] .sky { border-top: 6px solid var(--ink); border-bottom: 1px solid var(--ink); }
+:root[data-look="swiss"] .home .sky { background: var(--bg); }
+:root[data-look="swiss"] h1, :root[data-look="swiss"] h2 { font-weight: 600; letter-spacing: -0.04em; }
+:root[data-look="swiss"] .hero h1 { font-size: 72px; line-height: 70px; }
+:root[data-look="swiss"] .hero.with-handoff h1 { font-size: 56px; line-height: 56px; }
+:root[data-look="swiss"] .label { color: var(--ink); }
+:root[data-look="swiss"] .tile { border: 1px solid var(--ink); color: var(--ink); }
+:root[data-look="swiss"] .cmdline { background: var(--ink); color: var(--bg); }
+:root[data-look="swiss"] .cmdline b, :root[data-look="swiss"] .cmdline .dots i { color: var(--bg); background: var(--bg); }
+:root[data-look="swiss"] .cmdline .dots i:first-child { background: var(--accent-text); }
+:root[data-look="swiss"] .fig svg .viol, :root[data-look="swiss"] .fig svg .acc { fill: var(--ink); }
+:root[data-look="swiss"] .fig svg .hi { stroke: var(--ink); }
+:root[data-look="swiss"] .fig svg .rod, :root[data-look="swiss"] .fig svg .soft { stroke: var(--muted); }
+:root[data-look="swiss"] .fig svg .ring { stroke: var(--ink); }
+:root[data-look="swiss"] .standings .bar i { background: var(--ink); }
+:root[data-look="swiss"] .post-card .art { border-bottom: 1px solid var(--ink); }
+:root[data-look="swiss"] .answers li { border-top-color: var(--ink); }
+
+/* The look control: a native select, drawn like the theme button */
+.look { position: relative; display: inline-flex; }
+.look select {
+  height: 34px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--band-line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--band-ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.look select:hover { color: var(--band-ink); border-color: var(--band-ink); }
+.look::after { content: ""; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-70%) rotate(45deg); pointer-events: none; color: var(--band-ink-2); }
+.look select option { color: initial; background: initial; }
+footer .look select { border-color: var(--line); color: var(--ink-2); }
+footer .look select:hover { color: var(--ink); border-color: var(--ink-2); }
+footer .look::after { color: var(--muted); }
+.foot-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+
 * { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
@@ -189,6 +303,7 @@ pre code { font-size: inherit; padding: 0; border: 0; background: none; overflow
 .code .copy.mini:hover { color: var(--ink); border-color: var(--ink-2); }
 
 h1, h2, h3 {
+  font-family: var(--display);
   font-weight: 500;
   color: var(--ink);
   margin: 0;
@@ -914,7 +1029,8 @@ body.searching { overflow: hidden; }
 .notfound kbd { font: 500 13px/1 var(--mono); padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink-2); }
 
 @media (max-width: 672px) {
-  .top nav .repo { display: none; }  /* the footer keeps the repository link; the bar keeps Guide, Demo, search and the theme */
+  .top nav .repo, .top .look { display: none; }  /* the footer keeps the repository link and the look control; the bar keeps Guide, Blog, Demo, search and the theme */
+  .top nav { gap: 12px; }
   .search-open { width: 34px; padding: 0; justify-content: center; }
   .search-open kbd { display: none; }
   .search-panel { margin-top: 12px; }
