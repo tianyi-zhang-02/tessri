@@ -58,3 +58,15 @@ serves it.
 The most useful issue is a claim that is wrong: a file called unreachable that something reaches, an owner who is
 not one, an edge that should not be there, a test that was never a candidate. `tessri why <path>` prints the
 evidence behind every claim about a file; paste it. The issue templates ask for exactly that.
+
+
+## Engineering posts
+
+A post should explain a decision: a concrete problem, the initial hypothesis, inspectable inputs and method, a
+result or counterexample, what changed because of it, and what remains unknown. Keep parameter lists and complete
+module inventories in the guide. Length and figure count are not quality targets.
+
+Use actual output or a clearly labelled teaching fixture. Do not turn a fixture into an incident, a recorded
+timing into a portable benchmark, or a backtest into proof of reviewer benefit. State the revision, time window,
+denominator and source for a measurement; distinguish a historical experiment whose artifacts are unavailable from
+a current script a reader can rerun. Each diagram should answer a different question, with its limits in the caption.

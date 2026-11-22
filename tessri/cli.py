@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, brief, cache, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
+from . import __version__, brief, briefhtml, cache, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
 from .analyze import analyze
 from .explain import TargetError, explain, why_json
 from .render import markdown
@@ -174,7 +174,13 @@ def _cmd_brief(args: argparse.Namespace) -> int:
     except brief.BriefError as exc:
         print(f"tessri: {exc}", file=sys.stderr)
         return 2
-    _emit(json.dumps(result, indent=2) + "\n" if args.format == "json" else brief.markdown(result), args.out)
+    if args.format == "json":
+        text = json.dumps(result, indent=2) + "\n"
+    elif args.format == "html":
+        text = briefhtml.render(result)
+    else:
+        text = brief.markdown(result)
+    _emit(text, args.out)
     return 0
 
 
@@ -286,7 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
     briefp = sub.add_parser("brief", help="one page to hand a change over: triage and check from one analysis, the commits and uncommitted files in scope, candidate tests apart from the checks the host ran, and what needs a person")
     briefp.add_argument("--since", metavar="REF", help=SINCE_HELP)
     _add_root(briefp)
-    briefp.add_argument("--format", choices=("md", "json"), default="md", help="json: the brief's sections plus the whole triage and check objects")
+    briefp.add_argument("--format", choices=("md", "json", "html"), default="md", help="json: the whole evidence; html: one offline page with expandable evidence and the full JSON")
     briefp.add_argument("--limit", type=int, default=brief.LISTED, metavar="N", help=f"files in the look-first table (default {brief.LISTED}); the JSON always carries them all")
     briefp.add_argument("--ran", action="append", default=[], metavar="TEXT", help="a check the host actually ran, with its result and exit code, recorded verbatim (repeatable); without it the brief says that none was recorded")
     briefp.add_argument("--report", action="append", default=[], metavar="FILE", help="a test report the host wrote (JUnit XML: pytest --junitxml, jest-junit and the like; repeatable): the candidate tests are held against what ran")

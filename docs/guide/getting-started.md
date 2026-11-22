@@ -1,5 +1,19 @@
 # Getting started
 
+Start with [a worked review](https://tianyi-zhang-02.github.io/tessri/example/): expand the import that points at
+a deleted module, see which tests passed, and inspect what remains unknown. It uses a teaching repository, not a
+production incident.
+
+On your own branch, open the same kind of evidence:
+
+```bash
+uvx tessri brief --since main --format html --out brief.html
+```
+
+Open `brief.html` in a browser. Start at *Look first*, expand a finding under *Structure*, then compare candidate
+tests with the host's recorded checks under *Validation*. Use `--since HEAD` to inspect only uncommitted work.
+With no recorded results, validation says so.
+
 Install Tessri, run one command in any repository, and build a single-file copy when installing is not an option.
 
 ```bash

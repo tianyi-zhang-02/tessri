@@ -13,6 +13,7 @@ tessri brief --since main --ran "python -m pytest tests/test_x.py: 12 passed (ex
 tessri brief --since main --report junit.xml                                     # hold the candidate tests against a test report the host wrote
 tessri brief --since main --coverage coverage.xml                                # hold the lines the change added or changed against a coverage report the host wrote
 tessri brief --since main --format json                                          # the sections as data, with the whole triage and check objects
+tessri brief --since main --format html --out brief.html                        # one offline page, with expandable evidence
 tessri brief --since main --out brief.md                                         # a file to paste into the change's description
 ```
 
@@ -95,6 +96,28 @@ Checks the host ran, as recorded:
 - History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.
 - Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.
 ```
+
+**Open it offline.** `--format html --out brief.html` renders the same result as one self-contained file, without
+scripts, fonts or network requests. Each changed file expands to its rank, owners, flags and changed definitions;
+each structural finding expands to its detail, paths and action. Additional files stay in order under a counted
+disclosure even with `--limit 1`; every finding, candidate test and unanalysed language stays accessible. The full
+JSON, including `triage` and `check`, is escaped text under *Full evidence*.
+
+Recorded validation is labelled as host-supplied. The page says that its association with the current code snapshot
+is **unknown**: a report's paths and line numbers do not establish which contents were tested. It makes no freshness
+claim, runs no tests, and writes no reviewed/accepted state. Local paths are readable text rather than file links,
+so opening a shared brief cannot silently navigate into a different machine's checkout.
+
+[The worked review](https://tianyi-zhang-02.github.io/tessri/example/) uses the same evidence throughout the homepage
+and README. It is a generated teaching repository: two billing tests really pass, while an unchanged reporting file
+still imports a module the change deleted. Reproduce it from a checkout:
+
+```bash
+python tools/review_example.py --out /tmp/tessri-example
+```
+
+The output directory must be new or empty. It contains the HTML, Markdown and JSON; the fixture itself is temporary.
+This is a worked explanation, not a production incident or a claim of time saved.
 
 **What is on the page.** The first paragraph is the scope: `since`, the base it resolves to, HEAD, and when there is
 uncommitted work, the files it is in, because a commit id does not identify uncommitted contents; then the counts, and

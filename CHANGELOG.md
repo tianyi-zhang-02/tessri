@@ -4,6 +4,14 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- A change can be handed over as one offline HTML brief: `brief --format html --out brief.html` renders the same
+  evidence as Markdown and JSON, with expandable file reasons, finding details, validation reports and full JSON.
+  Host-supplied validation is explicitly not verified against the current code snapshot. The landing page and README
+  now start with one reproducible teaching review, drawn as changed, deleted and unchanged files with their import
+  relationships; its generator runs two real billing tests in a temporary fixture
+  whose unchanged reporting importer still names a deleted module. The site preserves the three looks and themes,
+  adds the worked example even without `--demo`, and leads with tasks, evidence and engineering posts.
+
 - The site has three looks, and the visitor picks. A control in the top bar, beside the theme switch, chooses
   *Editorial*, *Panel* or *Swiss*; the choice is kept in the browser and read before the page paints. Editorial, the
   default, puts the violet band away, sets the headings in Newsreader, a serif served from `fonts/` beside its

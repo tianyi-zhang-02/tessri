@@ -4,23 +4,49 @@
 
 **Keep code understandable.**
 
-Agents write more of the code; people still stand behind it. Tessri reads a codebase and its git history, offline
-and with nothing else installed, and hands the person a change goes to four answers with their evidence.
+See where to look first, what a change reaches, and what still needs a person. Tessri reads code and git,
+offline, and puts the evidence on one review brief.
 
-![A layer between whoever writes the code and whoever answers for it: an agent or a person writes a change, Tessri reads the code and its git history, and the person who stands behind the code gets four answers with their evidence.](docs/guide/figures/layer.svg)
+## Try a complete review
 
-- **Where to look first**, and why: the changed files ordered by their history, with the functions and classes each
-  change touched.
-- **Who can look**: the people who committed to those files lately, the authors apart, and the repository's regulars.
-- **What the change did to the structure**: new orphans, cycles, imports of deleted files, code nobody active
-  maintains, as Markdown, JSON or SARIF with an exit code for CI.
-- **What nobody maintains**, and what nothing reaches, across the whole repository.
+A small teaching repository has a refactor, two passing billing tests, and an unchanged reporting file that still
+imports the deleted helper. The site and this example use the same generated brief:
 
-All of it on one page per change, posted on every pull request if you want, and in the tools of any agent that speaks
-MCP. What the analysis cannot see, it says it cannot see. See it on this repository, rebuilt on every push to `main`:
-[the brief of the latest change](https://tianyi-zhang-02.github.io/tessri/demo/) and
-[the HTML report](https://tianyi-zhang-02.github.io/tessri/demo/report.html) with the module graph and the
-impact explorer.
+```text
+demo-brief: 8 code files changed, 22 lines; 1 block, 2 warn, 1 info.
+
+block: util/money.py was deleted but is still imported.
+       reports/summary.py is unchanged and still imports it.
+Next:  restore the module, or update the importer in this change.
+
+Host recorded: 2 billing tests passed (exit 0).
+Association with the current code snapshot: unknown.
+```
+
+This is a worked example, not a production incident. From a Tessri checkout, reproduce it with
+`python tools/review_example.py --out /tmp/tessri-example`; the generator runs the two tests, then writes
+`index.html`, `brief.json` and `brief.md`. Use a new or empty output directory.
+[Explore the worked review](https://tianyi-zhang-02.github.io/tessri/example/).
+
+For a change in your own repository:
+
+```bash
+uvx tessri brief --since main --format html --out brief.html
+```
+
+Open `brief.html` offline. Expand each file's reason, owners and definitions, each finding's evidence, and the
+complete JSON. Candidate tests stay separate from host-supplied results; a report is not verified against the
+current code snapshot. Use `--since HEAD` for uncommitted work.
+
+| Your task | Start here |
+|---|---|
+| Take over a change | [Review brief](docs/guide/brief.md): what to read, why, and what still needs a person |
+| Follow what it reaches | [Impact](docs/guide/impact.md): dependents and candidate tests, with evidence types |
+| Check the consequences | [Check](docs/guide/check.md): introduced structural findings and an optional CI exit code |
+
+[Understand the modules](docs/guide/graph.md), [find what nothing reaches](docs/guide/scan.md), or
+[see who maintains it](docs/guide/ownership.md). What static analysis cannot see stays explicit in
+[the limits](docs/guide/limits.md). There is no composite risk score.
 
 ## Install
 
@@ -93,19 +119,19 @@ What can a change to one file affect? On this repository:
 $ tessri impact tessri/graph.py
 Changing tessri/graph.py  (1 file, 113 code lines) can affect:
 
-- **19 code files** in **2 modules** (46.3% of the code), 1 of them directly (one followed edge away)
-- **25 test files** reaching it (candidates to run, not runs), 1 directly
-- code files by number of followed edges away: 1: 1, 2: 14, 3: 4
-- edges followed, any number of steps: recognized dependency syntax, package files, and 3 references found in strings, dynamic loading or unclassified evidence (for example `tests/test_site.py` → `tessri/cli.py`, string); syntax and package files alone reach 19 code files and 25 test files
+- **23 code files** in **2 modules** (47.9% of the code), 1 of them directly (one followed edge away)
+- **30 test files** reaching it (candidates to run, not runs), 1 directly
+- code files by number of followed edges away: 1: 1, 2: 14, 3: 8
+- edges followed, any number of steps: recognized dependency syntax, package files, and 3 references found in strings, dynamic loading or unclassified evidence (for example `tests/test_site.py` → `tessri/cli.py`, string); syntax and package files alone reach 23 code files and 30 test files
 
 | Affected module | Files | Direct | Owners | State |
 |---|---:|---:|---|---|
-| `tessri` | 16 | 1 | Tianyi Zhang 100% | owned |
-| `tools` | 3 | 0 | Tianyi Zhang 100% | owned |
+| `tessri` | 18 | 1 | Tianyi Zhang 100% | owned |
+| `tools` | 5 | 0 | Tianyi Zhang 100% | owned |
 
 People who maintain the affected code (tell them, or ask them to review): Tianyi Zhang 100%
 
-Tests that reach it, nearest first: `tests/test_site.py`, `tests/test_htmlreport.py`, `tests/test_javascript.py`, `tests/test_markup.py`, `tests/test_meta.py`, `tests/test_modules.py`, `tests/test_moves.py`, `tests/test_ownership.py`, `tests/test_provenance.py`, `tests/test_renames.py` and 15 more
+Tests that reach it, nearest first: `tests/test_site.py`, `tests/test_cache.py`, `tests/test_htmlreport.py`, `tests/test_javascript.py`, `tests/test_markup.py`, `tests/test_meta.py`, `tests/test_modules.py`, `tests/test_moves.py`, `tests/test_ownership.py`, `tests/test_provenance.py` and 20 more
 
 It depends on: `tessri` (2), `tessri/analyzers` (1)
 
