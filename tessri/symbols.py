@@ -1,27 +1,29 @@
-"""Which functions and classes a change touched, file by file, from the diff's hunks and Python's own parser.
+"""Which functions and classes a change touched, file by file, from the diff's hunks and each language's definitions.
 
 The hunks of `git diff -U0 -M <base>` say which lines the change added or changed in the working tree and which it
-removed from the base. Python's `ast` gives every `def` and `class` with its span, in the working tree and in the
+removed from the base. Python's `ast` gives every `def` and `class` with its span, and `analyzers.jsdefs` every
+function, class, method, named object and type of a JavaScript or TypeScript file, in the working tree and in the
 base, so a line maps to the innermost definition that holds it, named the way a reader names it (`Class.method`,
 `outer.inner`); lines outside every definition are module level. A definition whose name is new is added, one whose
 name is gone is removed, and the rest that a hunk touches is changed, so a renamed function is a removal and an
-addition. Only Python is read for definitions; a file in another language, or one the parser cannot read, says so
-instead of guessing.
+addition. A file in another language, or one that cannot be read, says so instead of guessing.
 """
 
 from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 from . import inventory
 from . import since as since_mod
+from .analyzers import jsdefs
 from .coverage import _unquote
 
 LISTED = 6  # names a page shows per file; the JSON holds them all
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+READ = "Python, JavaScript and TypeScript"  # the languages with a reader, as the reason names them
 
 
 def hunks(root: Path, base: str) -> dict[str, tuple[set[int], set[int]]]:
@@ -68,6 +70,14 @@ def definitions(text: str) -> list[tuple[str, int, int]] | None:
     return found
 
 
+Reader = Callable[[str], list[tuple[str, int, int]] | None]
+READERS: dict[str, tuple[Reader, str]] = {  # language, lowercased -> (its reader, why it can fail)
+    "python": (definitions, "does not parse as Python"),
+    "javascript": (jsdefs.definitions, "could not be read as JavaScript: a brace, string, template or comment never closes"),
+    "typescript": (jsdefs.definitions, "could not be read as TypeScript: a brace, string, template or comment never closes"),
+}
+
+
 def _holders(lines: Iterable[int], defs: Sequence[tuple[str, int, int]]) -> tuple[list[str], bool]:
     """The innermost definition holding each line, named once each in the order first touched, and whether any line
     lies outside every definition (module level)."""
@@ -97,15 +107,17 @@ def compute(root: Path, base: str, files: Sequence[tuple[str, str, str | None, s
     found = hunks(root, base) if files else {}
     out: dict[str, dict] = {}
     for path, state, origin, language in files:
-        if (language or "").lower() != "python":
-            out[path] = {"available": False, "reason": f"definitions are read for Python only, not {language or 'this kind of file'}"}
+        reader = READERS.get((language or "").lower())
+        if reader is None:
+            out[path] = {"available": False, "reason": f"definitions are read for {READ}, not {language or 'this kind of file'}"}
             continue
+        read, failure = reader
         old_text = None if state == "added" else _base_text(root, base, origin or path)
         new_text = None if state == "deleted" else inventory.read_text(Path(root, path))
-        old_defs = definitions(old_text) if old_text is not None else []
-        new_defs = definitions(new_text) if new_text is not None else []
+        old_defs = read(old_text) if old_text is not None else []
+        new_defs = read(new_text) if new_text is not None else []
         if old_defs is None or new_defs is None:
-            out[path] = {"available": False, "reason": "the file does not parse as Python" + (" at the base" if old_defs is None and new_defs is not None else "")}
+            out[path] = {"available": False, "reason": f"the file {failure}" + (" at the base" if old_defs is None and new_defs is not None else "")}
             continue
         new_lines, old_lines = found.get(path, (set(), set()))
         if path not in found and state == "added" and new_text is not None:  # untracked: new in full
