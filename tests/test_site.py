@@ -245,7 +245,7 @@ class BuildTest(unittest.TestCase):
 
     def test_the_type_the_icons_and_their_notices_ship_with_the_pages(self):
         names = {p.relative_to(self.out.resolve()).as_posix() for p in self.written}
-        for name in ("fonts/inter-latin-wght.woff2", "fonts/commit-mono-latin-400.woff2", "fonts/LICENSE-inter.txt", "fonts/LICENSE-commit-mono.txt", "icons/LICENSE", "liquid.js"):
+        for name in ("fonts/inter-latin-wght.woff2", "fonts/newsreader-latin-opsz-wght.woff2", "fonts/commit-mono-latin-400.woff2", "fonts/LICENSE-inter.txt", "fonts/LICENSE-newsreader.txt", "fonts/LICENSE-commit-mono.txt", "icons/LICENSE", "liquid.js"):
             self.assertIn(name, names)
         css = (self.out / "tessri.css").read_text(encoding="utf-8")
         self.assertIn('url("fonts/inter-latin-wght.woff2")', css)
@@ -256,7 +256,9 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn("{{", index)
         for page, text in self.pages.items():
             if page.name != "report.html":
-                self.assertIn("<!-- Type: Inter and Commit Mono", text, page.name)
+                self.assertIn("<!-- Type: Inter, Newsreader and Commit Mono", text, page.name)
+                self.assertIn('<label class="look"><select aria-label="Look of the site"><option value="editorial">Editorial</option>', text, page.name)
+                self.assertIn('setAttribute("data-look"', text, page.name)
 
     def test_a_guide_page_with_sections_gets_the_rail(self):
         hooks = self.pages[self.out / "guide" / "hooks.html"]

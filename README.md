@@ -4,20 +4,20 @@
 
 **Keep code understandable.**
 
-Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history,
-offline and with nothing else installed, and tells the person a change is handed to where to look first, who is
-able to look, what the change did to the structure and what nobody maintains, with the evidence for every claim.
-
-- Hand a change over on one page: the files to look at first and why, who can look, what it did to the structure,
-  the candidate tests kept apart from what actually ran, and what needs a person. On every pull request, if you want.
-- See what a change can reach, the tests that reach it, and who is able to review it.
-- See how the system fits together: the modules, the cycles, and the few dependencies that would break them.
-- Find what nothing reaches and what nobody maintains.
-- Check what a change did to the structure, as Markdown, JSON or SARIF, with an exit code for CI.
+Agents write more of the code; people still stand behind it. Tessri reads a codebase and its git history, offline
+and with nothing else installed, and hands the person a change goes to four answers with their evidence.
 
 ![A layer between whoever writes the code and whoever answers for it: an agent or a person writes a change, Tessri reads the code and its git history, and the person who stands behind the code gets four answers with their evidence.](docs/guide/figures/layer.svg)
 
-What the analysis cannot see, it says it cannot see. See it on this repository, rebuilt on every push to `main`:
+- **Where to look first**, and why: the changed files ordered by their history, with the functions and classes each
+  change touched.
+- **Who can look**: the people who committed to those files lately, the authors apart, and the repository's regulars.
+- **What the change did to the structure**: new orphans, cycles, imports of deleted files, code nobody active
+  maintains, as Markdown, JSON or SARIF with an exit code for CI.
+- **What nobody maintains**, and what nothing reaches, across the whole repository.
+
+All of it on one page per change, posted on every pull request if you want, and in the tools of any agent that speaks
+MCP. What the analysis cannot see, it says it cannot see. See it on this repository, rebuilt on every push to `main`:
 [the brief of the latest change](https://tianyi-zhang-02.github.io/tessri/demo/) and
 [the HTML report](https://tianyi-zhang-02.github.io/tessri/demo/report.html) with the module graph and the
 impact explorer.
