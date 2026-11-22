@@ -57,7 +57,7 @@ What changed in them, by definition:
 - `legacy/rates.py`: changed `old_rate`
 - `util/money.py`: removed `cents`
 
-Not named for 1 file: definitions are read for Python only, not Go.
+Not named for 1 file: definitions are read for Python, JavaScript and TypeScript, not Go.
 
 Who can look, other than the authors: Alice Adams (4 files, 2 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
