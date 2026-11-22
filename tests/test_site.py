@@ -276,7 +276,7 @@ class BuildTest(unittest.TestCase):
 
     def test_the_type_the_icons_and_their_notices_ship_with_the_pages(self):
         names = {p.relative_to(self.out.resolve()).as_posix() for p in self.written}
-        for name in ("fonts/inter-latin-wght.woff2", "fonts/newsreader-latin-opsz-wght.woff2", "fonts/commit-mono-latin-400.woff2", "fonts/LICENSE-inter.txt", "fonts/LICENSE-newsreader.txt", "fonts/LICENSE-commit-mono.txt", "icons/LICENSE", "liquid.js"):
+        for name in ("fonts/inter-latin-wght.woff2", "fonts/newsreader-latin-opsz-wght.woff2", "fonts/commit-mono-latin-400.woff2", "fonts/LICENSE-inter.txt", "fonts/LICENSE-newsreader.txt", "fonts/LICENSE-commit-mono.txt", "icons/LICENSE"):
             self.assertIn(name, names)
         css = (self.out / "tessri.css").read_text(encoding="utf-8")
         self.assertIn('url("fonts/inter-latin-wght.woff2")', css)

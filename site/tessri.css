@@ -412,21 +412,6 @@ p { margin: 0; }
 .hero .pitch { grid-column: 1 / -1; }
 .hero.with-handoff .pitch { grid-column: span 7; }
 
-/* The mark, as liquid metal when WebGL is there (liquid.js adds `live`), still otherwise. */
-.visual { position: relative; width: 72px; height: 72px; margin: 0 0 22px -4px; }
-.visual::before {
-  content: "";
-  position: absolute;
-  inset: -12%;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(212, 245, 90, 0.18), rgba(255, 255, 255, 0.06) 55%, transparent 100%);
-  filter: blur(10px);
-}
-.visual svg { position: absolute; inset: 12%; width: 76%; height: 76%; color: var(--band-ink); opacity: 0.92; }
-.visual canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
-.visual.live svg { display: none; }
-.visual.live canvas { display: block; }
-
 .facts {
   display: flex;
   flex-wrap: wrap;
@@ -896,7 +881,6 @@ footer.foot a { color: var(--ink-2); }
   .top { height: 58px; }
   .top nav { gap: 14px; }
   .hero { padding-top: 32px; padding-bottom: 40px; row-gap: 32px; }
-  .visual { width: 56px; height: 56px; margin-bottom: 18px; }
   .facts { margin-bottom: 20px; }
   .hero h1, .hero.with-handoff h1 { font-size: 38px; line-height: 42px; letter-spacing: -0.03em; }
   .hero .lede, .hero.with-handoff .lede { font-size: 17px; line-height: 26px; }
