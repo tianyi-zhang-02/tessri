@@ -60,6 +60,11 @@ class DefinitionsTest(unittest.TestCase):
         self.assertIsNone(symbols.definitions("def broken(:\n    pass\n"))
 
 
+def core(s):
+    """A row's `symbols` without what `mentions` adds to it, which has tests of its own."""
+    return {k: v for k, v in s.items() if k not in ("named_in", "unsearched", "tests_unread")}
+
+
 class ChangeTest(TempRepo):
     """main holds the module, a JavaScript file, a Go file and a module to delete; Carol's branch edits a method, adds
     a function, removes one, touches module level, adds a file, deletes a file, moves a file with an edit, breaks a
@@ -89,16 +94,16 @@ class ChangeTest(TempRepo):
         git(self.root, "commit", "-q", "--allow-empty", "-m", message, when=when, author=who)
 
     def test_edited_added_removed_and_module_level(self):
-        self.assertEqual(self.by["pkg/shapes.py"], {"available": True, "changed": ["Shape.area"], "added": ["new_way"], "removed": ["old_way"], "module_level": True})
+        self.assertEqual(core(self.by["pkg/shapes.py"]), {"available": True, "changed": ["Shape.area"], "added": ["new_way"], "removed": ["old_way"], "module_level": True})
 
     def test_a_new_file_an_untracked_file_a_deleted_file_and_a_moved_file(self):
-        self.assertEqual(self.by["pkg/fresh.py"], {"available": True, "changed": [], "added": ["Fresh", "Fresh.go"], "removed": [], "module_level": False})
-        self.assertEqual(self.by["pkg/untracked.py"], {"available": True, "changed": [], "added": ["brand_new"], "removed": [], "module_level": False})
-        self.assertEqual(self.by["pkg/gone.py"], {"available": True, "changed": [], "added": [], "removed": ["bye"], "module_level": False})
-        self.assertEqual(self.by["pkg/elsewhere.py"], {"available": True, "changed": ["still"], "added": [], "removed": [], "module_level": False})
+        self.assertEqual(core(self.by["pkg/fresh.py"]), {"available": True, "changed": [], "added": ["Fresh", "Fresh.go"], "removed": [], "module_level": False})
+        self.assertEqual(core(self.by["pkg/untracked.py"]), {"available": True, "changed": [], "added": ["brand_new"], "removed": [], "module_level": False})
+        self.assertEqual(core(self.by["pkg/gone.py"]), {"available": True, "changed": [], "added": [], "removed": ["bye"], "module_level": False})
+        self.assertEqual(core(self.by["pkg/elsewhere.py"]), {"available": True, "changed": ["still"], "added": [], "removed": [], "module_level": False})
 
     def test_a_javascript_file_is_read_too(self):
-        self.assertEqual(self.by["web/app.js"], {"available": True, "changed": ["a"], "added": [], "removed": [], "module_level": False})
+        self.assertEqual(core(self.by["web/app.js"]), {"available": True, "changed": ["a"], "added": [], "removed": [], "module_level": False})
 
     def test_what_cannot_be_read_says_so(self):
         self.assertEqual(self.by["svc/main.go"], {"available": False, "reason": "definitions are read for Python, JavaScript and TypeScript, not Go"})

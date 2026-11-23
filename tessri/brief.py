@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
-from . import __version__, coverage, inventory, meta, since, symbols, triage
+from . import __version__, coverage, inventory, mentions, meta, since, symbols, triage
 from . import runs as testruns
 from .analyze import analyze
 from .config import Config
@@ -31,7 +31,7 @@ LISTED = 8  # files in the look-first table
 FINDINGS = 6  # findings shown
 COMMITS = 8  # commits listed
 NAMED = 5  # paths named inline
-BUDGET = 800  # words the page aims to stay under
+BUDGET = 900  # words the page aims to stay under; 800 until the definitions named in tests joined it
 
 NOTES = [
     "This page selects from `tessri triage` and `tessri check`, run from one analysis of the base and one of the working tree; "
@@ -45,6 +45,7 @@ NOTES = [
     "History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. "
     "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.",
     "Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. "
+    "A definition *named* in a test appears as an identifier in its code, strings and comments apart: a mention, not an assertion, and a test can exercise code without naming it. "
     "A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.",
 ]
 
@@ -142,6 +143,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "text": f"{_named(paths)}: no analyzer covers {language}, so dependents, candidate tests and structure are unknown for {'this file' if len(paths) == 1 else 'these files'}.",
             "files": paths,
         })
+    open_items += mentions.open_items(t["files"])
     if held and held["failed"]:
         open_items.append({"kind": "candidate-failed", "text": f"{_named(held['failed'])} failed in the report: the tests that reach the change do not pass.", "files": held["failed"]})
     if held and held["not_run"]:
@@ -188,7 +190,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "modules_touched": c["modules_touched"],
             "not_analysed": [{"language": k, "files": v} for k, v in sorted(not_analysed.items())],
         },
-        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "ran": list(ran), "report": held, "coverage": cover},
+        "validation": {"candidates": {"count": t["tests"]["count"], "nearest": t["tests"]["nearest"]}, "definitions": s["definitions"], "ran": list(ran), "report": held, "coverage": cover},
         "people": {"reviewers": t["reviewers"], "regulars": t["regulars"], "nobody_else_can_look": nobody_else, "no_active_owner": no_owner},
         "open": open_items,
         "triage": t,
@@ -309,6 +311,8 @@ def markdown(b: dict) -> str:
             out += [f"Against the report: {len(held['ran'])} of the {cand['count']} ran, {', '.join(parts)}; {len(held['not_run'])} did not run" + (f" ({_named(held['not_run'])})" if held["not_run"] else "") + ".", ""]
     elif c["code_files"]:
         out += ["No test file reaches the changed code, as far as static imports show.", ""]
+    if named := mentions.line(b["triage"]["files"]):
+        out += [named, ""]
     cover = v.get("coverage")
     if cover and cover["changed"]:
         out += [_coverage_line(cover), ""]

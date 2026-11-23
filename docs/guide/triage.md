@@ -26,6 +26,7 @@ $ tessri triage --since main
 - **1** file is maintained by nobody but the author
 - code outside the change that imports it: **1 file** directly, 0 files through one more step
 - **1** test file reaches it
+- **0** of the 5 definitions it touched are named in a test that reaches the file
 
 Look at these first:
 
@@ -54,6 +55,8 @@ Not in the change, but importing it (by area):
 | `.` | 1 | 0 |
 
 Tests that reach it, nearest first: `tests/test_a.py`
+
+By name, in the tests that reach their file: `carol`, `c2` and `c3` are named in none; `d` and `b` were not searched, being too short, private or too common.
 ```
 
 **How the order is decided.** Files are ordered by how many commits touched them in the last 90 days, then by how much
@@ -81,6 +84,18 @@ and that object's methods (`nodeOps.insert`), and interfaces, type aliases, enum
 name, so what it holds is named by the definition around it, except a test's (`describe`, `it`, `test`), which its
 title names (`ref.should unwrap nested values`). A file in another language, or one that cannot be read
 (Python that does not parse, JavaScript whose braces or literals never close), says so there instead of guessing.
+
+The last line joins those definitions with the tests: for each one, the candidate tests that reach its file and use
+its name in their code. A test's code is read with the language's own token reader (Python's `tokenize`, the
+JavaScript reader), so a name in a string or a comment does not count, and only the last segment of a name is
+searched (`Shape.area` → `area`), when it is three characters or more, not private by convention (`_helper`,
+`#secret`: a test naming one is the exception, so being named by none is no finding) and not a name every module may
+have (`default`, `constructor`, dunder methods); the rest are listed as not searched rather than said to be named by
+nobody. A name two changed files share is told apart by its file. A definition that was removed but is still named by a test gets its own clause. Each row carries the
+result as `symbols.named_in` (definition → tests, nearest first) and `symbols.unsearched`, and the summary counts
+them under `definitions`. A name in a test is a mention, not an assertion: the test may use the name without
+checking what it does, and a test can exercise a definition without naming it, through a caller, a fixture or a
+dynamic call; test files in the change and deleted files are not searched.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
