@@ -5,8 +5,8 @@ guide page is Markdown rendered by the small converter below (headings, paragrap
 links, code spans, bold and italic are all the guide uses). Links between guide pages become links between the
 rendered pages; links out of the guide point at the repository on GitHub. With `--demo`, the package in this
 checkout runs on the checkout itself: `demo/report.html` is the HTML report, and `demo/` the brief of the latest
-commit against its first parent, which on `main` is the last merged pull request; the landing page's hero then
-carries that brief, read in three steps.
+commit against its first parent, which on `main` is the last merged pull request. That brief sits below the
+task and evidence sections; the hero always starts with the reproducible teaching review at `example/`.
 
     python tools/build_site.py --out _site --demo
     python -m http.server --directory _site
@@ -30,6 +30,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import figures  # noqa: E402  (tools/figures.py: the drawings, one source for the site, the guide and the README)
+import review_example  # noqa: E402  (one isolated, reproducible teaching fixture)
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
@@ -42,7 +43,7 @@ DEFAULT_BRANCH = "main"  # the branch the deployed site builds from; any other c
 BLOB = f"{REPO}/blob/main/"
 TREE = f"{REPO}/tree/main/"
 MARKER = ".tessri-site"
-ASSETS = ("tessri.css", "favicon.svg", "liquid.js", "og.png")  # og.png is the card a link to the site shows elsewhere
+ASSETS = ("tessri.css", "favicon.svg", "og.png")  # og.png is the card a link to the site shows elsewhere
 FONTS = SITE / "fonts"  # the type, served next to its notices
 ICONS = SITE / "icons"  # the icon set, inlined where a page uses one; its notice ships at icons/LICENSE
 NOTICES = "<!-- Type: Inter, Newsreader and Commit Mono, SIL Open Font License, the notices in fonts/. Icons: Lucide, ISC licence, icons/LICENSE. -->"
@@ -873,12 +874,46 @@ def example_panel() -> str:
 
 
 LANDING_DESCRIPTION = (
-    "Keep code understandable. The evidence layer between the agents that write code and the people who stand behind it: "
+    "Keep code understandable. Tessri follows code beyond the diff: "
     "where to look first, who can look, what a change did to the structure, and what nobody maintains. Offline, zero dependencies."
 )
 
 
-def landing(demo: dict | None) -> str:
+def review_diagram(b: dict) -> str:
+    """Draw the teaching case only when its actual evidence still supports the illustrated relationships."""
+    rows = {r["path"]: r for r in b["triage"]["files"]}
+    changed, deleted, outside, test = "billing/invoices.py", "util/money.py", "reports/summary.py", "tests/test_invoices.py"
+    dangling = b["check"]["dangling_imports"]
+    expected_run = f": {review_example.TEST_CASES} passed (exit 0)"
+    if (
+        changed not in rows or deleted not in rows or outside in rows
+        or rows[deleted]["change"] != "deleted"
+        or "cents" not in rows[changed].get("symbols", {}).get("added", [])
+        or "cents" not in rows[deleted].get("symbols", {}).get("removed", [])
+        or {"deleted": deleted, "importers": [outside]} not in dangling
+        or test not in b["triage"]["tests"]["paths"]
+        or not any(expected_run in line for line in b["validation"]["ran"])
+    ):
+        raise BuildError("the worked example no longer supports the home diagram; update the fixture and drawing together")
+    # These edges describe the authored fixture, not inferred architectural intent.
+    # Both importers named the old module at the base; only the unchanged importer still does.
+    import_line = "from util.money import cents"
+    if import_line not in review_example.BASE[changed] or import_line not in review_example.BASE[outside]:
+        raise BuildError("the home diagram's removed and retained imports must exist in the fixture's base")
+    template = (SITE / "review-diagram.html").read_text(encoding="utf-8")
+    values = {
+        "changed_path": changed, "deleted_path": deleted, "outside_path": outside,
+        "test_path": test, "test_count": review_example.TEST_CASES, "symbol": "cents",
+        "code_files": b["change"]["code_files"], "lines": b["change"]["lines"],
+    }
+    for key, value in values.items():
+        template = template.replace("{{" + key + "}}", html.escape(str(value)))
+    if re.search(r"{{[\w:-]+}}", template):
+        raise BuildError("unfilled placeholders in site/review-diagram.html")
+    return template
+
+
+def landing(demo: dict | None, worked: dict) -> str:
     template = (SITE / "index.html").read_text(encoding="utf-8")
     example = example_panel()
     filled = (
@@ -886,13 +921,12 @@ def landing(demo: dict | None) -> str:
         .replace("{{repo}}", REPO)
         .replace("{{notices}}", NOTICES)
         .replace("{{theme_boot}}", THEME_BOOT)
-        .replace("{{theme_button}}", look_control() + theme_button())
+        .replace("{{theme_button}}", theme_button())
         .replace("{{search_button}}", search_button())
         .replace("{{social}}", social("Tessri", LANDING_DESCRIPTION, ""))
-        .replace("{{demo_link}}", '<a href="demo/">Demo</a>' if demo else "")
-        .replace("{{handoff}}", handoff(demo) if demo else "")
-        .replace("{{hero_class}}", " with-handoff" if demo else "")
-        .replace("{{jump}}", f'<a class="button quiet jump" href="#brief">Jump to the brief {icon("arrow-down")}</a>' if demo else "")
+        .replace("{{review_diagram}}", review_diagram(worked))
+        .replace("{{live_review}}", '<section class="band" id="live-review"><span class="label">Tessri on itself</span><h2>The latest change, with its evidence.</h2>' + handoff(demo) + '</section>' if demo else "")
+        .replace("{{field_notes}}", '<ul class="review-notes">' + ''.join(f'<li><time datetime="{p["date"]}">{_day(p["date"])}</time><h3><a href="blog/{p["slug"]}.html">{html.escape(p["title"])}</a></h3><p>{html.escape(p["summary"].split(". ", 1)[0])}.</p></li>' for p in posts()[:2]) + '</ul>')
         .replace("{{example}}", example)
         .replace("{{drawing}}", drawing(demo["reach"]) if demo else "")
         .replace("{{drawing_class}}", " with-drawing" if demo else "")
@@ -1274,6 +1308,7 @@ def sitemap(paths: list[str]) -> str:
 def build(out: Path, demo: bool = False) -> list[Path]:
     """Write the site into `out` and return the files written. With `demo`, the pages that run Tessri on this checkout."""
     content = demo_content() if demo else None  # before anything is written
+    worked = review_example.generate()
     out = out.resolve()
     if out.exists():
         if out.is_file() or (any(out.iterdir()) and not (out / MARKER).exists()):
@@ -1295,7 +1330,13 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     (out / "icons").mkdir()
     shutil.copyfile(ICONS / "LICENSE", out / "icons" / "LICENSE")
     written.append(out / "icons" / "LICENSE")
-    write("index.html", landing(content))
+    write("index.html", landing(content, worked))
+    (out / "example").mkdir()
+    example_html = review_example.briefhtml.render(worked, example=True)
+    example_html = example_html.replace("</head>", social("A worked review · Tessri", "Two passing billing tests and an unchanged importer of a deleted file. A reproducible teaching review.", "example/") + "</head>")
+    write("example/index.html", example_html)
+    write("example/brief.json", json.dumps(worked, ensure_ascii=False, indent=2) + "\n")
+    write("example/brief.md", review_example.brief.markdown(worked))
     if FIGURES.is_dir():  # the files Markdown viewers show; the pages themselves inline the drawings
         (out / "guide" / "figures").mkdir()
         for svg in sorted(FIGURES.glob("*.svg")):
@@ -1304,7 +1345,7 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     pages = guide_index()
     known = {s for s, _ in pages}
     entries: list[dict] = []
-    addresses = [""]
+    addresses = ["", "example/"]
     for md in sorted(GUIDE.glob("*.md")):
         name = md.stem
         if name != "README" and name not in known:

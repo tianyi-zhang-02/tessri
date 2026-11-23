@@ -4,6 +4,13 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- A change can be handed over as one offline HTML brief: `brief --format html --out brief.html` renders the same
+  evidence as Markdown and JSON, with expandable file reasons, finding details, validation reports and full JSON.
+  Host-supplied validation is explicitly not verified against the current code snapshot. The landing page and README
+  now start with one reproducible teaching review, drawn as changed, deleted and unchanged files with their import
+  relationships; its generator runs two real billing tests in a temporary fixture
+  whose unchanged reporting importer still names a deleted module. The site preserves the three looks and themes,
+  adds the worked example even without `--demo`, and leads with tasks, evidence and engineering posts.
 - *What changed in them, by definition* now names JavaScript and TypeScript as well as Python. `analyzers/jsdefs.py`
   reads a file without a parser: tokens, with strings, templates, comments and regex literals told apart from code,
   then braces matched to find each body. It names function declarations, classes and their methods, a variable, an

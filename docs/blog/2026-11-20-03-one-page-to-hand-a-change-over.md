@@ -21,7 +21,7 @@ The page opens like this, from a pull request of Tessri's own repository, where 
 - `788f979b5` The review brief on every pull request: `tessri integration install --agent review` (Tianyi Zhang)
 ```
 
-Three decisions are in those lines. The base and the head are full object ids, because *since main* means something different tomorrow. When there is uncommitted work, the page lists the files it is in, because a commit id does not identify uncommitted contents and a page that silently included them would be describing a state nobody can get back to. And the commits appear with their authors' own subjects, labelled *in their words*: the page never infers what a change was for from the files it touched, because an import graph cannot know intent and a page that guessed would be believed.
+Three decisions are in those lines. The JSON keeps the full base and head object ids, because *since main* means something different tomorrow; the rendered page shows short prefixes for reading. When there is uncommitted work, the page lists the files it is in, because a commit id does not identify uncommitted contents and a page that silently included them would be describing a state nobody can get back to. And the commits appear with their authors' own subjects, labelled *in their words*: the page never infers what a change was for from the files it touched, because an import graph cannot know intent and a page that guessed would be believed.
 
 ## Look first: order by two things, show the rest
 

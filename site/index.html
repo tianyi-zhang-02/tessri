@@ -4,125 +4,85 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tessri</title>
-<meta name="description" content="Keep code understandable. Agents write more of the code; people still have to stand behind it. Tessri reads a codebase and its git history, offline and with nothing installed, and tells the person a change is handed to where to look first, who is able to look, what it did to the structure, and what nobody maintains, with the evidence for every claim.">
+<meta name="description" content="Keep code understandable. Tessri follows code beyond the diff: the relationships to check, the people who know the files, and the questions still open. Offline, zero dependencies.">
 {{social}}
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="tessri.css">
 {{notices}}
 {{theme_boot}}
 </head>
-<body class="home">
+<body class="home review-home">
 <a class="skip" href="#main">Skip to content</a>
-
-<div class="sky">
 <header class="wrap top">
-  <a class="wordmark" href="./" aria-label="Tessri home">
-    {{mark}}
-    <span>tessri<span class="dot">.</span></span>
-  </a>
+  <a class="wordmark" href="./" aria-label="Tessri home">{{mark}}<span>tessri<span class="dot">.</span></span></a>
   <nav aria-label="Site">
-    <a href="guide/">Guide</a>
-    <a href="blog/">Blog</a>
-    {{demo_link}}
-    <a class="repo" href="{{repo}}">GitHub {{icon:arrow-up-right}}</a>
-    {{search_button}}
-    {{theme_button}}
+    <a href="#questions">How it works</a><a href="guide/">Guide</a><a href="blog/">Blog</a>
+    <a class="repo" href="{{repo}}">GitHub</a>
+    {{search_button}}{{theme_button}}
+    <a class="home-start" href="example/">Explore a review</a>
   </nav>
 </header>
-<section class="wrap hero grid{{hero_class}}">
-  <div class="pitch">
-    <div class="visual" aria-hidden="true">{{mark}}<canvas class="liquid"></canvas></div>
-    <ul class="facts" aria-label="In short">
-      <li>{{icon:box}} Zero dependencies</li>
-      <li>{{icon:folder-git-2}} Offline, reads git</li>
-      <li>{{icon:shield-check}} Never edits your code</li>
-    </ul>
-    <h1>Keep code understandable.</h1>
-    <p class="lede">Agents write more of the code; people still stand behind it. Tessri reads the code and its git history and hands the person four answers with their evidence: where to look first, who can look, what the change did to the structure, and what nobody maintains.</p>
-    <div class="actions">
-      <a class="button cta" href="guide/getting-started.html">Get started {{icon:arrow-right}}</a>
-      <a class="button quiet" href="guide/">Read the guide</a>
-      {{jump}}
-    </div>
-    <div class="install">
-      <code><span class="prompt">$ </span>pip install tessri</code>
-      {{copy:pip install tessri}}
-    </div>
-    <p class="note">Python 3.11 or newer, no dependencies. To run it once without installing: <code>uvx tessri scan .</code></p>
-  </div>
-{{handoff}}
-</section>
-</div>
-
 <main class="wrap" id="main">
-
-  <section class="band" id="questions">
-    <span class="label">What it answers</span>
-    <h2>Four answers, from one analysis.</h2>
-    <figure class="fig">
-      <div class="art">{{fig:layer}}</div>
-      <figcaption>A layer between whoever writes the code and whoever answers for it. It generates nothing and decides nothing; it points attention and shows its evidence.</figcaption>
-    </figure>
-    <ul class="answers grid" aria-label="The questions and their commands">
-      <li><span class="tile">{{icon:scroll-text}}</span><b>Hand a change over on one page</b><code>tessri brief --since main</code></li>
-      <li><span class="tile">{{icon:radar}}</span><b>What can this change reach?</b><code>tessri impact &lt;path&gt;</code></li>
-      <li><span class="tile">{{icon:git-compare}}</span><b>What did it do to the structure?</b><code>tessri check</code></li>
-      <li><span class="tile">{{icon:network}}</span><b>How do the modules fit together?</b><code>tessri graph</code></li>
-      <li><span class="tile">{{icon:scan-search}}</span><b>What does nothing reach, and nobody maintain?</b><code>tessri scan .</code></li>
-    </ul>
-  </section>
-
-  <section class="band" id="example">
-    <span class="label">A complete example</span>
-    <h2>What can a change to one file affect?</h2>
-    <p class="intro">Real output on Tessri's own repository.</p>
-    <div class="example grid{{drawing_class}}">
-      <div class="panel">
-{{example}}
-      </div>
-{{drawing}}
-      <p class="after"><code>tessri why tessri/graph.py</code> shows the evidence behind any line of it.</p>
+  <section class="hero">
+    <div><p class="label">Keep code understandable.</p><h1>See what your<br>change reaches.</h1></div>
+    <div class="pitch">
+      <p class="lede">Tessri follows code beyond the diff. Find the relationships to check, the people who know the files, and the questions still open.</p>
+      <div class="actions"><a class="button cta" href="#review">Follow one change</a><a class="home-quiet" href="guide/getting-started.html">Use it on your code</a></div>
     </div>
   </section>
-
-  <section class="band" id="how">
-    <span class="label">How does it work?</span>
-    <h2>One pass over the files and the history, then one view per question.</h2>
-    <figure class="fig">
-      <div class="art">{{fig:pipeline}}</div>
-      <figcaption>No model, no network, no service, and it never edits your code. What it read from each file stays in your cache directory, keyed by content, so the next run parses only what changed and answers the same. <a href="guide/architecture.html">Architecture</a>.</figcaption>
-    </figure>
-  </section>
-
-  <section class="band" id="evidence">
-    <span class="label">Tested, not assumed</span>
-    <h2>The order is backtested, and what it cannot see it says it cannot see.</h2>
-    <figure class="fig chart">
-      <div class="art">{{fig:backtest}}</div>
-      <figcaption>How well each order predicts a fix within 30 days, on twelve months of three public repositories' history; 0.5 is random. The composite risk score we tried did not beat its parts, so there is none. <a href="guide/backtest.html">The backtest</a>, with the script that runs it on yours.</figcaption>
-    </figure>
-    <p class="limit">And every page ends with what it cannot see: registries, dynamic loading and consumers outside the repository are invisible to static analysis, so a clean result is never a proof. Missing history says <code>unavailable</code> and why.</p>
-  </section>
-
-  <section class="band" id="getting-started">
-    <span class="label">In the loop</span>
-    <h2>Every station of a change has its question.</h2>
-    <figure class="fig">
-      <div class="art">{{fig:loop}}</div>
-      <figcaption>The same answers, where people and agents already are: terminal, JSON, SARIF, MCP tools, the agent's hooks, a pull request comment. Each one installs with a receipt and comes out again whole.</figcaption>
-    </figure>
-    <ul class="steps">
-      <li><code>tessri scan .</code><span>the report; <code>--format html</code> writes one offline page with the explorer.</span></li>
-      <li><code>tessri integration install --agent claude</code><span>the skill (or <code>codex</code>, <code>copilot</code>, <code>mcp</code>); <code>--agent claude-hooks</code> puts it in the agent's loop.</span></li>
-      <li><code>tessri integration install --agent review</code><span>the brief on every pull request; <code>integration remove</code> takes it all out.</span></li>
+  {{review_diagram}}
+  <div class="home-command">
+    <div class="install"><code><span class="prompt">$ </span>uvx tessri brief --since main</code>{{copy:uvx tessri brief --since main}}<span class="home-python">Python 3.11+</span></div>
+    <ul class="home-principles" aria-label="In short"><li>Offline</li><li>Zero dependencies</li><li>Evidence you can inspect</li></ul>
+  </div>
+  <section class="band" id="questions">
+    <div class="home-section-head"><h2>A starting point for<br>the person taking over.</h2><p>Code changes quickly. The useful questions stay concrete: what should I read, what else does it touch, and what has actually been checked?</p></div>
+    <ul class="home-workflow">
+      <li><a href="guide/brief.html"><span>brief</span><h3>Know where to look.</h3><p>Changed files in order, their reasons, and who else has worked on them.</p></a></li>
+      <li><a href="guide/impact.html"><span>impact</span><h3>Follow the relationships.</h3><p>Dependents and candidate tests, with recognized imports distinguished from inferred references.</p></a></li>
+      <li><a href="guide/check.html"><span>check</span><h3>Keep the open questions.</h3><p>Structural changes and the evidence still missing; the brief keeps candidate tests apart from host-supplied results.</p></a></li>
     </ul>
+    <p class="home-secondary"><a href="guide/graph.html">Understand the modules</a> · <a href="guide/scan.html">Find what nothing reaches</a> · <a href="guide/ownership.html">See who maintains it</a></p>
   </section>
-
+  <section class="band home-evidence" id="evidence">
+    <div><p class="label">Evidence behind the order</p><h2>A simpler ranking<br>survived the test.</h2><p class="intro">Activity, then change size, outperformed size alone in three repository histories. That predicts later fixes. It does not establish time saved in a review.</p><a class="home-evidence-link" href="guide/backtest.html">Read the method and its limits</a></div>
+    <div class="home-chart">
+      <p class="home-chart-caption">Later fix or revert · pooled AUC <span>0–1 scale · chance 0.5</span></p>
+      <table>
+        <caption class="sr-only">Twelve-month backtests: activity then size, compared with change size alone. Higher AUC is better.</caption>
+        <thead class="sr-only"><tr><th>Repository</th><th>Activity then size</th><th>Size alone</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">nemo-rl</th><td><span class="home-bar" style="--value:79%">0.79</span></td><td><span class="home-bar size" style="--value:52%">0.52</span></td></tr>
+          <tr><th scope="row">pytest</th><td><span class="home-bar" style="--value:64%">0.64</span></td><td><span class="home-bar size" style="--value:54%">0.54</span></td></tr>
+          <tr><th scope="row">vuejs/core</th><td><span class="home-bar" style="--value:66%">0.66</span></td><td><span class="home-bar size" style="--value:57%">0.57</span></td></tr>
+        </tbody>
+      </table>
+      <p class="home-chart-key"><span>Activity, then size</span><span>Size alone</span></p>
+    </div>
+  </section>
+  <section class="band" id="field-notes">
+    <div class="home-section-head"><h2>From building the tool.</h2><p>Engineering decisions, the evidence that changed them, and what we still do not know.</p></div>{{field_notes}}
+    <a class="home-all-posts" href="blog/">All engineering posts</a>
+  </section>
+  <section class="band home-more" id="example">
+    <details>
+      <summary>See the analysis on Tessri itself</summary>
+      <p class="intro">Real output on this repository, also in the README.</p>
+      <div class="example grid{{drawing_class}}"><div class="panel">{{example}}</div>{{drawing}}<p class="after"><code>tessri why tessri/graph.py</code> shows the evidence behind the result.</p></div>
+      {{live_review}}
+    </details>
+  </section>
+  <section class="band home-next" id="getting-started">
+    <h2>The same evidence, where you work.</h2>
+    <p class="intro"><a href="guide/brief.html">An offline HTML brief</a>, <a href="guide/integration.html">a pull request comment</a>, or <a href="guide/mcp.html">an agent's tools</a>. Start with the question you need answered.</p>
+    <ul class="steps">
+      <li><code>tessri brief --since main --format html --out brief.html</code><span>One offline page with expandable evidence and complete JSON.</span></li>
+      <li><code>tessri integration install --agent review</code><span>A Markdown brief on each pull request, updated in place.</span></li>
+    </ul>
+    <p class="limit">Static analysis cannot see runtime wiring or consumers outside the repository. Missing evidence stays unavailable; candidate tests stay separate from recorded results. <a href="guide/limits.html">The limits</a>.</p>
+  </section>
 </main>
-
 {{foot}}
-
 {{scripts}}
-<script src="liquid.js" defer></script>
 </body>
 </html>

@@ -26,6 +26,10 @@ The second cut is the one with rules. What an analyzer reads from a file is now 
 | `impact` | | 2.5 s | 0.6 s |
 | `brief` | | 4.7 s | 1.8 s |
 
+These are recorded timings from one local run, not a portable benchmark. The machine and interpreter were not
+captured with this table, so the exact speedup is not reproducible from the post alone. Cache behavior and unchanged
+output are the claims checked by the tests; timing the same commands on another checkout is a separate measurement.
+
 The rules matter more than the numbers, because a cache is the easiest way to make a tool lie.
 
 **An entry is keyed by content, never by place.** The key is the analyzer, the format of what it keeps, and a digest of the file's text. A file that moved is found again under its new name; a file that changed is read again; nothing in an entry depends on what else the repository holds, so no entry can go stale because a neighbour changed.
