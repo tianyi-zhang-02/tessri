@@ -24,7 +24,7 @@ class WorkbenchTest(TempRepo):
         git(self.root, 'commit', '-qm', 'baseline')
         git(self.root, 'checkout', '-qb', 'change')
         (self.root/'util.py').unlink()
-        (self.root/'app.py').write_text('value = 1\n')
+        (self.root/'app.py').write_text('value = 1\n', encoding='utf-8', newline='')
 
     def session(self):
         return workbench.Session(self.root, config.load(self.root), 'main')
@@ -40,10 +40,23 @@ class WorkbenchTest(TempRepo):
         self.assertFalse(session.stale())
         self.assertEqual(before,{p.relative_to(self.root):p.read_bytes() for p in self.root.glob('*.py')})
 
+    def test_source_preserves_line_endings_in_working_tree_and_base(self):
+        texts = {'lf.py': 'value = "café"\n', 'crlf.py': 'value = "café"\r\n',
+                 'cr.py': 'value = "café"\r'}
+        for name, text in texts.items():
+            (self.root/name).write_bytes(text.encode('utf-8'))
+        git(self.root, '-c', 'core.autocrlf=false', 'add', '--', *texts)
+        git(self.root, 'commit', '-qm', 'source line endings')
+        for name, text in texts.items():
+            with self.subTest(path=name):
+                self.assertEqual(workbench.source(self.root, name), {'text': text, 'reason': None})
+                self.assertEqual(workbench.source(self.root, name, 'HEAD'), {'text': text, 'reason': None})
+                self.assertEqual((self.root/name).read_bytes(), text.encode('utf-8'))
+
     def test_content_change_with_preserved_size_and_mtime_is_stale_and_refresh_replaces_source(self):
         session=self.session()
         path=self.root/'app.py';stat=path.stat()
-        path.write_text('value = 2\n')
+        path.write_text('value = 2\n', encoding='utf-8', newline='')
         os.utime(path, ns=(stat.st_atime_ns,stat.st_mtime_ns))
         self.assertTrue(session.stale())
         self.assertEqual(session.data['sources']['app.py']['current']['text'], 'value = 1\n')
@@ -116,7 +129,7 @@ class WorkbenchTest(TempRepo):
         self.assertEqual(headers['Cache-Control'],'no-store')
         self.assertEqual(request(prefix+'../app.py')[0],404)
         self.assertEqual(json.loads(request(prefix+'status')[1]),{'stale':False})
-        (self.root/'app.py').write_text('value = 3\n')
+        (self.root/'app.py').write_text('value = 3\n', encoding='utf-8', newline='')
         self.assertTrue(json.loads(request(prefix+'status')[1])['stale'])
         self.assertEqual(request(prefix+'refresh','POST')[0],403)
         self.assertEqual(request(prefix+'refresh','POST',{'X-Tessri-Review':session.token,'Origin':'https://foreign.test'})[0],403)
