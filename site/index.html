@@ -19,46 +19,30 @@
     <a href="#questions">How it works</a><a href="guide/">Guide</a><a href="blog/">Blog</a>
     <a class="repo" href="{{repo}}">GitHub</a>
     {{search_button}}{{theme_button}}
-    <a class="home-start" href="example/">Explore a review</a>
+    <a class="home-start" href="review/">Explore a review</a>
   </nav>
 </header>
 <main class="wrap" id="main">
   <section class="hero">
-    <div><p class="label">Keep code understandable.</p><h1>See what your<br>change reaches.</h1></div>
-    <div class="pitch">
-      <p class="lede">Tessri follows code beyond the diff. Find the relationships to check, the people who know the files, and the questions still open.</p>
-      <div class="actions"><a class="button cta" href="#review">Follow one change</a><a class="home-quiet" href="guide/getting-started.html">Use it on your code</a></div>
-    </div>
+    <p class="label">Local code intelligence. Human judgment.</p>
+    <h1>Know what you’re<br>taking over.</h1>
+    <p class="lede">The files to read, the connections beyond the diff, and the checks still missing. One place to review a change.</p>
+    <div class="actions"><a class="button cta" href="#getting-started">Try the CLI</a><a class="button quiet" href="review/">Explore a review</a></div>
   </section>
-  {{review_diagram}}
-  <div class="home-command">
-    <div class="install"><code><span class="prompt">$ </span>uvx tessri brief --since main</code>{{copy:uvx tessri brief --since main}}<span class="home-python">Python 3.11+</span></div>
-    <ul class="home-principles" aria-label="In short"><li>Offline</li><li>Zero dependencies</li><li>Evidence you can inspect</li></ul>
-  </div>
+  <section class="product-preview" id="review" aria-label="Worked review">
+    <div class="product-caption"><span>A focused review, after the coding session</span><span>Worked example · generated teaching repository</span></div>
+    {{workbench}}
+    <p class="product-caption"><span>Two passing tests. One importer outside the diff. A reason to look closer.</span><a href="example/">See the underlying brief</a></p>
+  </section>
+  <div class="product-hosts"><span>Your existing workflow, with more context</span><b>Codex</b><b>Claude Code</b><b>GitHub Copilot</b><b>CLI + MCP</b></div>
   <section class="band" id="questions">
-    <div class="home-section-head"><h2>A starting point for<br>the person taking over.</h2><p>Code changes quickly. The useful questions stay concrete: what should I read, what else does it touch, and what has actually been checked?</p></div>
+    <div class="home-section-head"><h2>The context you need.<br>Where the change happens.</h2><p>Start from a change, follow a connection, then inspect the reason. Every answer stays tied to the code and history that produced it.</p></div>
     <ul class="home-workflow">
-      <li><a href="guide/brief.html"><span>brief</span><h3>Know where to look.</h3><p>Changed files in order, their reasons, and who else has worked on them.</p></a></li>
-      <li><a href="guide/impact.html"><span>impact</span><h3>Follow the relationships.</h3><p>Dependents and candidate tests, with recognized imports distinguished from inferred references.</p></a></li>
-      <li><a href="guide/check.html"><span>check</span><h3>Keep the open questions.</h3><p>Structural changes and the evidence still missing; the brief keeps candidate tests apart from host-supplied results.</p></a></li>
+      <li><a href="guide/review.html"><span>review</span><h3>Find your starting point.</h3><p>Changed files in order, their reasons, source versions and the people who have worked on them.</p></a></li>
+      <li><a href="guide/impact.html"><span>impact + check</span><h3>Read beyond the diff.</h3><p>Follow recognized imports into unchanged files and candidate tests. Inferred references stay visible as guesses.</p></a></li>
+      <li><a href="guide/brief.html"><span>brief + validation</span><h3>Know what was checked.</h3><p>Candidate tests, recorded outcomes and missing evidence, separately. An unknown code snapshot stays unknown.</p></a></li>
     </ul>
     <p class="home-secondary"><a href="guide/graph.html">Understand the modules</a> · <a href="guide/scan.html">Find what nothing reaches</a> · <a href="guide/ownership.html">See who maintains it</a></p>
-  </section>
-  <section class="band home-evidence" id="evidence">
-    <div><p class="label">Evidence behind the order</p><h2>A simpler ranking<br>survived the test.</h2><p class="intro">Activity, then change size, outperformed size alone in three repository histories. That predicts later fixes. It does not establish time saved in a review.</p><a class="home-evidence-link" href="guide/backtest.html">Read the method and its limits</a></div>
-    <div class="home-chart">
-      <p class="home-chart-caption">Later fix or revert · pooled AUC <span>0–1 scale · chance 0.5</span></p>
-      <table>
-        <caption class="sr-only">Twelve-month backtests: activity then size, compared with change size alone. Higher AUC is better.</caption>
-        <thead class="sr-only"><tr><th>Repository</th><th>Activity then size</th><th>Size alone</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">nemo-rl</th><td><span class="home-bar" style="--value:79%">0.79</span></td><td><span class="home-bar size" style="--value:52%">0.52</span></td></tr>
-          <tr><th scope="row">pytest</th><td><span class="home-bar" style="--value:64%">0.64</span></td><td><span class="home-bar size" style="--value:54%">0.54</span></td></tr>
-          <tr><th scope="row">vuejs/core</th><td><span class="home-bar" style="--value:66%">0.66</span></td><td><span class="home-bar size" style="--value:57%">0.57</span></td></tr>
-        </tbody>
-      </table>
-      <p class="home-chart-key"><span>Activity, then size</span><span>Size alone</span></p>
-    </div>
   </section>
   <section class="band" id="field-notes">
     <div class="home-section-head"><h2>From building the tool.</h2><p>Engineering decisions, the evidence that changed them, and what we still do not know.</p></div>{{field_notes}}
@@ -73,10 +57,12 @@
     </details>
   </section>
   <section class="band home-next" id="getting-started">
-    <h2>The same evidence, where you work.</h2>
+    <h2>Start in your terminal.<br>Keep the evidence close.</h2>
+    <p class="intro"><a href="guide/getting-started.html">Get started from a source checkout</a> for the unreleased review command.</p>
     <p class="intro"><a href="guide/brief.html">An offline HTML brief</a>, <a href="guide/integration.html">a pull request comment</a>, or <a href="guide/mcp.html">an agent's tools</a>. Start with the question you need answered.</p>
     <ul class="steps">
-      <li><code>tessri brief --since main --format html --out brief.html</code><span>One offline page with expandable evidence and complete JSON.</span></li>
+      <li><code>tessri review --since main</code><span>A local source and evidence workbench, with refresh and a visible stale-snapshot state.</span></li>
+      <li><code>tessri review --since main --out /tmp/review.html</code><span>One offline source snapshot to hand over from Codex, Claude Code, Copilot or another CLI.</span></li>
       <li><code>tessri integration install --agent review</code><span>A Markdown brief on each pull request, updated in place.</span></li>
     </ul>
     <p class="limit">Static analysis cannot see runtime wiring or consumers outside the repository. Missing evidence stays unavailable; candidate tests stay separate from recorded results. <a href="guide/limits.html">The limits</a>.</p>

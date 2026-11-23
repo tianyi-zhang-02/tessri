@@ -175,8 +175,8 @@ class BuildTest(unittest.TestCase):
         index = self.pages[self.out / "index.html"]
         worked = self.pages[self.out / "example" / "index.html"]
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn(f'<b>{b["change"]["code_files"]}</b> code files', index)
-        self.assertIn(f'<b>{b["change"]["lines"]}</b> changed lines', index)
+        self.assertIn('id="review-data"', index)
+        self.assertIn('id="tr-code"', index)
         self.assertIn(f'{b["change"]["code_files"]} code files changed, {b["change"]["lines"]} lines', readme)
         self.assertIn("Worked example", index)
         self.assertIn("not a production incident", worked)
@@ -191,7 +191,7 @@ class BuildTest(unittest.TestCase):
         for page, text in self.pages.items():
             self.assertNotRegex(text, r"[\w.+-]+@[\w-]+\.[\w.]+", page.name)
             self.assertEqual(re.findall(r'<(?:link(?![^>]*rel="canonical")|script|img|iframe)\b[^>]*\s(?:href|src)="(https?://[^"]+)"', text), [], page.name)  # nothing loaded from elsewhere: no fonts, scripts, images, trackers; the canonical address loads nothing
-            if page.name != "report.html" and page.parent != self.out / "example":  # the HTML report is its own document, with its style inside
+            if page.name != "report.html" and page.parent not in (self.out / "example", self.out / "review"):  # the HTML report is its own document, with its style inside
                 self.assertIn('<link rel="stylesheet" href="', text)
         self.assertIn("favicon.svg", {p.name for p in self.written})
         self.assertIn(".nojekyll", {p.name for p in self.written})
@@ -207,7 +207,7 @@ class BuildTest(unittest.TestCase):
             else:
                 b["triage"]["files"].append({"path": "reports/summary.py"})
             with self.subTest(missing=missing), self.assertRaises(build_site.BuildError):
-                build_site.review_diagram(b)
+                build_site.validate_worked_review(b)
 
     def test_a_directory_this_script_did_not_build_is_refused_and_its_own_is_reused(self):
         with tempfile.TemporaryDirectory() as plain:
@@ -225,8 +225,8 @@ class BuildTest(unittest.TestCase):
         demo = self.pages[self.out / "demo" / "index.html"]
         report = self.pages[self.out / "demo" / "report.html"]
         self.assertIn('<section class="hero">', index)
-        self.assertIn('<figure class="review-figure"', index)
-        self.assertIn('href="#review">Follow one change</a>', index)
+        self.assertIn('aria-label="Tessri review workbench"', index)
+        self.assertIn('href="review/">Explore a review</a>', index)
         self.assertIn('<div class="handoff" id="brief" tabindex="-1">', index)
         self.assertIn('<a href="demo/">Demo</a>', index)
         self.assertIn("$ <b>tessri brief --since ", index)
@@ -245,7 +245,7 @@ class BuildTest(unittest.TestCase):
         self.assertIn('<figure class="drawing">', index)
         self.assertIn('<p class="key"><span class="k-import">', index)
         self.assertIn('>graph.py</text>', index)
-        self.assertLess(index.index('<figure class="review-figure"'), index.index('id="questions"'))  # a stable worked review comes before the tasks
+        self.assertLess(index.index('aria-label="Tessri review workbench"'), index.index('id="questions"'))  # a stable worked review comes before the tasks
         self.assertIn('<h1 id="tessri-on-itself">Tessri on itself</h1>', demo)
         self.assertIn('<h2 id="review-brief-', demo)
         self.assertIn('<h3 id="read-this-with-care">Read this with care</h3>', demo)
@@ -285,7 +285,7 @@ class BuildTest(unittest.TestCase):
         self.assertNotIn('<canvas class="liquid">', index)
         self.assertNotIn("{{", index)
         for page, text in self.pages.items():
-            if page.name != "report.html" and page.parent != self.out / "example":
+            if page.name != "report.html" and page.parent not in (self.out / "example", self.out / "review"):
                 self.assertIn("<!-- Type: Inter, Newsreader and Commit Mono", text, page.name)
                 self.assertIn('<label class="look"><select aria-label="Look of the site"><option value="editorial">Editorial</option>', text, page.name)
                 self.assertIn('setAttribute("data-look"', text, page.name)
@@ -318,7 +318,7 @@ class BuildTest(unittest.TestCase):
         self.assertEqual(hooks[0]["h"], "")  # the page itself first, then its sections
         self.assertGreater(len(hooks), 2)
         for page, text in self.pages.items():
-            if page.name != "report.html" and page.parent != self.out / "example":
+            if page.name != "report.html" and page.parent not in (self.out / "example", self.out / "review"):
                 self.assertIn('<button class="search-open" type="button" aria-label="Search the guide">', text, page.name)
                 self.assertIn('<div class="search" role="dialog" aria-modal="true" aria-label="Search the guide" hidden data-base="', text, page.name)
                 self.assertIn('fetch(base + "search.json")', text, page.name)
@@ -364,7 +364,7 @@ class BuildTest(unittest.TestCase):
 
     def test_every_page_can_skip_to_its_content(self):
         for page, text in self.pages.items():
-            if page.name != "report.html" and page.parent != self.out / "example":
+            if page.name != "report.html" and page.parent not in (self.out / "example", self.out / "review"):
                 self.assertIn('<a class="skip" href="#main">Skip to content</a>', text, page.name)
                 self.assertEqual(text.count(' id="main"'), 1, page.name)
 

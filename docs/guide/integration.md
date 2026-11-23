@@ -12,6 +12,7 @@ tessri integration install --agent agents                           # one marked
 tessri integration install --agent copilot                          # Copilot's instructions file
 tessri integration install --agent mcp --agent vscode               # .mcp.json and .vscode/mcp.json entries for the server
 tessri integration install --agent cursor --agent gemini             # the same entry in Cursor's and Gemini CLI's project files; also junie, roo, kiro, warp, factory
+tessri integration install --agent copilot --agent copilot-cli       # instructions and a session MCP file; start copilot --additional-mcp-config @.tessri/copilot-mcp.json
 tessri integration install --agent claude-hooks --agent codex-hooks # the hooks each host runs: impact after an edit, findings at a stop
 tessri integration install --agent config                           # a .tessri.toml with every option commented out, to start from
 tessri integration install --agent report                           # a weekly scan workflow that keeps the report

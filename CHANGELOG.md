@@ -4,6 +4,11 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- `tessri review` opens a loopback-only source and evidence workbench with finding navigation, working-tree/base
+  source, explicit refresh and stale-result detection. `--out` exports one offline source snapshot. The homepage
+  and worked review use the same interface and generated evidence. Codex, Claude Code and Copilot instructions
+  include the handoff flow; `--agent copilot-cli` installs a reversible session MCP configuration.
+
 - A change can be handed over as one offline HTML brief: `brief --format html --out brief.html` renders the same
   evidence as Markdown and JSON, with expandable file reasons, finding details, validation reports and full JSON.
   Host-supplied validation is explicitly not verified against the current code snapshot. The landing page and README

@@ -73,6 +73,7 @@ PROFILES = {
     "codex": Profile("codex", ".agents/skills/tessri/SKILL.md", "file", "restart Codex in this project so it discovers the skill"),
     "agents": Profile("agents", "AGENTS.md", "span", "hosts that read AGENTS.md pick the block up on their next read"),
     "copilot": Profile("copilot", ".github/instructions/tessri.instructions.md", "file", "Copilot reads the file on its next request in this repository", body="COPILOT_INSTRUCTIONS"),
+    "copilot-cli": Profile("copilot-cli", ".tessri/copilot-mcp.json", "file", "from the project root run `copilot --additional-mcp-config @.tessri/copilot-mcp.json`; review the host's MCP trust prompt", body="COPILOT_CLI_MCP"),
     "mcp": Profile("mcp", ".mcp.json", "key", "a host that reads .mcp.json starts the server on its next session, after asking you to approve the project's servers", body="MCP_SERVER", key=("mcpServers", "tessri")),
     "vscode": Profile("vscode", ".vscode/mcp.json", "key", "an editor that reads .vscode/mcp.json starts the server on its next agent request", body="VSCODE_SERVER", key=("servers", "tessri")),
     # the hosts whose project file takes the `.mcp.json` entry as it is (each path from the host's documentation, read 2026-11-20)
@@ -96,6 +97,7 @@ PROFILES = {
 HOSTS = (
     ("Claude Code", ("claude", "agents"), "mcp", None, "claude-hooks"),
     ("Codex", ("codex", "agents"), None, f"run `{templates.CODEX_MCP_COMMAND}` (Codex keeps MCP servers in your own configuration)", "codex-hooks"),
+    ("Copilot CLI", ("agents", "copilot"), "copilot-cli", "from the project root run `copilot --additional-mcp-config @.tessri/copilot-mcp.json` after installing --agent copilot-cli", None),
     ("Copilot coding agent", ("agents", "copilot"), None, "paste into the repository's settings, Copilot, Coding agent, MCP configuration: " + json.dumps(templates.COPILOT_AGENT_SERVERS) + "; put `pip install tessri` in copilot-setup-steps.yml", None),
     ("editors reading .vscode/mcp.json", ("agents", "copilot", "claude", "codex"), "vscode", None, None),
     ("Cursor", ("agents",), "cursor", None, None),
