@@ -4,6 +4,16 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- The brief and `triage` say which of the definitions a change touched are named by a test that reaches the file,
+  and which by none. `mentions.py` joins *What changed in them, by definition* with the candidate tests: each test's
+  code is read with the language's own token reader (Python's `tokenize`, the JavaScript reader), so a name counts
+  when it appears as an identifier in code, not in a string or a comment, and only the last segment of a name is
+  searched (`Shape.area` -> `area`), when it is three characters or more, not private by convention (`_helper`) and
+  not `default`, `constructor` or a dunder; the rest are listed as not searched. Each row's `symbols` carries `named_in` (definition -> tests, nearest first) and
+  `unsearched`, the summary counts `definitions`, the pages print one sentence ("By name, in the tests that reach their
+  file: ..."), and the brief opens two items for a person: definitions no reaching test names, and a removed
+  definition a test still names. The note says what a mention is and is not. The brief's word budget rose from 800 to
+  900 to hold it.
 - A change can be handed over as one offline HTML brief: `brief --format html --out brief.html` renders the same
   evidence as Markdown and JSON, with expandable file reasons, finding details, validation reports and full JSON.
   Host-supplied validation is explicitly not verified against the current code snapshot. The landing page and README

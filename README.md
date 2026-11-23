@@ -35,8 +35,9 @@ uvx tessri brief --since main --format html --out brief.html
 ```
 
 Open `brief.html` offline. Expand each file's reason, owners and definitions, each finding's evidence, and the
-complete JSON. Candidate tests stay separate from host-supplied results; a report is not verified against the
-current code snapshot. Use `--since HEAD` for uncommitted work.
+complete JSON. Candidate tests stay separate from host-supplied results, and the page says which changed definitions
+a candidate test names and which none does; a report is not verified against the current code snapshot. Use
+`--since HEAD` for uncommitted work.
 
 | Your task | Start here |
 |---|---|
