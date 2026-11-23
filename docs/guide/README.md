@@ -21,6 +21,8 @@ faster than anyone can read it. One page per question, each with real output and
   stops, once each, and how the hosts guard it.
 - [MCP: Tessri as tools](mcp.md): `tessri mcp`, the eight tools, their arguments and errors, and the profiles that
   point each agent at the server.
+- [In the editor: the VS Code extension](vscode.md): a line over each file, a hover over each definition, the
+  commands, and the questions as tools for the chat agent, from one `tessri mcp` per workspace folder.
 - [Configuration](configuration.md): `.tessri.toml` and `[tool.tessri]`.
 - [JSON output](json.md): the objects, `schema_version` and the `meta` block.
 - [Architecture](architecture.md): the pipeline, one view per command, and how to add a language.

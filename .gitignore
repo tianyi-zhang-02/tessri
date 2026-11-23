@@ -6,3 +6,5 @@ dist/
 .venv/
 *.pyz
 _site/
+node_modules/
+*.vsix

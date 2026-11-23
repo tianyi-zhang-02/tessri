@@ -1,7 +1,8 @@
 # The test suite on every push to main and every pull request: both supported Pythons on Linux, and the newest on
 # Windows and macOS, since paths, line endings, code pages and the git on each differ. It needs git (always on the
 # runner) and node for one differential test that compares the JavaScript scanner with a real JS parse; that test is
-# skipped without node.
+# skipped without node. A second job runs the VS Code extension's tests (node:test, against the real `tessri mcp`
+# server on this checkout) and packages it, which validates its manifest.
 name: tests
 
 on:
@@ -40,3 +41,23 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -W error::ResourceWarning -m unittest discover -s tests
+
+  vscode-extension:
+    name: vscode extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run the extension's tests
+        working-directory: editors/vscode
+        run: node --test test/
+      - name: Package the extension
+        working-directory: editors/vscode
+        run: npx --yes @vscode/vsce@3 package --no-dependencies -o /tmp/tessri.vsix

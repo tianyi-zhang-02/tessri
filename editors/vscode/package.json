@@ -1,0 +1,404 @@
+{
+  "name": "tessri",
+  "displayName": "Tessri",
+  "description": "Who maintains this file, what a change to it can reach and which tests get there, from the code and the git history: a line over each file, a hover over each definition, and the same questions as tools for the chat agent.",
+  "version": "0.1.0",
+  "publisher": "tessri",
+  "license": "MIT",
+  "icon": "icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tianyi-zhang-02/tessri.git",
+    "directory": "editors/vscode"
+  },
+  "homepage": "https://github.com/tianyi-zhang-02/tessri/tree/main/editors/vscode#readme",
+  "bugs": {
+    "url": "https://github.com/tianyi-zhang-02/tessri/issues"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "categories": [
+    "Other",
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "maintainability",
+    "code ownership",
+    "dependency graph",
+    "code review",
+    "copilot"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Tessri runs the `tessri` command on the workspace's repository."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Tessri reads the repository and its git history from disk."
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "tessri.why",
+        "category": "Tessri",
+        "title": "Why this file"
+      },
+      {
+        "command": "tessri.impact",
+        "category": "Tessri",
+        "title": "What a change here can reach"
+      },
+      {
+        "command": "tessri.triage",
+        "category": "Tessri",
+        "title": "Triage the change"
+      },
+      {
+        "command": "tessri.check",
+        "category": "Tessri",
+        "title": "What the change did to the structure"
+      },
+      {
+        "command": "tessri.brief",
+        "category": "Tessri",
+        "title": "Review brief"
+      },
+      {
+        "command": "tessri.restart",
+        "category": "Tessri",
+        "title": "Restart the server"
+      },
+      {
+        "command": "tessri.showLog",
+        "category": "Tessri",
+        "title": "Show the log"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "tessri.menu",
+        "label": "Tessri"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "tessri.menu",
+          "group": "navigation@9",
+          "when": "resourceScheme == file"
+        }
+      ],
+      "explorer/context": [
+        {
+          "submenu": "tessri.menu",
+          "group": "7_modification@9",
+          "when": "resourceScheme == file"
+        }
+      ],
+      "tessri.menu": [
+        {
+          "command": "tessri.why",
+          "group": "1_file@1",
+          "when": "!explorerResourceIsFolder"
+        },
+        {
+          "command": "tessri.impact",
+          "group": "1_file@2"
+        },
+        {
+          "command": "tessri.triage",
+          "group": "2_change@1"
+        },
+        {
+          "command": "tessri.check",
+          "group": "2_change@2"
+        },
+        {
+          "command": "tessri.brief",
+          "group": "2_change@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Tessri",
+      "properties": {
+        "tessri.command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "tessri"
+          ],
+          "markdownDescription": "The command that runs Tessri, as a list: `[\"tessri\"]`, `[\"python3\", \"-m\", \"tessri\"]` or `[\"uvx\", \"tessri\"]`. It is started as `<command> mcp --root <folder>`, once per workspace folder, and stopped with the window."
+        },
+        "tessri.codeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "A line over each Python, JavaScript and TypeScript file: dependents, candidate tests, maintainers and the last commit."
+        },
+        "tessri.hover": {
+          "type": "boolean",
+          "default": true,
+          "description": "Over the name of a function, class or method: the same facts for its file, with links to the evidence."
+        },
+        "tessri.since": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "The base the change commands (triage, check, brief) compare HEAD and the uncommitted work with: a commit, branch or tag. Empty: the default branch, as `tessri` itself picks it."
+        }
+      }
+    },
+    "languageModelTools": [
+      {
+        "name": "tessri_impact",
+        "toolReferenceName": "tessriImpact",
+        "displayName": "Tessri: impact",
+        "userDescription": "What a change to a file or directory can reach: dependents, candidate tests, maintainers",
+        "modelDescription": "What a change to one file or directory can reach: dependents by distance, the tests that reach it, the owners of the affected code, and the kinds of evidence followed. Ask before changing a file.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "target": {
+              "type": "string",
+              "description": "a file or directory, repository-relative, or a dotted package name"
+            },
+            "edges": {
+              "type": "string",
+              "enum": [
+                "all",
+                "imports"
+              ],
+              "default": "all",
+              "description": "all: recognized dependency syntax, package files and references found in strings or dynamic loading; imports: syntax and package files only"
+            },
+            "hops": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "default": null,
+              "description": "follow edges at most this many steps away (null: any number)"
+            },
+            "report": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "description": "test reports the host wrote, as JUnit XML (pytest --junitxml, jest-junit and the like), paths relative to the root: the candidate tests are held against what ran"
+            }
+          },
+          "required": [
+            "target"
+          ]
+        }
+      },
+      {
+        "name": "tessri_why",
+        "toolReferenceName": "tessriWhy",
+        "displayName": "Tessri: why",
+        "userDescription": "The evidence behind one file: reachability, history, owners, dependents",
+        "modelDescription": "The evidence behind one file's verdict: reachability and entry points, history, owners, dependents and dependencies with the kind of evidence behind each edge. Ask to verify a claim about a file before acting on it.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "path": {
+              "type": "string",
+              "description": "the file: a repository-relative path, a unique path suffix, or a module name"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        }
+      },
+      {
+        "name": "tessri_triage",
+        "toolReferenceName": "tessriTriage",
+        "displayName": "Tessri: triage",
+        "userDescription": "Which files of a change deserve a person first, and who can look",
+        "modelDescription": "Which files of a change deserve a person first, what the change can ripple into, and who can look. Ask when reviewing a change.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "since": {
+              "type": "string",
+              "description": "a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work. Absent: the default branch (origin/HEAD, else origin/main, origin/master, main or master; HEAD when none exists). HEAD: only uncommitted work"
+            }
+          }
+        }
+      },
+      {
+        "name": "tessri_check",
+        "toolReferenceName": "tessriCheck",
+        "displayName": "Tessri: check",
+        "userDescription": "What a change did to the structure: new orphans, cycles, imports of deleted files",
+        "modelDescription": "What a change did to the structure: new orphans and cycles, imports of deleted files, changed code nobody maintains, with a finding for each. Ask when a change is done.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "since": {
+              "type": "string",
+              "description": "a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work. Absent: the default branch (origin/HEAD, else origin/main, origin/master, main or master; HEAD when none exists). HEAD: only uncommitted work"
+            }
+          }
+        }
+      },
+      {
+        "name": "tessri_brief",
+        "toolReferenceName": "tessriBrief",
+        "displayName": "Tessri: brief",
+        "userDescription": "One page to hand a change over for review",
+        "modelDescription": "One page to hand a change over for review: triage and check from one analysis, the commits and uncommitted files the evidence covers, the files to look at first, the findings, candidate tests apart from the checks the host ran, who can look and what needs a person. Pass the checks you actually ran in `ran`.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "since": {
+              "type": "string",
+              "description": "a commit, branch or tag; the change is where it and HEAD part, plus uncommitted work. Absent: the default branch (origin/HEAD, else origin/main, origin/master, main or master; HEAD when none exists). HEAD: only uncommitted work"
+            },
+            "ran": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "description": "the checks the host actually ran, one string each with the command, its result and exit code, recorded verbatim; without it the brief says that none was recorded"
+            },
+            "report": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "description": "test reports the host wrote, as JUnit XML (pytest --junitxml, jest-junit and the like), paths relative to the root: the candidate tests are held against what ran"
+            },
+            "coverage": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": [],
+              "description": "coverage reports the host wrote (Cobertura or Clover XML, lcov, or coverage.py's JSON), paths relative to the root: the lines the change adds or changes are held against the statements that ran"
+            }
+          }
+        }
+      },
+      {
+        "name": "tessri_scan",
+        "toolReferenceName": "tessriScan",
+        "displayName": "Tessri: scan",
+        "userDescription": "How the codebase fits together and what nobody maintains",
+        "modelDescription": "How the codebase fits together and what nobody maintains: every file's status, volume, hotspots, ownership, review load, cleanup candidates and the caveats of the analysis. Ask to get to know a repository; not for every task.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "full": {
+              "type": "boolean",
+              "default": false,
+              "description": "include the per-file table (large on a big repository)"
+            }
+          }
+        }
+      },
+      {
+        "name": "tessri_graph",
+        "toolReferenceName": "tessriGraph",
+        "displayName": "Tessri: graph",
+        "userDescription": "Who imports whom: modules, cycles and the few dependencies to cut",
+        "modelDescription": "Who imports whom: the modules, the dependencies between them, the cycles and the few dependencies to cut, with owners; or every import as a pair at the file level.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "description": "the workspace folder's name, when the window has several; optional otherwise"
+            },
+            "level": {
+              "type": "string",
+              "enum": [
+                "module",
+                "file"
+              ],
+              "default": "module",
+              "description": "file: every import as a pair (large on a big repository)"
+            },
+            "module_depth": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "default": null,
+              "description": "a module is the first N directories of a path (null: split by size)"
+            },
+            "include_tests": {
+              "type": "boolean",
+              "default": false,
+              "description": "draw test files too"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "package": "npx --yes @vscode/vsce package --no-dependencies"
+  }
+}
