@@ -71,11 +71,16 @@ which a "will it need a fix" score does not measure. Three repositories are a hi
 yours.
 
 Under the table, *What changed in them, by definition* names the functions and classes the change touched in each
-file, from the diff's hunks and Python's own parser: a definition whose name is new is *added*, one whose name is
-gone is *removed*, the rest a hunk touches is *changed*, named the way a reader names it (`Shape.area`), and lines
+file, from the diff's hunks and the language's definitions: a definition whose name is new is *added*, one whose name
+is gone is *removed*, the rest a hunk touches is *changed*, named the way a reader names it (`Shape.area`), and lines
 outside every definition are *module-level code*; a renamed function is a removal and an addition. Each row carries
-it as `symbols` (`changed`, `added`, `removed`, `module_level`). Definitions are read for Python only; a file in
-another language, or one the parser cannot read, says so there instead of guessing.
+it as `symbols` (`changed`, `added`, `removed`, `module_level`). Python is read with its own parser. JavaScript and
+TypeScript are read by a scanner that tells strings, templates, comments and regex literals from code and matches
+braces: functions, classes and their methods, a variable or export assigned a function, a class or an object literal
+and that object's methods (`nodeOps.insert`), and interfaces, type aliases, enums and namespaces; a callback has no
+name, so what it holds is named by the definition around it, except a test's (`describe`, `it`, `test`), which its
+title names (`ref.should unwrap nested values`). A file in another language, or one that cannot be read
+(Python that does not parse, JavaScript whose braces or literals never close), says so there instead of guessing.
 
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its

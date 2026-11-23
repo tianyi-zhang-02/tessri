@@ -11,7 +11,18 @@ Dates are the day a version was tagged.
   relationships; its generator runs two real billing tests in a temporary fixture
   whose unchanged reporting importer still names a deleted module. The site preserves the three looks and themes,
   adds the worked example even without `--demo`, and leads with tasks, evidence and engineering posts.
-
+- *What changed in them, by definition* now names JavaScript and TypeScript as well as Python. `analyzers/jsdefs.py`
+  reads a file without a parser: tokens, with strings, templates, comments and regex literals told apart from code,
+  then braces matched to find each body. It names function declarations, classes and their methods, a variable, an
+  export or a member (`Foo.prototype.bar`, `exports.run`, `this.handle`) assigned a function, a class or, at module
+  level, an object literal and that object's methods (`nodeOps.insert`), and interfaces, type aliases, enums and
+  namespaces, nested ones through their holder; a callback has no name, so what it holds is named by the definition
+  around it, except a test's callback (`describe`, `it`, `test` and their `.only`/`.skip`), which its title names, so
+  a change inside a spec file is named by the test rather than left at module level. Statements without semicolons end at a line break that nothing continues across, overloads and abstract
+  methods are not definitions, and two JSX ambiguities are told apart by what precedes them: an apostrophe in text
+  (`Don't`) opens no string, and a slash after `}` or `>` divides no regex. A file whose braces or literals never
+  close is reported as unread rather than guessed at. Read on 620 files of a TypeScript monorepo and a React front
+  end: all of them read, in about a second. Other languages still say so.
 - The site has three looks, and the visitor picks. A control in the top bar, beside the theme switch, chooses
   *Editorial*, *Panel* or *Swiss*; the choice is kept in the browser and read before the page paints. Editorial, the
   default, puts the violet band away, sets the headings in Newsreader, a serif served from `fonts/` beside its

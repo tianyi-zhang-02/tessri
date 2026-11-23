@@ -61,8 +61,9 @@ class DefinitionsTest(unittest.TestCase):
 
 
 class ChangeTest(TempRepo):
-    """main holds the module, a JavaScript file and a module to delete; Carol's branch edits a method, adds a function,
-    removes one, touches module level, adds a file, deletes a file, moves a file with an edit and breaks a file."""
+    """main holds the module, a JavaScript file, a Go file and a module to delete; Carol's branch edits a method, adds
+    a function, removes one, touches module level, adds a file, deletes a file, moves a file with an edit, breaks a
+    Python file and a JavaScript file, and edits the Go file."""
 
     def setUp(self):
         super().setUp()
@@ -70,11 +71,11 @@ class ChangeTest(TempRepo):
         git(self.root, "init", "-q", "-b", "main")
         git(self.root, "config", "user.name", "Dana Doe")
         git(self.root, "config", "user.email", "dana@example.com")
-        self.commit({"pkg/__init__.py": "", "pkg/shapes.py": MODULE, "pkg/gone.py": "def bye():\n    return 0\n", "pkg/moved.py": "def still():\n    return 1\n", "pkg/broken.py": "def fine():\n    return 1\n", "web/app.js": "export function a() { return 1 }\n", "app.py": "from pkg import shapes, gone, moved, broken\n\nif __name__ == '__main__':\n    shapes.helper(1)\n"}, ALICE, 30, "feat: shapes")
+        self.commit({"pkg/__init__.py": "", "pkg/shapes.py": MODULE, "pkg/gone.py": "def bye():\n    return 0\n", "pkg/moved.py": "def still():\n    return 1\n", "pkg/broken.py": "def fine():\n    return 1\n", "web/app.js": "export function a() { return 1 }\n", "web/broken.js": "function f() {\n  return 1\n}\n", "svc/main.go": "package main\n\nfunc main() {}\n", "app.py": "from pkg import shapes, gone, moved, broken\n\nif __name__ == '__main__':\n    shapes.helper(1)\n"}, ALICE, 30, "feat: shapes")
         git(self.root, "checkout", "-q", "-b", "feature")
         edited = MODULE.replace("        return 0\n", "        return self.sides * 2\n").replace("def old_way():\n    return helper(0)\n", "def new_way():\n    return helper(1)\n").replace("LIMIT = 3", "LIMIT = 4")
         git(self.root, "mv", "pkg/moved.py", "pkg/elsewhere.py")
-        self.commit({"pkg/shapes.py": edited, "pkg/fresh.py": "class Fresh:\n    def go(self):\n        return 1\n", "pkg/elsewhere.py": "def still():\n    return 2\n", "pkg/broken.py": "def fine(:\n    return 1\n", "web/app.js": "export function a() { return 2 }\n"}, CAROL, 1, "feat: carol")
+        self.commit({"pkg/shapes.py": edited, "pkg/fresh.py": "class Fresh:\n    def go(self):\n        return 1\n", "pkg/elsewhere.py": "def still():\n    return 2\n", "pkg/broken.py": "def fine(:\n    return 1\n", "web/app.js": "export function a() { return 2 }\n", "web/broken.js": "function f() {\n  return 2\n", "svc/main.go": "package main\n\nfunc main() { run() }\n"}, CAROL, 1, "feat: carol")
         git(self.root, "rm", "-q", "pkg/gone.py")
         self.commit({}, CAROL, 0.5, "chore: drop gone")
         write_tree(self.root, {"pkg/untracked.py": "def brand_new():\n    return 1\n"})
@@ -96,16 +97,21 @@ class ChangeTest(TempRepo):
         self.assertEqual(self.by["pkg/gone.py"], {"available": True, "changed": [], "added": [], "removed": ["bye"], "module_level": False})
         self.assertEqual(self.by["pkg/elsewhere.py"], {"available": True, "changed": ["still"], "added": [], "removed": [], "module_level": False})
 
+    def test_a_javascript_file_is_read_too(self):
+        self.assertEqual(self.by["web/app.js"], {"available": True, "changed": ["a"], "added": [], "removed": [], "module_level": False})
+
     def test_what_cannot_be_read_says_so(self):
-        self.assertEqual(self.by["web/app.js"], {"available": False, "reason": "definitions are read for Python only, not JavaScript"})
+        self.assertEqual(self.by["svc/main.go"], {"available": False, "reason": "definitions are read for Python, JavaScript and TypeScript, not Go"})
         self.assertEqual(self.by["pkg/broken.py"], {"available": False, "reason": "the file does not parse as Python"})
+        self.assertEqual(self.by["web/broken.js"], {"available": False, "reason": "the file could not be read as JavaScript: a brace, string, template or comment never closes"})
 
     def test_the_pages_name_the_definitions_under_the_table(self):
         text = triage.markdown(self.t)
         self.assertIn("What changed in them, by definition:", text)
         self.assertIn("- `pkg/shapes.py`: added `new_way`; changed `Shape.area`; removed `old_way`; module-level code", text)
         self.assertIn("- `pkg/fresh.py`: added `Fresh`, `Fresh.go`", text)
-        self.assertIn("Not named for 2 files: definitions are read for Python only, not JavaScript; the file does not parse as Python.", text)
+        self.assertIn("- `web/app.js`: changed `a`", text)
+        self.assertIn("Not named for 3 files: definitions are read for Python, JavaScript and TypeScript, not Go; the file could not be read as JavaScript: a brace, string, template or comment never closes; the file does not parse as Python.", text)
         self.assertLess(text.index("Look at these first:"), text.index("What changed in them"))
         self.assertLess(text.index("What changed in them"), text.index("Who can look"))
         b = brief.compute(self.root, config.load(self.root), "main", now=self.now)
