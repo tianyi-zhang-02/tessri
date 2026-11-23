@@ -17,7 +17,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, gitlog, inventory, meta, symbols
+from . import __version__, gitlog, inventory, mentions, meta, symbols
 from . import since as since_mod
 from .analyze import Analysis, analyze
 from .config import Config
@@ -147,6 +147,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
     changed = set(code)
     ripple: dict[str, int] = {}
     tests: dict[str, int] = {}
+    test_reach: dict[str, dict[str, int]] = defaultdict(dict)  # per changed file: the tests that reach it, with the distance
     rows = []
     for path, change in code.items():
         added, deleted, state = change.added, change.deleted, change.state
@@ -163,6 +164,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
                 if is_test(other):
                     if dist <= TEST_HOPS:
                         tests[other] = min(tests.get(other, 99), dist)
+                        test_reach[path][other] = dist
                     continue
                 if dist <= RIPPLE_HOPS:
                     if dist == 1:
@@ -218,6 +220,8 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
     # what the change did to each file's definitions: the functions and classes its hunks touch, from Python's parser
     for path, s in symbols.compute(root, base, [(r["path"], r["change"], r.get("from"), r["language"]) for r in rows]).items():
         by_path[path]["symbols"] = s
+    # and which of the tests that reach each file use the names of those definitions in their code
+    mentions.compute(root, rows, test_reach, {t: a.records[t].language if t in a.records else None for near in test_reach.values() for t in near})
 
     # who can look: the people, other than the authors, who committed to the changed files in the last year or hold a share of
     # them, most commits first: on two repositories' pull requests that count matched who reviewed better than the share did
@@ -272,6 +276,8 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         "Dependents are static imports; dynamic loading and consumers outside the repository are invisible.",
         "History is read up to the base of the change and under the name each file has now, so a moved file keeps its past, "
         "the change's own commits do not count as trouble and its authors do not count as owners.",
+        "A definition is named in a test when the identifier appears in the test's code, strings and comments apart; that is a mention, not an "
+        "assertion, and a test can exercise code without naming it.",
     ]
     if not a.activity.files:
         notes.append("The repository has little history, so the ordering falls back to the size of the change.")
@@ -297,6 +303,7 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
             "areas": len(areas),
             "ripple": {"direct": sum(1 for d in ripple.values() if d == 1), "second": sum(1 for d in ripple.values() if d == 2)},
             "tests": len(tests),
+            "definitions": mentions.summary(rows),
         },
         "files": rows,
         "areas": [{"path": k, **v} for k, v in sorted(areas.items(), key=lambda kv: (-kv[1]["lines"], kv[0]))],
@@ -379,6 +386,8 @@ def markdown(t: dict, limit: int = 20, active_days: int = 90) -> str:
         bullets.append(f"code outside the change that imports it: **{_many(s['ripple']['direct'], 'file')}** directly, {_many(s['ripple']['second'], 'file')} through one more step")
     if s["tests"]:
         bullets.append(f"**{s['tests']}** test {'file reaches' if s['tests'] == 1 else 'files reach'} it")
+    if (d := s.get("definitions")) and d["touched"]:
+        bullets.append(f"**{d['named']}** of the {_many(d['touched'], 'definition')} it touched {'is' if d['named'] == 1 else 'are'} named in a test that reaches the file")
     if bullets:
         out += [f"- {b}" for b in bullets] + [""]
 
@@ -405,5 +414,7 @@ def markdown(t: dict, limit: int = 20, active_days: int = 90) -> str:
         out += _table(["Area", "Directly", "One more step"], [[f"`{r['module']}`", r["direct"], r["second"]] for r in t["ripple"][:10]], {1, 2})
     if t["tests"]["nearest"]:
         out += ["Tests that reach it, nearest first: " + ", ".join(f"`{p}`" for p in t["tests"]["nearest"][:5]) + (f" and {t['tests']['count'] - 5} more" if t["tests"]["count"] > 5 else ""), ""]
+    if named := mentions.line(t["files"]):
+        out += [named, ""]
     out += ["## Read this with care", ""] + [f"- {n}" for n in t["notes"]] + [""]
     return "\n".join(out)

@@ -9,6 +9,16 @@ Dates are the day a version was tagged.
   and worked review use the same interface and generated evidence. Codex, Claude Code and Copilot instructions
   include the handoff flow; `--agent copilot-cli` installs a reversible session MCP configuration.
 
+- The brief and `triage` say which of the definitions a change touched are named by a test that reaches the file,
+  and which by none. `mentions.py` joins *What changed in them, by definition* with the candidate tests: each test's
+  code is read with the language's own token reader (Python's `tokenize`, the JavaScript reader), so a name counts
+  when it appears as an identifier in code, not in a string or a comment, and only the last segment of a name is
+  searched (`Shape.area` -> `area`), when it is three characters or more, not private by convention (`_helper`) and
+  not `default`, `constructor` or a dunder; the rest are listed as not searched. Each row's `symbols` carries `named_in` (definition -> tests, nearest first) and
+  `unsearched`, the summary counts `definitions`, the pages print one sentence ("By name, in the tests that reach their
+  file: ..."), and the brief opens two items for a person: definitions no reaching test names, and a removed
+  definition a test still names. The note says what a mention is and is not. The brief's word budget rose from 800 to
+  900 to hold it.
 - A change can be handed over as one offline HTML brief: `brief --format html --out brief.html` renders the same
   evidence as Markdown and JSON, with expandable file reasons, finding details, validation reports and full JSON.
   Host-supplied validation is explicitly not verified against the current code snapshot. The landing page and README
@@ -16,7 +26,18 @@ Dates are the day a version was tagged.
   relationships; its generator runs two real billing tests in a temporary fixture
   whose unchanged reporting importer still names a deleted module. The site preserves the three looks and themes,
   adds the worked example even without `--demo`, and leads with tasks, evidence and engineering posts.
-
+- *What changed in them, by definition* now names JavaScript and TypeScript as well as Python. `analyzers/jsdefs.py`
+  reads a file without a parser: tokens, with strings, templates, comments and regex literals told apart from code,
+  then braces matched to find each body. It names function declarations, classes and their methods, a variable, an
+  export or a member (`Foo.prototype.bar`, `exports.run`, `this.handle`) assigned a function, a class or, at module
+  level, an object literal and that object's methods (`nodeOps.insert`), and interfaces, type aliases, enums and
+  namespaces, nested ones through their holder; a callback has no name, so what it holds is named by the definition
+  around it, except a test's callback (`describe`, `it`, `test` and their `.only`/`.skip`), which its title names, so
+  a change inside a spec file is named by the test rather than left at module level. Statements without semicolons end at a line break that nothing continues across, overloads and abstract
+  methods are not definitions, and two JSX ambiguities are told apart by what precedes them: an apostrophe in text
+  (`Don't`) opens no string, and a slash after `}` or `>` divides no regex. A file whose braces or literals never
+  close is reported as unread rather than guessed at. Read on 620 files of a TypeScript monorepo and a React front
+  end: all of them read, in about a second. Other languages still say so.
 - The site has three looks, and the visitor picks. A control in the top bar, beside the theme switch, chooses
   *Editorial*, *Panel* or *Swiss*; the choice is kept in the browser and read before the page paints. Editorial, the
   default, puts the violet band away, sets the headings in Newsreader, a serif served from `fonts/` beside its

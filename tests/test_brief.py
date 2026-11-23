@@ -124,9 +124,10 @@ class CompositionTest(Repo):
 
     def test_what_the_host_ran_is_recorded_verbatim_or_said_to_be_missing(self):
         b = self.brief()
-        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "ran": [], "report": None, "coverage": None})
+        self.assertEqual(b["validation"], {"candidates": {"count": 1, "nearest": ["tests/test_engine.py"]}, "definitions": {"touched": 2, "named": 0, "unnamed": 1, "unsearched": 1}, "ran": [], "report": None, "coverage": None})
         text = brief.markdown(b)
         self.assertIn("Candidate tests, nearest first: `tests/test_engine.py`. They reach the changed files; they are paths, not results.", text)
+        self.assertIn("By name, in the tests that reach their file: `carol` is named in none; `go` was not searched, being too short, private or too common.\n", text)  # test_engine.py reaches both files and calls `run`
         self.assertIn('Checks the host ran: none recorded. Record each with `--ran "<command>: <result, exit code>"`, or hand over a test report with `--report` or a coverage report with `--coverage`.', text)
         self.assertIn("no-checks-recorded", [item["kind"] for item in b["open"]])
         b = self.brief(ran=["python -m unittest tests/test_engine.py: 1 test OK (exit 0)", "mypy: not run"])
@@ -198,7 +199,8 @@ class CompositionTest(Repo):
 
     def test_findings_and_people_flow_into_what_needs_a_person(self):
         b = self.brief()
-        self.assertEqual([item["kind"] for item in b["open"]], ["no-active-owner", "only-the-author", "not-analysed", "no-checks-recorded"])
+        self.assertEqual([item["kind"] for item in b["open"]], ["no-active-owner", "only-the-author", "not-analysed", "definitions-unnamed", "no-checks-recorded"])
+        self.assertEqual(b["open"][3], {"kind": "definitions-unnamed", "text": "No test that reaches the file names `carol` (`core/engine.py`): find the test that exercises it without saying the name, or write one.", "files": ["core/engine.py"]})
         self.assertEqual(b["open"][0]["files"], ["util/helpers.py"])
         self.assertEqual(b["people"], {"reviewers": b["triage"]["reviewers"], "regulars": b["triage"]["regulars"], "nobody_else_can_look": ["util/helpers.py"], "no_active_owner": ["util/helpers.py"]})
         self.assertEqual([(r["name"], r["files"], r["commits"]) for r in b["people"]["reviewers"]], [("Alice Adams", 3, 2)])  # the app and the engine fix; Bob is gone

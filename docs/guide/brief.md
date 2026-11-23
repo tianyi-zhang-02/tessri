@@ -22,7 +22,7 @@ in scope, what the commits say, which files deserve attention first, what the ch
 reach it and which checks actually ran. [`triage`](triage.md) and [`check`](check.md) answer the middle of that. The
 brief puts them on one page with the rest, from one analysis of the base and one of the working tree (so it costs
 what `check` costs), and follows the sections the [review brief design](../design/review-brief.md) asked for. It
-aims to stay under 800 words: every list it shortens carries its count, and the JSON holds the whole `triage` and
+aims to stay under 900 words: every list it shortens carries its count, and the JSON holds the whole `triage` and
 `check` objects, so the page selects for reading and filters nothing away.
 
 ```text
@@ -58,7 +58,7 @@ What changed in them, by definition:
 - `legacy/rates.py`: changed `old_rate`
 - `util/money.py`: removed `cents`
 
-Not named for 1 file: definitions are read for Python only, not Go.
+Not named for 1 file: definitions are read for Python, JavaScript and TypeScript, not Go.
 
 Who can look, other than the authors: Alice Adams (4 files, 2 commits in the last year). Git cannot see who reviewed; these are the people who committed to the changed files in the last year, most commits first, then the people who maintain them.
 
@@ -78,6 +78,8 @@ Not analysed: `svc/main.go` (Go, no analyzer), so dependents, candidate tests an
 
 Candidate tests, nearest first: `tests/test_invoices.py`. They reach the changed files; they are paths, not results.
 
+By name, in the tests that reach their file: `gross` (`tests/test_invoices.py`) and `total` (`tests/test_invoices.py`) are named; `cents`, `fmt` and `old_rate` are named in none.
+
 Checks the host ran, as recorded:
 
 - python -m pytest tests/test_invoices.py: 2 passed (exit 0)
@@ -87,6 +89,7 @@ Checks the host ran, as recorded:
 - 1 changed file nobody active maintains: Have a human who knows the code look before merging, or assign an owner; the last maintainers are listed with `tessri why <file>`.
 - Only the author maintains `legacy/rates.py`: a second reader has to come from outside the file's history.
 - `svc/main.go`: no analyzer covers Go, so dependents, candidate tests and structure are unknown for this file.
+- No test that reaches the file names `cents` (`billing/invoices.py`), `fmt` (`billing/helpers.py`) and `old_rate` (`legacy/rates.py`): find the test that exercises them without saying the name, or write one.
 
 ## Read this with care
 
@@ -94,7 +97,7 @@ Checks the host ran, as recorded:
 - Files are ordered by how many commits touched them in the last 90 days, then by how much this change touches; in backtests on three repositories that predicted later fixes better than the size of the change alone. It says where trouble tends to be, not that this change is wrong, and a new file has no history, so it sorts by its size.
 - Dependents, candidate tests and findings rest on what the analyzers see between files of this repository, static imports above all; a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.
 - History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.
-- Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.
+- Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. A definition *named* in a test appears as an identifier in its code, strings and comments apart: a mention, not an assertion, and a test can exercise code without naming it. A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.
 ```
 
 **Open it offline.** `--format html --out brief.html` renders the same result as one self-contained file, without
@@ -131,12 +134,15 @@ whatever the files. *What it did to the structure* is
 check's findings, most serious first, each with its first files and what to do, then the code outside the change that
 imports it, and the changed files no analyzer covers, named rather than dropped. *Validation* keeps two things apart:
 the candidate tests, which are paths that reach the changed files, and the checks the host ran, which are only what
-`--ran` recorded or a test or coverage report given with `--report` or `--coverage` says; with a test report, each
+`--ran` recorded or a test or coverage report given with `--report` or `--coverage` says. Between them, one sentence
+says which of the definitions the change touched are named in a candidate test's code and which in none
+([triage](triage.md) has the rule; a name is a mention, not an assertion). With a test report, each
 candidate is marked passed, failed, skipped or not run, and the page says how many of them ran; with a coverage report,
 it says how many of the lines the change added or changed the report has a statement on, how many of those ran, which
 did not, and which changed files the report does not measure at all. *Open for a person* collects what the analysis
 cannot settle: findings that need a decision (changed code nobody active maintains), files only the author maintains,
-files in a language without an analyzer, candidate tests that failed or are missing from the report, changed statements
+files in a language without an analyzer, definitions no candidate test names and removed definitions a test still
+names, candidate tests that failed or are missing from the report, changed statements
 no recorded test executed, changed files the coverage report does not measure, and the absence of any recorded check.
 
 **What ran is the host's to say.** Tessri runs no tests and reads no CI. `--ran` records one line per check,

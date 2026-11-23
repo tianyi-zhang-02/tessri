@@ -38,7 +38,8 @@ tessri review --since main --out /tmp/tessri-review.html
 The first command opens a local source and evidence workbench; the second exports one offline snapshot.
 Follow a finding into unchanged code, compare working-tree and base source, and copy its context back to your
 agent. The live session marks older results and refreshes explicitly. Candidate tests stay separate from supplied
-results, whose association with the code snapshot remains unknown. Use `--since HEAD` for uncommitted work.
+results, whose association with the code snapshot remains unknown. The brief says which changed definitions a
+candidate test names and which none does. Use `--since HEAD` for uncommitted work.
 See the [review guide](docs/guide/review.md) for Codex, Claude Code and Copilot setup. This command is unreleased;
 run it from this source checkout until the next package release.
 
