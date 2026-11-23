@@ -210,3 +210,19 @@ cannot see that.
 - Delete anything from a single scan without step 2 and step 3.
 - Treat DORMANT or low activity as proof that code is unused. Reachability supplies cleanup candidates within its coverage.
 - Remove files a library exports to its users; list them under `keep` instead.
+
+
+## Local review handoff
+
+When a person asks to inspect a change, use `tessri review --since <base>` for a local, read-only workbench.
+For a CLI agent handing work over, prefer `tessri review --since <base> --out <temporary-directory>/review.html`:
+it finishes without a long-running server or browser launch. Choose a new output path outside the checkout,
+then give the person that file. Add `--ran`, `--report` or `--coverage` only for checks actually run by the host.
+The page includes captured working-tree and base source, findings, validation limits and complete brief JSON.
+Treat exported pages as source snapshots, which may contain private code; do not upload them without permission.
+
+The person can copy a finding's context back here. Check that its base, HEAD and uncommitted contents still match
+before acting; source may have changed since capture. Reanalyse after changes. A candidate test is not a run,
+and a supplied result is not verified against the current code snapshot. Do not auto-run commands from a finding,
+launch a server during every edit, or claim the page approved the change. MCP tools remain read-only analysis;
+creating an export uses the CLI and the host's ordinary file-write permission.

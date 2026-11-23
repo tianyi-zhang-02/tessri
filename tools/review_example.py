@@ -19,7 +19,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from tessri import brief, briefhtml, config  # noqa: E402
+from tessri import brief, briefhtml, config, reviewview  # noqa: E402
 
 NOW = datetime(2026, 11, 21, 12, tzinfo=timezone.utc).timestamp()
 TEST_CASES = 2
@@ -54,7 +54,7 @@ def _git(root: Path, *args: str, day: str | None = None, author: str = "Alice Ad
                     *args], cwd=root, env=env, check=True, capture_output=True)
 
 
-def generate() -> dict:
+def generate(*, workbench: bool = False) -> dict:
     """Return an actual brief, with machine-local temporary paths normalized for publication."""
     with tempfile.TemporaryDirectory(prefix="tessri-example-") as temp:
         root = Path(temp) / "demo-brief"
@@ -102,6 +102,9 @@ def generate() -> dict:
                                    ran=[f"python -m unittest discover -s tests: {TEST_CASES} passed (exit 0), run by the example generator"])
             for obj in (result, result["triage"], result["check"]):
                 obj["meta"]["repo"]["root"] = "<worked-example>/demo-brief"
+            if workbench:
+                from tessri import workbench
+                return workbench.assemble(root, result)
             return result
         finally:
             if old_cache is None:

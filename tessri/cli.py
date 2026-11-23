@@ -1,4 +1,4 @@
-"""Command line entry point: `tessri scan | why | graph | impact | triage | check | brief | hook | integration | mcp`."""
+"""Command line entry point: `tessri scan | why | graph | impact | triage | check | brief | review | hook | integration | mcp`."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, brief, briefhtml, cache, config, graphview, hook, htmlreport, integration, modules, runs, sarifview, since, sinceview
+from . import __version__, brief, briefhtml, cache, config, graphview, hook, htmlreport, integration, modules, workbench, reviewview, runs, sarifview, since, sinceview
 from .analyze import analyze
 from .explain import TargetError, explain, why_json
 from .render import markdown
@@ -57,6 +57,13 @@ def _non_negative(text: str) -> int:
     value = int(text)
     if value < 0:
         raise argparse.ArgumentTypeError("must not be negative")
+    return value
+
+
+def _port(text: str) -> int:
+    value = int(text)
+    if not 0 <= value <= 65535:
+        raise argparse.ArgumentTypeError("must be between 0 and 65535")
     return value
 
 
@@ -197,6 +204,21 @@ def _cmd_impact(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_review(args: argparse.Namespace) -> int:
+    root = _root(_root_given(args))
+    try:
+        session = workbench.Session(root, _config_for(root, args), args.since, ran=args.ran, reports=args.report,
+                                 coverage_reports=args.coverage, config_factory=lambda: _config_for(root, args))
+        if args.out:
+            _emit(reviewview.render(session.data), args.out)
+        else:
+            workbench.serve(session, port=args.port, open_browser=not args.no_open)
+    except (brief.BriefError, since.CheckError, OSError) as exc:
+        print(f"tessri: {exc}", file=sys.stderr)
+        return 2
+    return 0
+
+
 def _cmd_hook(args: argparse.Namespace) -> int:
     return hook.run(sys.stdin.read(), args.repo)
 
@@ -300,6 +322,18 @@ def build_parser() -> argparse.ArgumentParser:
     briefp.add_argument("--out", metavar="FILE", help="write the brief to FILE instead of stdout")
     _add_analysis_options(briefp)
     briefp.set_defaults(func=_cmd_brief)
+
+    reviewp = sub.add_parser("review", help="open a local, read-only source and evidence workbench, or export one offline file")
+    _add_root(reviewp)
+    reviewp.add_argument("--since", metavar="REF", help=SINCE_HELP)
+    reviewp.add_argument("--out", metavar="FILE", help="write an offline source snapshot instead of starting a server; choose a path outside the checkout")
+    reviewp.add_argument("--no-open", action="store_true", help="print the loopback URL without opening a browser")
+    reviewp.add_argument("--port", type=_port, default=0, help="local port (default: an available ephemeral port)")
+    reviewp.add_argument("--ran", action="append", default=[], metavar="TEXT", help="a host-recorded check and result, never executed by Tessri")
+    reviewp.add_argument("--report", action="append", default=[], metavar="FILE", help="a host-written JUnit report")
+    reviewp.add_argument("--coverage", action="append", default=[], metavar="FILE", help="a host-written coverage report")
+    _add_analysis_options(reviewp)
+    reviewp.set_defaults(func=_cmd_review)
 
     hookp = sub.add_parser("hook", help="answer a coding agent's lifecycle hook: the host's event on stdin, the host's JSON on stdout, nothing when there is nothing to add; after an edit, what the edited file can reach; when the agent stops, what the uncommitted work did to the structure (installed by `integration install --agent claude-hooks` or `codex-hooks`)")
     _add_root(hookp)

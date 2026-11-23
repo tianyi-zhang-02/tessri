@@ -879,7 +879,7 @@ LANDING_DESCRIPTION = (
 )
 
 
-def review_diagram(b: dict) -> str:
+def validate_worked_review(b: dict) -> None:
     """Draw the teaching case only when its actual evidence still supports the illustrated relationships."""
     rows = {r["path"]: r for r in b["triage"]["files"]}
     changed, deleted, outside, test = "billing/invoices.py", "util/money.py", "reports/summary.py", "tests/test_invoices.py"
@@ -900,21 +900,11 @@ def review_diagram(b: dict) -> str:
     import_line = "from util.money import cents"
     if import_line not in review_example.BASE[changed] or import_line not in review_example.BASE[outside]:
         raise BuildError("the home diagram's removed and retained imports must exist in the fixture's base")
-    template = (SITE / "review-diagram.html").read_text(encoding="utf-8")
-    values = {
-        "changed_path": changed, "deleted_path": deleted, "outside_path": outside,
-        "test_path": test, "test_count": review_example.TEST_CASES, "symbol": "cents",
-        "code_files": b["change"]["code_files"], "lines": b["change"]["lines"],
-    }
-    for key, value in values.items():
-        template = template.replace("{{" + key + "}}", html.escape(str(value)))
-    if re.search(r"{{[\w:-]+}}", template):
-        raise BuildError("unfilled placeholders in site/review-diagram.html")
-    return template
 
 
-def landing(demo: dict | None, worked: dict) -> str:
+def landing(demo: dict | None, worked: dict, workbench: dict) -> str:
     template = (SITE / "index.html").read_text(encoding="utf-8")
+    validate_worked_review(worked)
     example = example_panel()
     filled = (
         template.replace("{{mark}}", MARK)
@@ -924,7 +914,7 @@ def landing(demo: dict | None, worked: dict) -> str:
         .replace("{{theme_button}}", theme_button())
         .replace("{{search_button}}", search_button())
         .replace("{{social}}", social("Tessri", LANDING_DESCRIPTION, ""))
-        .replace("{{review_diagram}}", review_diagram(worked))
+        .replace("{{workbench}}", review_example.reviewview.render(workbench, example=True, embedded=True))
         .replace("{{live_review}}", '<section class="band" id="live-review"><span class="label">Tessri on itself</span><h2>The latest change, with its evidence.</h2>' + handoff(demo) + '</section>' if demo else "")
         .replace("{{field_notes}}", '<ul class="review-notes">' + ''.join(f'<li><time datetime="{p["date"]}">{_day(p["date"])}</time><h3><a href="blog/{p["slug"]}.html">{html.escape(p["title"])}</a></h3><p>{html.escape(p["summary"].split(". ", 1)[0])}.</p></li>' for p in posts()[:2]) + '</ul>')
         .replace("{{example}}", example)
@@ -1308,7 +1298,9 @@ def sitemap(paths: list[str]) -> str:
 def build(out: Path, demo: bool = False) -> list[Path]:
     """Write the site into `out` and return the files written. With `demo`, the pages that run Tessri on this checkout."""
     content = demo_content() if demo else None  # before anything is written
-    worked = review_example.generate()
+    from tessri import reviewview
+    workbench = review_example.generate(workbench=True)
+    worked = workbench["brief"]
     out = out.resolve()
     if out.exists():
         if out.is_file() or (any(out.iterdir()) and not (out / MARKER).exists()):
@@ -1330,7 +1322,9 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     (out / "icons").mkdir()
     shutil.copyfile(ICONS / "LICENSE", out / "icons" / "LICENSE")
     written.append(out / "icons" / "LICENSE")
-    write("index.html", landing(content, worked))
+    write("index.html", landing(content, worked, workbench))
+    (out / "review").mkdir()
+    write("review/index.html", reviewview.render(workbench, example=True).replace("</head>", social("Local review · Tessri", "Follow a change beyond the diff, with source and evidence from a teaching repository.", "review/") + "</head>"))
     (out / "example").mkdir()
     example_html = review_example.briefhtml.render(worked, example=True)
     example_html = example_html.replace("</head>", social("A worked review · Tessri", "Two passing billing tests and an unchanged importer of a deleted file. A reproducible teaching review.", "example/") + "</head>")
@@ -1345,7 +1339,7 @@ def build(out: Path, demo: bool = False) -> list[Path]:
     pages = guide_index()
     known = {s for s, _ in pages}
     entries: list[dict] = []
-    addresses = ["", "example/"]
+    addresses = ["", "example/", "review/"]
     for md in sorted(GUIDE.glob("*.md")):
         name = md.stem
         if name != "README" and name not in known:

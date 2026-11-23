@@ -4,6 +4,11 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- `tessri review` opens a loopback-only source and evidence workbench with finding navigation, working-tree/base
+  source, explicit refresh and stale-result detection. `--out` exports one offline source snapshot. The homepage
+  and worked review use the same interface and generated evidence. Codex, Claude Code and Copilot instructions
+  include the handoff flow; `--agent copilot-cli` installs a reversible session MCP configuration.
+
 - The brief and `triage` say which of the definitions a change touched are named by a test that reaches the file,
   and which by none. `mentions.py` joins *What changed in them, by definition* with the candidate tests: each test's
   code is read with the language's own token reader (Python's `tokenize`, the JavaScript reader), so a name counts

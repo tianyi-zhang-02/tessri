@@ -4,10 +4,21 @@ Start with [a worked review](https://tianyi-zhang-02.github.io/tessri/example/):
 a deleted module, see which tests passed, and inspect what remains unknown. It uses a teaching repository, not a
 production incident.
 
-On your own branch, open the same kind of evidence:
+From a source checkout, open the new local source and evidence workbench (unreleased):
 
 ```bash
-uvx tessri brief --since main --format html --out brief.html
+python -m tessri review --since main
+python -m tessri review --since main --out /tmp/tessri-review.html
+```
+
+The first command starts a loopback-only session with explicit refresh; the second writes one offline source
+snapshot. See [the review guide](review.md) for file navigation, stale results and Codex, Claude Code or Copilot
+handoff. Neither command runs tests or changes the checkout.
+
+For the script-free brief:
+
+```bash
+python -m tessri brief --since main --format html --out /tmp/brief.html
 ```
 
 Open `brief.html` in a browser. Start at *Look first*, expand a finding under *Structure*, then compare candidate

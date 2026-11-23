@@ -33,3 +33,10 @@ tessri = "tessri.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["tessri*"]
+
+[tool.setuptools.package-data]
+tessri = ["assets/*.html", "assets/*.css", "assets/*.js"]
+
+[tool.tessri]
+# The browser entry point is embedded through importlib.resources, rather than a static script URL.
+entry = ["tessri/assets/review.js"]

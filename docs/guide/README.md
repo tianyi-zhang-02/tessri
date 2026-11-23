@@ -11,6 +11,7 @@ faster than anyone can read it. One page per question, each with real output and
 - [How the modules fit together](graph.md): the module graph, the cycles, and the few dependencies to cut.
 - [What a change can reach](impact.md): dependents, the tests that reach a file, the evidence behind each edge.
 - [Triage a change](triage.md): which changed files deserve a person first, and who can look.
+- [Local review workbench](review.md): captured source and evidence, refresh, and a handoff back to a CLI agent.
 - [Check what a change did to the structure](check.md): findings, the exit code for CI, and SARIF.
 - [Hand a change over: the review brief](brief.md): triage and check on one page, from one analysis, with the
   state the evidence describes and what the host ran kept apart from candidate tests.
