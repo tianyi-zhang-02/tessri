@@ -69,6 +69,7 @@ The same questions, where the agent and the reviewer already are. Each line inst
 | Any MCP host | `tessri integration install --agent mcp`; `cursor`, `gemini`, `junie`, `roo`, `kiro`, `warp`, `factory` or `vscode` for the file that host reads | the questions as tools (`tessri_impact`, `tessri_triage`, `tessri_check`, `tessri_brief`, `tessri_why`, `tessri_scan`, `tessri_graph`), served by `tessri mcp`; see [MCP](docs/guide/mcp.md) |
 | Claude Code, Codex | `--agent claude-hooks`, `--agent codex-hooks` | after each edit, what the edited file reaches; when the agent stops, what the uncommitted work did to the structure; see [hooks](docs/guide/hooks.md) |
 | Skills and instructions | `--agent claude`, `codex`, `agents`, `copilot` | when to ask which question, as the agent's own instructions |
+| VS Code, and the editors built on it | the [Tessri extension](editors/vscode/README.md) | a line over each file and a hover over each definition: maintainers, dependents, candidate tests; the questions as commands and as tools for the chat agent; see [in the editor](docs/guide/vscode.md) |
 | Every pull request | `--agent review` | the brief below, posted as a comment |
 | A weekly look | `--agent report` | the HTML report of the repository, on a schedule |
 
@@ -180,7 +181,7 @@ starter `.tessri.toml` with every option commented out.
   tested, what the pages are for, how the code is put together.
 - [Integration](docs/guide/integration.md): skills, AGENTS.md, [hooks](docs/guide/hooks.md) and CI, with copyable recipes in
   [workflow-recipes.md](docs/workflow-recipes.md); [MCP](docs/guide/mcp.md): the questions as tools for any agent
-  that speaks the protocol.
+  that speaks the protocol; [in the editor](docs/guide/vscode.md): the VS Code extension.
 - [Configuration](docs/guide/configuration.md), [JSON output](docs/guide/json.md),
   [Architecture](docs/guide/architecture.md), [Limits](docs/guide/limits.md).
 - [Changelog](CHANGELOG.md). Tessri was called repolife until 0.2.0;

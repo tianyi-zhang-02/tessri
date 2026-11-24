@@ -4,6 +4,14 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- A VS Code extension, `editors/vscode`, with no dependency of its own: a code lens over each Python, JavaScript
+  and TypeScript file (dependents, candidate tests, maintainers, last commit) and a hover over each definition with
+  the file's status, reachability, maintainers, history, dependents and tests, both from `tessri why` and
+  `tessri impact`; `why`, `impact`, `triage`, `check` and `brief` as commands that open read-only pages; the seven
+  questions as tools for the chat agent (`#tessriImpact` and the rest); one `tessri mcp` server per workspace
+  folder, spoken to over the protocol's stdio transport, so the editor and the agent see the same numbers. Its tests
+  run with `node --test` against the real server on the checkout, and CI packages it. Publishing to the Marketplace
+  and Open VSX (which Cursor, Windsurf and Kiro read) is a release step; the guide has [a page](docs/guide/vscode.md).
 - The brief and `triage` say which of the definitions a change touched are named by a test that reaches the file,
   and which by none. `mentions.py` joins *What changed in them, by definition* with the candidate tests: each test's
   code is read with the language's own token reader (Python's `tokenize`, the JavaScript reader), so a name counts
