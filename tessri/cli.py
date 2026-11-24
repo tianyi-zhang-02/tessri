@@ -204,7 +204,7 @@ def _cmd_hook(args: argparse.Namespace) -> int:
 def _cmd_mcp(args: argparse.Namespace) -> int:
     from .mcp import Server
 
-    return Server([_root(r) for r in (args.root or ["."])], use_cache=not args.no_cache).serve()
+    return Server([_root(r) for r in args.root] if args.root else None, use_cache=not args.no_cache).serve()
 
 
 def _cmd_integration(args: argparse.Namespace) -> int:
@@ -306,7 +306,7 @@ def build_parser() -> argparse.ArgumentParser:
     hookp.set_defaults(func=_cmd_hook)
 
     mcp = sub.add_parser("mcp", help="serve the questions as Model Context Protocol tools over stdin/stdout, for an agent that starts it as a subprocess")
-    mcp.add_argument("--root", action="append", metavar="PATH", help="a checkout to serve (repeatable; default: the current directory); with several, every tool names one with `root`")
+    mcp.add_argument("--root", action="append", metavar="PATH", help="a checkout to serve (repeatable; with several, every tool names one with `root`); without it, the checkout the host names: the roots a client lists when it offers them, the workspaces Codex names in each call, else the current directory")
     mcp.add_argument("--no-cache", action="store_true", help="read every file afresh on every analysis instead of what earlier runs kept of it")
     mcp.set_defaults(func=_cmd_mcp)
 

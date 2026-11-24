@@ -1,0 +1,20 @@
+{
+  "name": "tessri",
+  "interface": {
+    "displayName": "Tessri"
+  },
+  "plugins": [
+    {
+      "name": "tessri",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    }
+  ]
+}

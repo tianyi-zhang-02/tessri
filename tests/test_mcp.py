@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 from tessri import mcp
 from tessri.cli import main
-from tessri.mcp import CURRENT, INSTRUCTIONS, LEGACY, SUPPORTED, TOOLS, Server
+from tessri.mcp import CODEX_META, CURRENT, INSTRUCTIONS, LEGACY, SUPPORTED, TOOLS, Server
 
 ALICE = ("Alice", "alice@example.com")
 TREE = {
@@ -343,6 +343,113 @@ class SeveralCheckoutsTest(TempRepo):
         server = Server([self.a, self.root / "gone"])
         answer = call(server, "tessri_scan", {"root": "gone"})["result"]
         self.assertEqual(answer["content"][0]["text"], f"{self.root / 'gone'}: not a directory")
+
+
+class HostRootsTest(TempRepo):
+    """Without `--root`, the server serves what the host names: its `roots/list` when it offers roots, the workspaces a
+    Codex call carries, and the current directory until then."""
+
+    def setUp(self):
+        super().setUp()
+        self.a, self.b = self.root / "app", self.root / "lib"
+        write_tree(self.a, {"a.py": "x = 1\n"})
+        write_tree(self.b, {"b.py": "y = 2\n"})
+        self.enterContext(contextlib.chdir(self.root))
+
+    @staticmethod
+    def initialize(server, roots=True):
+        capabilities = {"roots": {"listChanged": True}} if roots else {}
+        return server.handle(request(0, "initialize", {"protocolVersion": "2025-06-18", "capabilities": capabilities, "clientInfo": {"name": "t", "version": "0"}}))
+
+    @staticmethod
+    def answer(server, rid, roots):
+        return server.handle({"jsonrpc": "2.0", "id": rid, "result": {"roots": roots}})
+
+    def roots(self, server):
+        return [r["root"] for r in call(server, "tessri_repos")["result"]["structuredContent"]["repos"]]
+
+    def test_the_current_directory_until_the_host_speaks(self):
+        server = Server(None)
+        self.assertEqual(self.roots(server), [str(self.root.resolve())])
+        self.assertFalse(server.given)
+
+    def test_a_client_that_offers_roots_is_asked_once_it_is_ready_and_its_directories_become_the_checkouts(self):
+        server = Server(None)
+        self.initialize(server)
+        self.assertEqual(server.outbox, [])  # not before the client says it is ready
+        self.assertIsNone(server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))
+        self.assertEqual(server.outbox, [{"jsonrpc": "2.0", "id": "tessri-roots-1", "method": "roots/list"}])
+        roots = [
+            {"uri": self.a.as_uri(), "name": "app"},
+            {"uri": "https://example.com/not-a-file"},
+            {"uri": (self.root / "gone").as_uri()},
+            {"uri": (self.a / "a.py").as_uri()},
+            {"uri": self.a.as_uri()},  # twice: once
+        ]
+        self.assertIsNone(self.answer(server, "tessri-roots-1", roots))
+        self.assertEqual(self.roots(server), [str(self.a.resolve())])
+
+    def test_a_change_of_roots_is_asked_about_again_and_a_stale_answer_is_ignored(self):
+        server = Server(None)
+        self.initialize(server)
+        server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.answer(server, "tessri-roots-1", [{"uri": self.a.as_uri()}])
+        server.outbox.clear()
+        server.handle({"jsonrpc": "2.0", "method": "notifications/roots/list_changed"})
+        self.assertEqual([r["id"] for r in server.outbox], ["tessri-roots-2"])
+        self.answer(server, "tessri-roots-1", [{"uri": self.b.as_uri()}])  # the old request's answer, late
+        self.assertEqual(self.roots(server), [str(self.a.resolve())])
+        self.answer(server, "tessri-roots-2", [{"uri": self.a.as_uri()}, {"uri": self.b.as_uri()}])
+        self.assertEqual(self.roots(server), [str(self.a.resolve()), str(self.b.resolve())])
+        self.assertEqual(call(server, "tessri_scan")["result"]["isError"], True)  # two checkouts: `root` is required
+
+    def test_a_client_without_roots_is_not_asked_and_an_answer_with_no_directory_changes_nothing(self):
+        server = Server(None)
+        self.initialize(server, roots=False)
+        server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.assertEqual(server.outbox, [])
+        server.handle({"jsonrpc": "2.0", "method": "notifications/roots/list_changed"})
+        self.assertEqual(server.outbox, [])
+        asked = Server(None)
+        self.initialize(asked)
+        asked.handle({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.answer(asked, "tessri-roots-1", [{"uri": "https://example.com/"}, {"uri": (self.root / "gone").as_uri()}])
+        self.assertEqual(self.roots(asked), [str(self.root.resolve())])
+        self.assertIsNone(asked.handle({"jsonrpc": "2.0", "id": "tessri-roots-1", "error": {"code": -32601, "message": "no"}}))
+
+    def test_root_on_the_command_line_settles_it(self):
+        server = Server([self.b])
+        self.initialize(server)
+        server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        self.assertEqual(server.outbox, [])
+        meta = {CODEX_META: {"workspaces": {str(self.a): {"has_changes": False}}}}
+        server.handle(request(2, "tools/call", {"name": "tessri_repos", "arguments": {}, "_meta": meta}))
+        self.assertEqual(self.roots(server), [str(self.b)])
+
+    def test_a_codex_call_names_the_workspaces_of_its_turn(self):
+        server = Server(None)
+        self.initialize(server, roots=False)
+        meta = {"callId": "x", CODEX_META: {"workspaces": {str(self.a): {"latest_git_commit_hash": "0", "has_changes": False}, str(self.root / "gone"): {}}}}
+        answer = server.handle(request(2, "tools/call", {"name": "tessri_repos", "arguments": {}, "_meta": meta}))
+        self.assertEqual([r["root"] for r in answer["result"]["structuredContent"]["repos"]], [str(self.a.resolve())])
+        self.assertEqual(self.roots(server), [str(self.a.resolve())])  # and a call without the metadata keeps them
+        meta = {CODEX_META: {"workspaces": {}}}
+        server.handle(request(3, "tools/call", {"name": "tessri_repos", "arguments": {}, "_meta": meta}))
+        self.assertEqual(self.roots(server), [str(self.a.resolve())])
+
+    def test_over_the_wire_the_request_follows_the_message_that_made_it(self):
+        server = Server(None)
+        lines = [
+            json.dumps(request(0, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {"roots": {}}, "clientInfo": {"name": "t", "version": "0"}})),
+            json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+            json.dumps({"jsonrpc": "2.0", "id": "tessri-roots-1", "result": {"roots": [{"uri": self.a.as_uri()}]}}),
+            json.dumps(request(1, "tools/call", {"name": "tessri_repos", "arguments": {}})),
+        ]
+        out = io.StringIO()
+        self.assertEqual(server.serve(io.StringIO("\n".join(lines) + "\n"), out), 0)
+        written = [json.loads(line) for line in out.getvalue().splitlines()]
+        self.assertEqual([(m.get("id"), m.get("method")) for m in written], [(0, None), ("tessri-roots-1", "roots/list"), (1, None)])
+        self.assertEqual(written[2]["result"]["structuredContent"]["repos"][0]["root"], str(self.a.resolve()))
 
 
 class ProcessTest(Repo):

@@ -1,7 +1,7 @@
 {
   "name": "tessri",
   "version": "0.4.0",
-  "description": "Keep code understandable. Structure, change impact, review focus and ownership of a codebase, with the evidence for every claim.",
+  "description": "Keep code understandable while the agent works: what a change can reach, who can review it and what nobody maintains, with the evidence for every claim. The questions as tools, a skill for when to ask them, and hooks that answer after each edit and when the agent stops. Zero dependencies.",
   "author": {
     "name": "Tianyi Zhang",
     "url": "https://github.com/tianyi-zhang-02"
@@ -9,5 +9,20 @@
   "homepage": "https://github.com/tianyi-zhang-02/tessri",
   "repository": "https://github.com/tianyi-zhang-02/tessri",
   "license": "MIT",
-  "keywords": ["maintainability", "code-review", "dependency-graph", "dead-code", "code-ownership"]
+  "keywords": [
+    "maintainability",
+    "code-review",
+    "dependency-graph",
+    "dead-code",
+    "code-ownership",
+    "impact-analysis",
+    "mcp",
+    "hooks"
+  ],
+  "mcpServers": {
+    "tessri": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/tessri", "mcp", "--root", "${CLAUDE_PROJECT_DIR}"]
+    }
+  }
 }

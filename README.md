@@ -68,6 +68,7 @@ The same questions, where the agent and the reviewer already are. Each line inst
 |---|---|---|
 | Any MCP host | `tessri integration install --agent mcp`; `cursor`, `gemini`, `junie`, `roo`, `kiro`, `warp`, `factory` or `vscode` for the file that host reads | the questions as tools (`tessri_impact`, `tessri_triage`, `tessri_check`, `tessri_brief`, `tessri_why`, `tessri_scan`, `tessri_graph`), served by `tessri mcp`; see [MCP](docs/guide/mcp.md) |
 | Claude Code, Codex | `--agent claude-hooks`, `--agent codex-hooks` | after each edit, what the edited file reaches; when the agent stops, what the uncommitted work did to the structure; see [hooks](docs/guide/hooks.md) |
+| Claude Code, Codex, for every project | the Tessri plugin: `claude plugin marketplace add tianyi-zhang-02/tessri` then `claude plugin install tessri@tessri`; `codex plugin marketplace add tianyi-zhang-02/tessri` then `codex plugin add tessri@tessri` | the skill, the tools and the hooks in one install, with their own copy of Tessri and nothing written into the project; see [plugins](docs/guide/plugins.md) |
 | Skills and instructions | `--agent claude`, `codex`, `agents`, `copilot` | when to ask which question, as the agent's own instructions |
 | VS Code, and the editors built on it | the [Tessri extension](editors/vscode/README.md) | a line over each file and a hover over each definition: maintainers, dependents, candidate tests; the questions as commands and as tools for the chat agent; see [in the editor](docs/guide/vscode.md) |
 | Every pull request | `--agent review` | the brief below, posted as a comment |
@@ -181,7 +182,8 @@ starter `.tessri.toml` with every option commented out.
   tested, what the pages are for, how the code is put together.
 - [Integration](docs/guide/integration.md): skills, AGENTS.md, [hooks](docs/guide/hooks.md) and CI, with copyable recipes in
   [workflow-recipes.md](docs/workflow-recipes.md); [MCP](docs/guide/mcp.md): the questions as tools for any agent
-  that speaks the protocol; [in the editor](docs/guide/vscode.md): the VS Code extension.
+  that speaks the protocol; [plugins](docs/guide/plugins.md): one install for Claude Code or Codex;
+  [in the editor](docs/guide/vscode.md): the VS Code extension.
 - [Configuration](docs/guide/configuration.md), [JSON output](docs/guide/json.md),
   [Architecture](docs/guide/architecture.md), [Limits](docs/guide/limits.md).
 - [Changelog](CHANGELOG.md). Tessri was called repolife until 0.2.0;

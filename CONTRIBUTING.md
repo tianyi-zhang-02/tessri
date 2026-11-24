@@ -41,6 +41,7 @@ serves it.
 | a language | `tessri/analyzers/`, see [Architecture](docs/guide/architecture.md) | `tests/test_<language>.py` |
 | an option | `tessri/config.py`, its flag in `tessri/cli.py`, the commented line in `tessri/templates.py` | `docs/guide/configuration.md` |
 | what is written into other repositories | `tessri/templates.py` and `tessri/integration.py` | `skills/tessri/SKILL.md`, which must equal `templates.SKILL` (a test checks) |
+| the Claude Code or Codex plugin | `.claude-plugin/`, `plugin.json`, `mcp.json`, `.agents/plugins/`, `hooks/hooks.json`, `bin/tessri` | `tests/test_plugins.py`; `claude plugin validate … --strict` on the Claude Code files (CI runs it) |
 | a guide page | `docs/guide/<page>.md`, linked from `docs/guide/README.md`; the site build refuses an unlinked page | |
 | the landing page | `site/`, built by `tools/build_site.py` | `tests/test_site.py` |
 

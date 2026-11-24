@@ -4,6 +4,21 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- The repository is an installable plugin for Claude Code and for Codex: `claude plugin marketplace add
+  tianyi-zhang-02/tessri` and `claude plugin install tessri@tessri`, or `codex plugin marketplace add
+  tianyi-zhang-02/tessri` and `codex plugin add tessri@tessri`, bring the skill, the eight tools and the two hooks to
+  every project, with nothing written into any of them. (Since 0.3.0 the root had a bare Claude Code manifest with
+  the skill alone and no marketplace to install it from.) `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` are Claude
+  Code's; `plugin.json`, `mcp.json` and `.agents/plugins/marketplace.json` are Codex's, in the Agent Plugins format;
+  `hooks/hooks.json` is shared, and `bin/tessri` runs the Tessri of the checkout with `python3` (3.11 or newer), so
+  the plugin needs no `pip install`. CI validates the Claude Code manifests; `tests/test_plugins.py` holds the
+  files to what the hosts expect. The guide has [a page](docs/guide/plugins.md).
+- `tessri mcp` without `--root` takes the checkout from the host instead of assuming the current directory: a
+  client whose `initialize` offers `roots` is asked `roots/list` once it is ready (and again on
+  `notifications/roots/list_changed`), and its `file:` roots that are directories become the checkouts; a Codex call,
+  which carries the turn's `workspaces` in its `_meta`, names them the same way; until a host has spoken the current
+  directory serves, as before. A plugin's server is started in the plugin's own directory, so this is what points it
+  at the project. `--root` still settles the matter by itself.
 - `why` holds every definition of a code file against the tests that reach it. The JSON gets `definitions`: each
   function, class and method with its lines and `named_in`, the reaching tests whose code uses its name (the same
   rule as the triage join: identifiers only, the last segment of a dotted name, three characters or more, not

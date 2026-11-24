@@ -78,7 +78,8 @@ commented lines in the file; turning either on is the team's choice, and makes t
 the Tessri that installed them (`pip install tessri==<version>`), so after an upgrade `status` says
 `installed-outdated` and `update` refreshes the pin; like a skill, an edited workflow is yours and `update` leaves
 it alone. This repository runs the review workflow on its own pull requests, installing Tessri from the checkout.
-As a Claude Code plugin, it also ships `.claude-plugin/plugin.json` and `skills/tessri/SKILL.md`.
+The repository is also a Claude Code and a Codex [plugin](plugins.md): the same skill and hooks, and the server,
+for every project in one install, with nothing written into the project.
 
 Copyable recipes for CI artifacts, SARIF uploads, gates and test selection are in
 [workflow-recipes.md](../workflow-recipes.md).

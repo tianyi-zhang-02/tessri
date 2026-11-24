@@ -1,0 +1,15 @@
+{
+  "name": "tessri",
+  "description": "Tessri: how a codebase fits together, what a change can reach, who can review it and what nobody maintains, with the evidence for every claim.",
+  "owner": {
+    "name": "Tianyi Zhang"
+  },
+  "plugins": [
+    {
+      "name": "tessri",
+      "source": "./",
+      "description": "Keep code understandable while the agent works: what a change can reach, who can review it and what nobody maintains, with the evidence for every claim. The questions as tools, a skill for when to ask them, and hooks that answer after each edit and when the agent stops. Zero dependencies.",
+      "category": "development"
+    }
+  ]
+}

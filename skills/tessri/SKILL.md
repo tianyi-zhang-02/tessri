@@ -22,10 +22,10 @@ When Tessri is connected as an MCP server (`tessri mcp`), the same questions are
 `tessri_why`, `tessri_impact`, `tessri_graph`, `tessri_triage`, `tessri_check` and `tessri_brief`; each returns the command's
 JSON as structured content and its text as content, and `tessri_repos` lists the checkouts the server reads.
 
-When the project's hooks are installed (`tessri integration install --agent claude-hooks` or `codex-hooks`),
-what a code file can reach arrives by itself after you edit it, once per file, and what the uncommitted work
-did to the structure when you stop; what arrives that way needs no command. Without them, ask with the
-commands above.
+When the hooks are installed (the Tessri plugin brings them; `tessri integration install --agent claude-hooks`
+or `codex-hooks` writes them into the project), what a code file can reach arrives by itself after you edit it,
+once per file, and what the uncommitted work did to the structure when you stop; what arrives that way needs no
+command. Without them, ask with the commands above.
 
 ## Run it
 
