@@ -57,7 +57,7 @@ jobs:
           node-version: "22"
       - name: Run the extension's tests
         working-directory: editors/vscode
-        run: node --test test/
+        run: node --test test/*.test.js
       - name: Package the extension
         working-directory: editors/vscode
         run: npx --yes @vscode/vsce@3 package --no-dependencies -o /tmp/tessri.vsix

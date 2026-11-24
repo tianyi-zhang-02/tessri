@@ -40,7 +40,7 @@ An editor that should reach the server without the extension takes the `.vscode/
 
 ```bash
 cd editors/vscode
-node --test test/                                   # against the real server on this checkout; Python 3.11+ and git
+node --test test/*.test.js                          # against the real server on this checkout; Python 3.11+ and git
 npx --yes @vscode/vsce@3 package --no-dependencies  # the .vsix, which also validates the manifest
 ```
 
