@@ -28,6 +28,12 @@ depends on:    none
 note:          only referenced by other unreachable files
 ```
 
+A code file with definitions gets one more line, `definitions:`, holding each function, class and method against
+the tests that reach the file: how many are named in one (the identifier appears in the test's code, strings and
+comments apart: a mention, not an assertion), which are named in none, and which were not searched, being too
+short, private by convention or too common (`default`, `constructor`, a dunder). The JSON has every definition with
+its lines and the tests that name it; the [VS Code extension](vscode.md) shows the same on hover.
+
 Each edge `why` lists carries the kind of evidence behind it, as `impact` names them, when that is anything but an
 import statement: `pkg/loader.py (string)` depends on the file through a name in a string, `pkg/__init__.py [STABLE]
 (package)` is the package file Python runs for an import, and a hop on the `reached via` route reads

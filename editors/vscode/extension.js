@@ -198,7 +198,8 @@ class HoverProvider {
       return undefined; // the server is not there; the warning was shown once
     }
     if (!found || token.isCancellationRequested) return undefined;
-    const text = facts.hover(definition.name, relative(document.uri), found.why, found.impact, { why: commandUri("tessri.why", document.uri), impact: commandUri("tessri.impact", document.uri) });
+    const item = facts.definitionFor(found.why, definition.name, position.line + 1);
+    const text = facts.hover(definition.name, relative(document.uri), found.why, found.impact, { why: commandUri("tessri.why", document.uri), impact: commandUri("tessri.impact", document.uri) }, item);
     if (!text) return undefined;
     const markdown = new vscode.MarkdownString(text);
     markdown.isTrusted = { enabledCommands: ["tessri.why", "tessri.impact"] };

@@ -11,6 +11,20 @@ const WHY = {
   verdict: { status: "ACTIVE", confidence: null, reachability: "prod", entry_points: [], notes: [] },
   git: { tracked: true, last_commit: "2026-11-23", age_days: 0, first_commit: "2026-10-30", commits_active: 12, commits_year: 12, authors_year: 1, fixes_90: 0, fixes_year: 0 },
   owners: { state: "owned", inactive_days: 180, people: [{ name: "Tianyi Zhang", share: 100, idle_days: 0, silent: false }], codeowners: null },
+  definitions: {
+    available: true,
+    tests: 24,
+    unread: [],
+    named: 2,
+    unnamed: 1,
+    unsearched: 1,
+    items: [
+      { name: "compute", start: 111, end: 318, named_in: ["tests/test_triage.py", "tests/test_brief.py", "tests/test_mentions.py", "tests/test_moves.py", "tests/test_symbols.py"] },
+      { name: "compute.is_test", start: 141, end: 142, named_in: ["tests/test_triage.py"] },
+      { name: "resolve_base", start: 49, end: 55, named_in: [] },
+      { name: "_reach", start: 96, end: 108, named_in: null },
+    ],
+  },
 };
 const IMPACT = {
   target: "tessri/triage.py",
@@ -51,6 +65,32 @@ test("the hover is a paragraph per fact, with the links last", () => {
     "_Candidate tests are paths that reach the file, not runs._",
     "[Why this file](command:tessri.why?%5B%5D) · [What a change here can reach](command:tessri.impact?%5B%5D)",
   ]);
+});
+
+test("the definition under the cursor is found by name and line, the innermost when nested", () => {
+  const item = facts.definitionFor(WHY, "compute", 200);
+  assert.equal(item.name, "compute");
+  assert.equal(facts.definitionFor(WHY, "is_test", 141).name, "compute.is_test"); // a nested name ends in the symbol's
+  assert.equal(facts.definitionFor(WHY, "compute", 141).name, "compute"); // the outer one when the name is the outer's
+  assert.equal(facts.definitionFor(WHY, "compute", 20), null); // the line is outside it
+  assert.equal(facts.definitionFor(WHY, "nothing", 200), null);
+  assert.equal(facts.definitionFor({ ...WHY, definitions: { available: false, reason: "x" } }, "compute", 200), null);
+  assert.equal(facts.definitionFor(null, "compute", 200), null);
+});
+
+test("the hover says which reaching tests name the definition, or that none does, or that it was not searched", () => {
+  const paragraphs = (name, line) => facts.hover(name, "tessri/triage.py", WHY, IMPACT, null, facts.definitionFor(WHY, name, line)).split("\n\n");
+  assert.equal(paragraphs("compute", 200)[1], "Named in `tests/test_triage.py`, `tests/test_brief.py`, `tests/test_mentions.py` and 2 more, of the 24 tests that reach the file.");
+  assert.equal(paragraphs("compute", 200)[5], "_Named means the identifier appears in the test's code: a mention, not an assertion. Candidate tests are paths, not runs._");
+  assert.equal(paragraphs("is_test", 141)[1], "Named in `tests/test_triage.py`, of the 24 tests that reach the file.");
+  assert.equal(paragraphs("resolve_base", 50)[1], "Named in none of the 24 tests that reach the file.");
+  assert.equal(paragraphs("_reach", 100)[1], "Not searched by name in the tests: too short, private or too common.");
+  assert.equal(paragraphs("_reach", 100)[5], "_Candidate tests are paths that reach the file, not runs._");
+  assert.equal(paragraphs("compute", 20).length, 5); // no definition under the cursor: the file's facts alone, no links asked for
+  const one = { ...WHY, definitions: { ...WHY.definitions, tests: 1, unread: ["tests/odd.py"] } };
+  assert.equal(facts.named(one, one.definitions.items[2]), "Named in none of the 1 test that reaches the file. 1 reaching test could not be read.");
+  const none = { ...WHY, definitions: { ...WHY.definitions, tests: 0 } };
+  assert.equal(facts.named(none, none.definitions.items[2]), null); // the dependents line already says no test reaches it
 });
 
 test("the hover says what is missing: no analyzer, nothing reaching, no tests, and leaves out what it has no object for", () => {

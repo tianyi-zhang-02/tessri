@@ -16,8 +16,13 @@ without git), `review` (`window`, `totals` with `bulk`, `unowned`, `areas`, `aut
 prints the same facts the text shows, as data: `file`, `verdict` (`status`, `confidence`, `reachability`,
 `entry_points`, `notes`), `git`, `owners`, `graph` (`reached_via`, `dependents`, `config_refs`, `doc_refs`,
 `depends_on`, `stranded_if_removed`, and `kinds`: the kind of evidence behind each edge, as `impact` names them,
-for `reached_via` as one entry per hop and for `dependents` and `depends_on` as a map from path to kind) and
-`advice`; `git`, `owners` and `graph` are `null` when the analysis had nothing to say. `tessri brief --format json`
+for `reached_via` as one entry per hop and for `dependents` and `depends_on` as a map from path to kind),
+`definitions` (for a code file: `available` with `items`, each definition's dotted `name`, first and last line and
+`named_in`, the reaching tests whose code uses its name, nearest first, or `null` when the name is too short, private
+or too common to search; `tests`, how many reach the file, the same set `impact` counts; `unread`; and the counts
+`named`, `unnamed`, `unsearched`; or `available` false with the reason, for a test file or a language without a
+definitions reader) and `advice`; `git`, `owners` and `graph` are `null` when the analysis had nothing to say, and
+`definitions` for a file that is not code. `tessri brief --format json`
 prints `kind: "brief"`: its own sections (`change` with the full base and head, the commits on the way and the
 uncommitted files in scope; `attention`; `consequences`, with `not_analysed`; `validation`, with `candidates`,
 `ran`, `report` and `coverage`; `people`; `open`) and, whole, the `triage` and `check` objects it was composed from.

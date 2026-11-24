@@ -4,6 +4,13 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- `why` holds every definition of a code file against the tests that reach it. The JSON gets `definitions`: each
+  function, class and method with its lines and `named_in`, the reaching tests whose code uses its name (the same
+  rule as the triage join: identifiers only, the last segment of a dotted name, three characters or more, not
+  private, not `default`, `constructor` or a dunder, else `null`), with `tests` (the set `impact` counts), `unread`
+  and the counts `named`, `unnamed` and `unsearched`; a test file or a language without a definitions reader says
+  so under `available`. The text gets one `definitions:` line. The VS Code extension's hover now opens with what the
+  reaching tests say about the definition under the cursor: named in which, named in none, or not searched.
 - A VS Code extension, `editors/vscode`, with no dependency of its own: a code lens over each Python, JavaScript
   and TypeScript file (dependents, candidate tests, maintainers, last commit) and a hover over each definition with
   the file's status, reachability, maintainers, history, dependents and tests, both from `tessri why` and

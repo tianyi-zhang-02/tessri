@@ -93,6 +93,46 @@ def compute(root: Path, rows: Sequence[dict], reach: Mapping[str, Mapping[str, i
             s["tests_unread"] = [t for t in tests if t not in readable]
 
 
+def for_file(root: Path, path: str, language: str | None, tests: Sequence[str], languages: Mapping[str, str | None]) -> dict:
+    """Every definition of `path` held against `tests`, the test files that reach it, nearest first: `available`
+    with `items` (each definition's dotted name, first and last line, and `named_in`, the tests whose code uses its
+    name, or None when the name is not searched), `tests` (how many reach the file), `unread` (the reaching tests
+    that could not be read) and the counts `named`, `unnamed` and `unsearched`; or `available` false with the reason,
+    when the language has no definitions reader here or the file does not parse."""
+    from . import symbols  # here, not at the top: symbols reaches coverage, which reaches explain, which reaches this module
+
+    reader = symbols.READERS.get((language or "").lower())
+    if reader is None:
+        return {"available": False, "reason": f"definitions are read for {symbols.READ}, not {language or 'this kind of file'}"}
+    read, failure = reader
+    text = inventory.read_text(Path(root, path))
+    defs = read(text) if text is not None else None
+    if defs is None:
+        return {"available": False, "reason": f"the file {failure}" if text is not None else "the file could not be read"}
+    cache: dict[str, set[str] | None] = {}
+
+    def names_in(test: str) -> set[str] | None:
+        if test not in cache:
+            source = inventory.read_text(Path(root, test))
+            cache[test] = identifiers(source, languages.get(test)) if source is not None else None
+        return cache[test]
+
+    readable = [t for t in tests if names_in(t) is not None]
+    items = []
+    for name, start, end in defs:
+        ident = searchable(name)
+        items.append({"name": name, "start": start, "end": end, "named_in": None if ident is None else [t for t in readable if ident in (names_in(t) or ())]})
+    return {
+        "available": True,
+        "items": items,
+        "tests": len(tests),
+        "unread": [t for t in tests if t not in readable],
+        "named": sum(1 for i in items if i["named_in"]),
+        "unnamed": sum(1 for i in items if i["named_in"] == []),
+        "unsearched": sum(1 for i in items if i["named_in"] is None),
+    }
+
+
 def summary(rows: Sequence[dict]) -> dict | None:
     """Counts over the rows that carry `named_in`: the definitions touched, those a reaching test names, those none
     does and those not searched; None when no row was searched."""
