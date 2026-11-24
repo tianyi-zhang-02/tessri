@@ -49,6 +49,13 @@ function symbol(name, kind, line, column, endLine, children = []) {
 const triage = document("tessri/triage.py", ["import x", "", "def compute(root, cfg, base):", "    return 1", "", "class Row:", "    def markdown(self):", "        return compute"]);
 vscode.symbols = [symbol("compute", SymbolKind.Function, 2, 4, 3), symbol("Row", SymbolKind.Class, 5, 6, 7, [symbol("markdown", SymbolKind.Method, 6, 8, 7)])];
 
+// The real file, with its real line numbers, for the hover's definition paragraph: the server reports where each
+// definition is, and the fake symbol provider has to agree.
+const realLines = fs.readFileSync(path.join(ROOT, "tessri", "triage.py"), "utf8").split("\n");
+const real = document("tessri/triage.py", realLines);
+const lineOf = (prefix) => realLines.findIndex((l) => l.startsWith(prefix));
+const realSymbols = [symbol("compute", SymbolKind.Function, lineOf("def compute("), 4, realLines.length - 1), symbol("_reach", SymbolKind.Function, lineOf("def _reach("), 4, lineOf("def _reach(") + 12)];
+
 const context = { subscriptions: [] };
 const api = extension.activate(context);
 test.after(() => api.servers.dispose());
@@ -97,6 +104,14 @@ test("the hover over a definition carries the file's facts from the server, with
   assert.match(paragraphs[3], /^\d+ code files? depends? on it, \d+ directly · \d+ candidate tests? reach(es)? it, \d+ directly$/);
   assert.match(paragraphs[paragraphs.length - 1], /^\[Why this file\]\(command:tessri\.why\?%5B%22file.+\) · \[What a change here can reach\]\(command:tessri\.impact\?/);
   assert.deepEqual(hover.contents.isTrusted, { enabledCommands: ["tessri.why", "tessri.impact"] });
+  assert.equal(paragraphs.length, 6); // the fake lines do not match the real definitions: no definition paragraph
+  vscode.symbols = realSymbols;
+  const onCompute = (await api.hover.provideHover(real, new Position(lineOf("def compute("), 6), token)).contents.value.split("\n\n");
+  assert.match(onCompute[1], /^Named in `tests\/test_[a-z_]+\.py`(, `tests\/test_[a-z_]+\.py`)*( and \d+ more)?, of the \d+ tests that reach the file\.$/);
+  assert.equal(onCompute.length, 7);
+  const onReach = (await api.hover.provideHover(real, new Position(lineOf("def _reach("), 6), token)).contents.value.split("\n\n");
+  assert.equal(onReach[1], "Not searched by name in the tests: too short, private or too common.");
+  vscode.symbols = [symbol("compute", SymbolKind.Function, 2, 4, 3), symbol("Row", SymbolKind.Class, 5, 6, 7, [symbol("markdown", SymbolKind.Method, 6, 8, 7)])];
   assert.equal(await api.hover.provideHover(triage, new Position(7, 17), token), undefined);
   vscode.config.hover = false;
   assert.equal(await api.hover.provideHover(triage, new Position(2, 6), token), undefined);

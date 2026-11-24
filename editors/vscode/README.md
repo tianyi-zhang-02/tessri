@@ -11,8 +11,11 @@ into the repository.
 
   `Tessri: 8 dependents (5 direct) · 24 candidate tests · maintained by Tianyi Zhang 100% · last commit 2026-11-23`
 
-- **A hover over each definition** (function, class, method): the file's status and reachability, who maintains it
-  and since when, how many code files depend on it and how many tests reach it, with links to the two pages below.
+- **A hover over each definition** (function, class, method): which of the tests that reach the file name it, or
+  that none does, or that its name was not searched (too short, private or too common); then the file's status and
+  reachability, who maintains it and since when, how many code files depend on it and how many tests reach it, with
+  links to the two pages below. *Named* means the identifier appears in the test's code, strings and comments apart:
+  a mention, not an assertion.
 
 - **Commands**, from the editor's or the explorer's context menu under *Tessri*, or the command palette:
   *Why this file* (the evidence, as text), *What a change here can reach* (dependents, candidate tests, maintainers),
@@ -24,6 +27,7 @@ into the repository.
   command's text, the same the terminal prints.
 
 Every number comes from `tessri why <file>` and `tessri impact <file>`; the editor adds no judgement of its own.
+The hover's first paragraph needs a Tessri newer than 0.4.0, whose `why` JSON carries `definitions`; an older one gives the file's facts alone.
 
 ## Install
 
@@ -64,8 +68,8 @@ repository's `.tessri.toml`: `tessri integration install --agent config` writes 
 
 Static analysis of one repository: registries, dependency injection and consumers outside the repository are not
 seen, and a file nothing reaches is a candidate, not a verdict. A candidate test is a path that reaches the file,
-never a run. The hover's facts are the file's, not the definition's. The extension needs a trusted workspace and
-runs where the files are.
+never a run. A test that names a definition mentions it; whether it asserts anything about it is for the test to
+say. The extension needs a trusted workspace and runs where the files are.
 
 ## Also
 

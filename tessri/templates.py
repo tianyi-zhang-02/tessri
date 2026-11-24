@@ -64,7 +64,7 @@ Pick the query by the task, and do not start every task with a full scan:
 - preparing or doing a review: `tessri triage --since <base>` for which changed files deserve a person first
 - finishing a change: `tessri check --since <base>` for what it did to the structure
 - handing a change to a person: `tessri brief --since <base> --ran "<check: result>"` for one page with both
-- checking a claim about one file: `tessri why <path>` (`--format json` gives the same facts as data)
+- checking a claim about one file: `tessri why <path>` (`--format json` gives the same facts as data, with each definition and the reaching tests whose code names it)
 - getting to know a repository, or planning a cleanup: `tessri scan` and `tessri graph`
 
 When Tessri is connected as an MCP server (`tessri mcp`), the same questions are the tools `tessri_scan`,

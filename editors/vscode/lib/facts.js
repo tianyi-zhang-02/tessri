@@ -52,12 +52,46 @@ function lens(why, impact) {
 }
 
 /**
- * The hover over a definition named `name` in the file `rel`: Markdown, a paragraph per fact.
- * `links` holds the `command:` URIs for the two commands; without it the last paragraph is left out.
+ * The definition of why's `definitions` that is named `name` (or ends in `.name`) and holds the 1-based `line`:
+ * the innermost when several do, null when none or when the definitions were not read.
  */
-function hover(name, rel, why, impact, links) {
+function definitionFor(why, name, line) {
+  const d = why && why.definitions;
+  if (!d || !d.available) return null;
+  let best = null;
+  for (const item of d.items) {
+    if (item.start <= line && line <= item.end && (item.name === name || item.name.endsWith(`.${name}`)) && (!best || item.end - item.start < best.end - best.start)) best = item;
+  }
+  return best;
+}
+
+function tests(n) {
+  return n === 1 ? "the 1 test that reaches the file" : `the ${n} tests that reach the file`;
+}
+
+/** What the reaching tests say about one definition, or null when there is nothing to say. */
+function named(why, item) {
+  if (!item || !why || !why.definitions) return null;
+  const d = why.definitions;
+  if (item.named_in === null) return "Not searched by name in the tests: too short, private or too common.";
+  if (!d.tests) return null; // the dependents line already says that no test reaches the file
+  const unread = d.unread.length ? ` ${many(d.unread.length, "reaching test")} could not be read.` : "";
+  if (!item.named_in.length) return `Named in none of ${tests(d.tests)}.${unread}`;
+  const shown = item.named_in.slice(0, 3).map((t) => `\`${t}\``);
+  const more = item.named_in.length - shown.length;
+  return `Named in ${shown.join(", ")}${more > 0 ? ` and ${more} more` : ""}, of ${tests(d.tests)}.${unread}`;
+}
+
+/**
+ * The hover over a definition named `name` in the file `rel`: Markdown, a paragraph per fact. `item` is the
+ * definition's entry in why's `definitions`, when there is one; `links` holds the `command:` URIs for the two
+ * commands; without it the last paragraph is left out.
+ */
+function hover(name, rel, why, impact, links, item) {
   if (!why && !impact) return null;
   const out = [`**\`${name}\`** · \`${rel}\`${why && why.file && why.file.test ? " · test file" : ""}`];
+  const mention = named(why, item);
+  if (mention) out.push(mention);
   if (why && why.verdict) {
     const status = why.verdict.status ? `${why.verdict.status}: ` : "";
     const reach = why.file && why.file.analyzer === null ? `not analysed (no analyzer for ${why.file.language})` : REACH[why.verdict.reachability] || why.verdict.reachability;
@@ -71,12 +105,12 @@ function hover(name, rel, why, impact, links) {
     const d = impact.dependents;
     const t = impact.tests;
     const depends = d.files ? `${many(d.files, "code file")} depend${d.files === 1 ? "s" : ""} on it${d.direct ? `, ${d.direct} directly` : ""}` : "No code file depends on it";
-    const tests = t.files ? `${many(t.files, "candidate test")} reach${t.files === 1 ? "es" : ""} it${t.direct ? `, ${t.direct} directly` : ""}` : "no test reaches it";
-    out.push(`${depends} · ${tests}`);
-    if (t.files) out.push("_Candidate tests are paths that reach the file, not runs._");
+    const reach = t.files ? `${many(t.files, "candidate test")} reach${t.files === 1 ? "es" : ""} it${t.direct ? `, ${t.direct} directly` : ""}` : "no test reaches it";
+    out.push(`${depends} · ${reach}`);
+    if (t.files) out.push(mention && item.named_in !== null ? "_Named means the identifier appears in the test's code: a mention, not an assertion. Candidate tests are paths, not runs._" : "_Candidate tests are paths that reach the file, not runs._");
   }
   if (links) out.push(`[Why this file](${links.why}) · [What a change here can reach](${links.impact})`);
   return out.join("\n\n");
 }
 
-module.exports = { lens, hover, people, many, REACH };
+module.exports = { lens, hover, definitionFor, named, people, many, REACH };

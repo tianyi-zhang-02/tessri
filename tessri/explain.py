@@ -4,7 +4,9 @@ the two outputs cannot disagree."""
 
 from __future__ import annotations
 
-from . import meta
+from collections import deque
+
+from . import mentions, meta
 from .analyze import Analysis
 from .model import SCHEMA_VERSION
 
@@ -58,10 +60,28 @@ def _kinded(label: str, kind: str) -> str:
     return label if kind == "import" else f"{label} ({kind})"
 
 
+def reaching_tests(a: Analysis, path: str) -> list[str]:
+    """The test files from which the edges lead to `path`, following every edge the analyzers found, any number of
+    steps (what `impact` follows under its default policy), nearest first."""
+    g = a.graph
+    dist = {path: 0}
+    queue = deque([path])
+    while queue:
+        node = queue.popleft()
+        for dependent in g.inbound.get(node, ()):
+            if dependent not in dist:
+                dist[dependent] = dist[node] + 1
+                queue.append(dependent)
+    del dist[path]
+    return sorted((p for p in dist if p in a.records and a.records[p].is_test), key=lambda p: (dist[p], p))
+
+
 def facts(a: Analysis, target: str) -> dict:
-    """What is known about one file, as data: the verdict and its reasons, the file's history, who maintains it
-    and its place in the import graph. `git`, `owners` and `graph` are None when the analysis had nothing to say
-    (no history, no ownership, no analyzer for the language), and `share` is a percentage as the text shows it."""
+    """What is known about one file, as data: the verdict and its reasons, the file's history, who maintains it,
+    its place in the import graph and, for a code file, its definitions with the reaching tests that name each.
+    `git`, `owners` and `graph` are None when the analysis had nothing to say (no history, no ownership, no analyzer
+    for the language), `definitions` None for a file that is not code, and `share` is a percentage as the text shows
+    it."""
     path = resolve_target(a, target)
     rec = a.records[path]
     g = a.graph
@@ -87,8 +107,15 @@ def facts(a: Analysis, target: str) -> dict:
         "git": None,
         "owners": None,
         "graph": None,
+        "definitions": None,
         "advice": ORPHAN_ADVICE if rec.status == "ORPHAN" else None,
     }
+    if rec.kind == "code":
+        if rec.is_test:
+            out["definitions"] = {"available": False, "reason": "a test file: its definitions are not held against the tests"}
+        else:
+            tests = reaching_tests(a, path) if rec.analyzer else []
+            out["definitions"] = mentions.for_file(a.root, path, rec.language, tests, {t: a.records[t].language for t in tests})
     if a.activity is not None:
         out["git"] = {
             "tracked": rec.tracked,
@@ -184,11 +211,32 @@ def render(f: dict) -> str:
         if graph["stranded_if_removed"]:
             out.append(f"deleting it would also strand: {_fmt(graph['stranded_if_removed'])}")
 
+    d = f["definitions"]
+    if d is not None and file["analyzer"] and not file["test"] and (not d["available"] or d["items"]):
+        out.append("definitions:   " + (_definitions_text(d) if d["available"] else f"not read ({d['reason']})"))
+
     for note in verdict["notes"]:
         out.append(f"note:          {note}")
     if f["advice"]:
         out += ["", f["advice"]]
     return "\n".join(out)
+
+
+def _definitions_text(d: dict) -> str:
+    """One line on the definitions of a file: how many, and by name how the reaching tests treat them."""
+    items = d["items"]
+    parts = [str(len(items))]
+    if d["tests"] == 0:
+        parts.append("no test reaches the file")
+    else:
+        parts.append(f"named in a reaching test: {d['named']}")
+        if d["unnamed"]:
+            parts.append("named in none: " + _fmt([i["name"] for i in items if i["named_in"] == []], cap=6))
+    if d["unsearched"]:
+        parts.append("not searched (too short, private or too common): " + _fmt([i["name"] for i in items if i["named_in"] is None], cap=6))
+    if d["unread"]:
+        parts.append(f"{len(d['unread'])} reaching test{'s' if len(d['unread']) != 1 else ''} could not be read: " + _fmt(d["unread"], cap=4))
+    return "; ".join(parts)
 
 
 def explain(a: Analysis, target: str) -> str:

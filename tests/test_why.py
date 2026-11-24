@@ -12,7 +12,7 @@ from helpers import TempRepo, git, write_tree
 from tessri import config
 from tessri.analyze import analyze
 from tessri.cli import main
-from tessri.explain import ORPHAN_ADVICE, TargetError, explain, facts, render, why_json
+from tessri.explain import ORPHAN_ADVICE, TargetError, _definitions_text, explain, facts, render, why_json
 
 ALICE = ("Alice", "alice@example.com")
 BOB = ("Bob", "bob@example.com")
@@ -136,6 +136,71 @@ class FactsTest(Repo):
     def test_unknown_target(self):
         with self.assertRaises(TargetError):
             facts(self.a, "nope.py")
+
+
+DEFINITIONS_TREE = {
+    "pkg/__init__.py": "",
+    "pkg/shapes.py": "def area(w, h):\n    return w * h\n\n\ndef perimeter(w, h):\n    return 2 * (w + h)\n\n\ndef _check(x):\n    return x\n\n\nclass Shape:\n    def draw(self):\n        return area(1, 1)\n",
+    "pkg/use.py": "from pkg import shapes\n\n\ndef run():\n    return shapes.area(2, 3)\n",
+    "tests/test_shapes.py": "from pkg import shapes\n\n\ndef test_area():\n    assert shapes.area(2, 3) == 6\n\n\ndef test_shape():\n    assert shapes.Shape().draw() == 1  # perimeter is only in this comment\n",
+    "tests/test_use.py": "from pkg import use\n\n\ndef test_run():\n    assert use.run() == 6\n",
+    "web/ops.js": "export function insert(x) { return x }\nexport function remove(x) { return x }\n",
+    "web/ops.test.js": "import { insert } from './ops'\ntest('inserts', () => { expect(insert(1)).toBe(1) })\n",
+    "web/broken.test.js": "import { remove } from './ops'\nconst s = `never closed\n",
+    "lonely/__init__.py": "",
+    "lonely/alone.py": "def solo():\n    return 1\n",
+    "style.css": "body {}\n",
+}
+
+
+class DefinitionsTest(TempRepo):
+    """`why` holds every definition of a code file against the tests that reach it: named in which, named in none,
+    not searched; a test file and a file of another language say why there is nothing."""
+
+    def setUp(self):
+        super().setUp()
+        write_tree(self.root, DEFINITIONS_TREE)
+        self.a = analyze(self.root, config.load(self.root))
+
+    def test_each_definition_names_the_reaching_tests_whose_code_uses_its_name(self):
+        from tessri import modules
+
+        d = facts(self.a, "pkg/shapes.py")["definitions"]
+        self.assertEqual({k: v for k, v in d.items() if k != "items"}, {"available": True, "tests": 2, "unread": [], "named": 3, "unnamed": 1, "unsearched": 1})
+        self.assertEqual(d["tests"], modules.impact(self.a, "pkg/shapes.py")["tests"]["files"])  # the same tests `impact` counts
+        self.assertEqual(
+            d["items"],
+            [
+                {"name": "area", "start": 1, "end": 2, "named_in": ["tests/test_shapes.py"]},
+                {"name": "perimeter", "start": 5, "end": 6, "named_in": []},  # a comment is not code
+                {"name": "_check", "start": 9, "end": 10, "named_in": None},  # private by convention: not searched
+                {"name": "Shape", "start": 13, "end": 15, "named_in": ["tests/test_shapes.py"]},
+                {"name": "Shape.draw", "start": 14, "end": 15, "named_in": ["tests/test_shapes.py"]},
+            ],
+        )
+        self.assertIn("definitions:   5; named in a reaching test: 3; named in none: perimeter; not searched (too short, private or too common): _check", explain(self.a, "pkg/shapes.py"))
+
+    def test_a_javascript_file_is_held_against_its_specs_and_a_spec_the_analyzer_could_not_read_reaches_nothing(self):
+        d = facts(self.a, "web/ops.js")["definitions"]
+        self.assertEqual((d["tests"], d["unread"]), (1, []))  # broken.test.js never closes its template: no edge from it, so it is not a reaching test
+        self.assertEqual([(i["name"], i["named_in"]) for i in d["items"]], [("insert", ["web/ops.test.js"]), ("remove", [])])
+        self.assertIn("definitions:   2; named in a reaching test: 1; named in none: remove", explain(self.a, "web/ops.js"))
+        unread = {"available": True, "items": [{"name": "insert", "start": 1, "end": 1, "named_in": []}], "tests": 3, "unread": ["web/a.test.js", "web/b.test.js"], "named": 0, "unnamed": 1, "unsearched": 0}
+        self.assertEqual(_definitions_text(unread), "1; named in a reaching test: 0; named in none: insert; 2 reaching tests could not be read: web/a.test.js, web/b.test.js")
+
+    def test_no_reaching_test_says_so_instead_of_counting_names(self):
+        d = facts(self.a, "lonely/alone.py")["definitions"]
+        self.assertEqual((d["tests"], d["named"], d["unnamed"]), (0, 0, 1))
+        self.assertIn("definitions:   1; no test reaches the file", explain(self.a, "lonely/alone.py"))
+        self.assertNotIn("definitions:", explain(self.a, "pkg/__init__.py"))  # no definitions: no line, an empty list in the JSON
+        self.assertEqual(facts(self.a, "pkg/__init__.py")["definitions"]["items"], [])
+
+    def test_a_test_file_and_another_language_say_why_there_is_nothing(self):
+        self.assertEqual(facts(self.a, "tests/test_shapes.py")["definitions"], {"available": False, "reason": "a test file: its definitions are not held against the tests"})
+        self.assertNotIn("definitions:", explain(self.a, "tests/test_shapes.py"))
+        self.assertEqual(facts(self.a, "style.css")["definitions"], {"available": False, "reason": "definitions are read for Python, JavaScript and TypeScript, not CSS"})
+        self.assertNotIn("definitions:", explain(self.a, "style.css"))
+        self.assertIn("definitions", json.loads(json.dumps(why_json(self.a, "pkg/shapes.py"))))
 
 
 class WithoutGitTest(TempRepo):

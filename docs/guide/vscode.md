@@ -10,12 +10,13 @@ it says. It never edits code and never writes into the repository.
 | Where | What | From |
 |---|---|---|
 | over each Python, JavaScript or TypeScript file | `Tessri: 8 dependents (5 direct) · 24 candidate tests · maintained by Tianyi Zhang 100% · last commit 2026-11-23` | `tessri impact <file>`, `tessri why <file>` |
-| over the name of a function, class or method | the file's status and reachability, who maintains it and since when, how many code files depend on it and how many tests reach it, two links | the same two objects |
+| over the name of a function, class or method | which reaching tests name the definition, or that none does, or that its name was not searched; then the file's status and reachability, who maintains it and since when, how many code files depend on it and how many tests reach it, two links | `why`'s `definitions`, and the same two objects |
 | the *Tessri* context menu, the command palette | *Why this file*, *What a change here can reach*, *Triage the change*, *What the change did to the structure*, *Review brief*, as read-only pages | `why`, `impact`, `triage`, `check`, `brief` |
 | the chat agent | `#tessriImpact`, `#tessriWhy`, `#tessriTriage`, `#tessriCheck`, `#tessriBrief`, `#tessriScan`, `#tessriGraph` | the [MCP tools](mcp.md), one to one |
 
-The hover's facts are the file's, not the definition's: which reaching tests name a definition is on the
-[triage](triage.md) page and in the brief, for the definitions a change touched.
+A test *names* a definition when the identifier appears in the test's code, strings and comments apart: a mention,
+not an assertion, and a test can exercise code without naming it. The rest of the hover is the file's. The same
+join, for the definitions a change touched, is on the [triage](triage.md) page and in the brief.
 
 ## How it works
 
