@@ -12,7 +12,13 @@ Two revisions of the protocol are spoken, because clients are on both: the 2026-
 (every request carries its version in `_meta`, and `server/discover` says what the server is), the earlier ones
 open with `initialize`. Standard output carries protocol messages only; notices go to standard error. A mistake in
 a call's arguments is a tool result with `isError`, in the sentence the command line prints; a malformed request,
-an unknown method or an unknown tool is a JSON-RPC error."""
+an unknown method or an unknown tool is a JSON-RPC error.
+
+Which checkout the tools read: the ones `--root` names. Without `--root`, the host's: a client whose `initialize`
+offers `roots` is asked for them (`roots/list`, once it says it is ready, and again when it announces a change) and
+a `file:` root that is a directory becomes a checkout; Codex offers none but names the workspaces of the turn in
+each call's `_meta`, which are taken the same way; until either arrives, the directory the server was started in.
+A plugin's server is started in the plugin's own directory, so a host's word is what makes it serve the project."""
 
 from __future__ import annotations
 
@@ -25,6 +31,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO
+from urllib.parse import unquote, urlparse
+from urllib.request import url2pathname
 
 from . import __version__, brief, cache, config, gitlog, graphview, modules, runs, since, sinceview
 from .analyze import Analysis, analyze
@@ -43,6 +51,8 @@ SERVER_KEY = "io.modelcontextprotocol/serverInfo"
 TTL_MS = 3_600_000  # how long a client may cache `server/discover`; the tool list never changes while running
 REUSE_SECONDS = 3600  # how long an analysis of an unchanged checkout is reused: ages are day-granular, so an hour costs nothing
 CONFIG_FILES = (".tessri.toml", "pyproject.toml")  # what `config.load` reads; usually tracked, but stat'd regardless
+ROOTS_ID = "tessri-roots-"  # the ids of this server's own requests, `roots/list`, numbered from 1
+CODEX_META = "x-codex-turn-metadata"  # Codex: each call's `_meta` names the turn's `workspaces`, keyed by path (read 2026-11-24)
 
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS, INTERNAL_ERROR = -32700, -32600, -32601, -32602, -32603
 UNSUPPORTED_VERSION = -32022
@@ -335,13 +345,55 @@ def name_checkouts(roots: Sequence[Path]) -> list[Checkout]:
     return out
 
 
+def host_roots(result: Any) -> list[Path]:
+    """The directories among a `roots/list` result's `file:` roots, in the host's order; anything else is passed over."""
+    found: list[Path] = []
+    roots = result.get("roots") if isinstance(result, dict) else None
+    for root in roots if isinstance(roots, list) else []:
+        uri = root.get("uri") if isinstance(root, dict) else None
+        if not isinstance(uri, str) or not uri.startswith("file:"):
+            continue
+        parsed = urlparse(uri)
+        if parsed.netloc not in ("", "localhost"):
+            continue
+        try:
+            path = Path(url2pathname(unquote(parsed.path))).resolve()
+        except (OSError, ValueError):
+            continue
+        if path.is_dir() and path not in found:
+            found.append(path)
+    return found
+
+
+def codex_workspaces(meta: Any) -> list[Path]:
+    """The directories a Codex call names as the turn's workspaces, or none."""
+    turn = meta.get(CODEX_META) if isinstance(meta, dict) else None
+    spaces = turn.get("workspaces") if isinstance(turn, dict) else None
+    found: list[Path] = []
+    for key in spaces if isinstance(spaces, dict) else []:
+        if isinstance(key, str) and key:
+            try:
+                path = Path(key).resolve()
+            except (OSError, ValueError):
+                continue
+            if path.is_dir() and path not in found:
+                found.append(path)
+    return found
+
+
 class Server:
-    def __init__(self, roots: Sequence[Path], use_cache: bool = True):
-        self.checkouts = name_checkouts([Path(r) for r in roots])
+    def __init__(self, roots: Sequence[Path] | None, use_cache: bool = True):
+        """`roots` is what `--root` named. None is no `--root`: the checkouts are then the host's (its `roots/list`,
+        or the workspaces a Codex call names), and the current directory until the host has spoken."""
+        self.given = roots is not None
+        self.checkouts = name_checkouts([Path(r) for r in roots] if roots is not None else [Path.cwd()])
         self.use_cache = use_cache  # whether an analysis may use what earlier runs kept of each file (cache.py); a checkout's configuration can still say no
         self.version: str | None = None  # the revision an `initialize` settled on; None until then or under 2026-07-28
         self.kept: dict[Path, Kept] = {}  # the last analysis per root, reused while the checkout's fingerprint holds
         self.clock: Callable[[], float] = time.time
+        self.client_roots = False  # the client's `initialize` offered `roots`
+        self.outbox: list[dict] = []  # this server's own requests to the client, written after the response in hand
+        self.asked = 0  # how many times `roots/list` was asked; the pending request is the last
 
     # --- the checkout a call is about ---------------------------------------------------------------------------
 
@@ -398,7 +450,8 @@ class Server:
             return _error(rid, INVALID_REQUEST, "not a JSON-RPC 2.0 request") if rid is not None else None
         rid, method, params = message.get("id"), message.get("method"), message.get("params")
         if not isinstance(method, str):
-            return None  # a response to a request this server never makes
+            self._answered(rid, message.get("result"))  # the client's response to a request of this server, or to nothing
+            return None
         if params is None:
             params = {}
         if not isinstance(params, dict):
@@ -407,7 +460,9 @@ class Server:
         requested = meta.get(VERSION_KEY) if isinstance(meta, dict) else None
         modern = requested is not None
         if rid is None:
-            return None  # notifications/initialized, cancelled, progress: nothing to answer
+            if method in ("notifications/initialized", "notifications/roots/list_changed"):
+                self._ask_roots()
+            return None  # cancelled, progress and the rest: nothing to answer
         if modern and requested not in SUPPORTED:
             return _error(rid, UNSUPPORTED_VERSION, "Unsupported protocol version", {"supported": list(SUPPORTED), "requested": requested})
         try:
@@ -420,10 +475,32 @@ class Server:
             result = {"resultType": "complete", **result}
         return {"jsonrpc": "2.0", "id": rid, "result": result}
 
+    # --- the checkouts the host names --------------------------------------------------------------------------
+
+    def _ask_roots(self) -> None:
+        """Ask the client for its roots, when it offered them and `--root` did not settle the matter."""
+        if self.client_roots and not self.given:
+            self.asked += 1
+            self.outbox.append({"jsonrpc": "2.0", "id": f"{ROOTS_ID}{self.asked}", "method": "roots/list"})
+
+    def _answered(self, rid: Any, result: Any) -> None:
+        """The client's answer to the pending `roots/list`: the directories among its roots become the checkouts."""
+        if self.given or self.asked == 0 or rid != f"{ROOTS_ID}{self.asked}":
+            return
+        found = host_roots(result)
+        if found:
+            self._adopt(found)
+
+    def _adopt(self, roots: list[Path]) -> None:
+        if roots != [c.root for c in self.checkouts]:
+            self.checkouts = name_checkouts(roots)
+
     def _dispatch(self, method: str, params: dict) -> dict:
         if method == "initialize":
             asked = params.get("protocolVersion")
             self.version = asked if asked in LEGACY else LEGACY[0]
+            capabilities = params.get("capabilities")
+            self.client_roots = isinstance(capabilities, dict) and isinstance(capabilities.get("roots"), dict)
             return {"protocolVersion": self.version, "capabilities": {"tools": {"listChanged": False}}, "serverInfo": {"name": "tessri", "version": __version__}, "instructions": INSTRUCTIONS}
         if method == "server/discover":
             return {"supportedVersions": list(SUPPORTED), "capabilities": {"tools": {}}, "_meta": {SERVER_KEY: {"name": "tessri", "version": __version__}}, "instructions": INSTRUCTIONS, "ttlMs": TTL_MS, "cacheScope": "public"}
@@ -432,6 +509,10 @@ class Server:
         if method == "tools/list":
             return {"tools": [t.listing() for t in TOOLS]}
         if method == "tools/call":
+            if not self.given:
+                spaces = codex_workspaces(params.get("_meta"))
+                if spaces:
+                    self._adopt(spaces)
             return self.call(params.get("name"), params.get("arguments"))
         raise _Invalid(METHOD_NOT_FOUND, f"unknown method {method!r}")
 
@@ -471,5 +552,9 @@ class Server:
                     sys.stdout = saved
             if response is not None:
                 out.write(json.dumps(response) + "\n")
+            for request in self.outbox:  # what this message made the server ask the client, after the answer in hand
+                out.write(json.dumps(request) + "\n")
+            if response is not None or self.outbox:
                 out.flush()
+            self.outbox.clear()
         return 0

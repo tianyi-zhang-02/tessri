@@ -1,0 +1,41 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tessri",
+  "version": "0.4.0",
+  "description": "Keep code understandable while the agent works: what a change can reach, who can review it and what nobody maintains, with the evidence for every claim. The questions as tools, a skill for when to ask them, and hooks that answer after each edit and when the agent stops. Zero dependencies.",
+  "author": {
+    "name": "Tianyi Zhang",
+    "url": "https://github.com/tianyi-zhang-02"
+  },
+  "homepage": "https://github.com/tianyi-zhang-02/tessri",
+  "repository": "https://github.com/tianyi-zhang-02/tessri",
+  "license": "MIT",
+  "keywords": [
+    "maintainability",
+    "code-review",
+    "dependency-graph",
+    "dead-code",
+    "code-ownership",
+    "impact-analysis",
+    "mcp",
+    "hooks"
+  ],
+  "extensions": {
+    "com.openai": {
+      "hooks": "./hooks/hooks.json",
+      "interface": {
+        "displayName": "Tessri",
+        "shortDescription": "What a change can reach, who can review it and what nobody maintains, with the evidence.",
+        "longDescription": "Tessri reads the repository and its git history and answers a maintainer's questions with the evidence for every claim: what depends on a file and which tests reach it, which changed files deserve a person first and who can look, what the uncommitted work did to the structure, and what nobody maintains. The plugin brings the questions as tools, a skill that says when to ask them, and hooks that answer after each edit and when the agent stops. It carries its own copy of Tessri and needs nothing installed.",
+        "developerName": "Tianyi Zhang",
+        "category": "Engineering",
+        "capabilities": ["Skills", "MCP"],
+        "defaultPrompt": [
+          "What can a change to this file reach?",
+          "Which files of my change deserve a reviewer first, and who can look?",
+          "What did my uncommitted work do to the structure?"
+        ]
+      }
+    }
+  }
+}

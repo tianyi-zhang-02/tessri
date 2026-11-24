@@ -7,9 +7,17 @@ checkout or several. Nothing is installed with it and it needs no account: it re
 history, like every other command.
 
 ```bash
-tessri mcp                                      # serves the current directory
+tessri mcp                                      # serves the checkout the host names, else the current directory
 tessri mcp --root ~/src/app --root ~/src/lib    # serves several checkouts; every tool names one with `root`
 ```
+
+Without `--root`, the checkout is the host's to name. A client whose `initialize` offers `roots` (Claude Code,
+the editors' clients) is asked for them once it says it is ready, and asked again when it announces a change: the
+`file:` roots that are directories become the checkouts, in the host's order. Codex offers no roots but names the
+workspaces of the turn in each call's `_meta`, and those are taken the same way. Until a host has spoken, the
+server serves the directory it was started in. The [plugins](plugins.md) rely on this: a plugin's server is
+started in the plugin's own directory, and the host's word is what points it at the project. `tessri_repos` says
+which checkouts a server is reading at any moment.
 
 The server writes nothing to standard output but protocol messages, reports notices on standard error, and
 exits when its input closes. Every call sees the checkout as it is, uncommitted work included: an analysis is
@@ -113,6 +121,14 @@ on both:
 
 `instructions`, in both, is one paragraph: what Tessri is, which tool answers which question, that paths are
 repository-relative and that `tessri_why` is how to check a verdict before acting on it.
+
+The server makes one kind of request of its own, and only when it was started without `--root`: `roots/list`,
+with the id `tessri-roots-1` (`-2`, `-3` after each `notifications/roots/list_changed`), sent after the client's
+`notifications/initialized` when its `initialize` offered `roots`, written to standard output after the response
+to the message that occasioned it. The answer's `file:` roots that are directories replace the checkouts; an
+answer to an earlier request, an error, or an answer with no usable root changes nothing. A `tools/call` whose
+`_meta` carries Codex's `x-codex-turn-metadata` with `workspaces` (an object keyed by path) replaces them the same
+way, before the call is answered. Neither happens under `--root`.
 
 ## Pointing each agent at it
 

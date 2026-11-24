@@ -11,6 +11,9 @@ tessri integration status        # names the hooks file each host has
 tessri integration remove        # your own hooks and settings around Tessri's stay as they were
 ```
 
+The [plugin](plugins.md) brings the same two hooks to every project without writing into any; what follows is what
+they say either way.
+
 ## After an edit
 
 When the agent edits or writes a file (the hosts' `Edit|Write`; Codex's `apply_patch` answers to those names, and

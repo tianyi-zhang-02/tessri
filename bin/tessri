@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""Run the Tessri this checkout carries, without installing it: `bin/tessri <command> ...` is `tessri <command> ...`
+from the package beside this file. The Claude Code and Codex plugin manifests point at it, so installing the plugin
+installs Tessri; a `pip install tessri` elsewhere is neither needed nor touched (this copy comes first on the path)."""
+
+import os
+import sys
+
+if sys.version_info < (3, 11):
+    sys.exit(f"tessri: Python 3.11 or newer is needed; this is {sys.version.split()[0]}")
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
+from tessri.cli import main  # noqa: E402
+
+sys.exit(main())
