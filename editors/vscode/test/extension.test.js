@@ -12,6 +12,7 @@ const path = require("path");
 const fakevscode = require("./fakevscode");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
+const FOLDER = path.basename(ROOT); // the workspace folder's name: whatever the checkout is called
 const COMMAND = (process.env.TESSRI_TEST_COMMAND || "python3 -m tessri").split(/\s+/);
 process.env.TESSRI_CACHE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tessri-vscode-test-"));
 
@@ -129,8 +130,8 @@ test("a chat tool answers with the command's text, names the folder's problem, a
   const result = await why.invoke({ input: { path: "tessri/cli.py" } }, token);
   assert.match(result.parts[0].value, /^tessri\/cli\.py {2}\(Python/);
   const wrong = await why.invoke({ input: { path: "tessri/cli.py", root: "elsewhere" } }, token);
-  assert.equal(wrong.parts[0].value, "Tessri could not answer: `elsewhere` is not a workspace folder; the folders are repolife");
-  const missing = await why.invoke({ input: { path: "nope/none.py", root: "repolife" } }, token);
+  assert.equal(wrong.parts[0].value, `Tessri could not answer: \`elsewhere\` is not a workspace folder; the folders are ${FOLDER}`);
+  const missing = await why.invoke({ input: { path: "nope/none.py", root: FOLDER } }, token);
   assert.match(missing.parts[0].value, /^Tessri could not answer: `nope\/none\.py` is not a file/);
   const impact = await vscode.registered.tools.tessri_impact.invoke({ input: { target: "tessri/triage.py", edges: "imports" } }, token);
   assert.match(impact.parts[0].value, /^Changing tessri\/triage\.py/);
@@ -140,11 +141,11 @@ test("a command opens a page under the tessri scheme and asks for the Markdown p
   await vscode.registered.commands["tessri.impact"](triage.uri);
   const preview = vscode.calls.find((c) => c.id === "markdown.showPreviewToSide");
   assert.ok(preview, "the preview was asked for");
-  assert.equal(preview.args[0].toString(), "tessri:///repolife/impact/tessri/triage.py.md");
+  assert.equal(preview.args[0].toString(), `tessri:///${FOLDER}/impact/tessri/triage.py.md`);
   assert.match(api.pages.provideTextDocumentContent(preview.args[0]), /^Changing tessri\/triage\.py/);
   await vscode.registered.commands["tessri.why"](triage.uri.toString()); // a hover link passes the URI as a string
   const shown = vscode.shown[vscode.shown.length - 1];
-  assert.equal(shown.document.uri.toString(), "tessri:///repolife/why/tessri/triage.py.txt");
+  assert.equal(shown.document.uri.toString(), `tessri:///${FOLDER}/why/tessri/triage.py.txt`);
   assert.match(shown.document.getText(), /^tessri\/triage\.py {2}\(Python/);
   vscode.window.activeTextEditor = undefined;
   await vscode.registered.commands["tessri.brief"]();
