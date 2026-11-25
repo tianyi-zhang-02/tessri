@@ -1,18 +1,23 @@
-// Tessri in the editor: a code lens over each code file, a hover over each definition, the questions as commands
-// and as tools for the chat agent. Everything shown comes from one `tessri mcp` child per workspace folder, the
-// same server an agent would talk to, so the editor and the agent see the same numbers. The extension never edits
-// code and never writes into the repository.
+// Tessri in the editor: a code lens over each code file, a hover over each definition, what the uncommitted work
+// did to the structure as problems on the files concerned, the questions as commands and as tools for the chat
+// agent. Everything shown comes from one `tessri mcp` child per workspace folder, the same server an agent would
+// talk to, so the editor and the agent see the same numbers. The extension never edits code and never writes into
+// the repository.
 
 "use strict";
 
 const vscode = require("vscode");
+const path = require("path");
 const { Client, ServerError } = require("./lib/client");
 const facts = require("./lib/facts");
+const problems = require("./lib/problems");
 const { TOOLS } = require("./lib/tools");
 
 const LANGUAGES = ["python", "javascript", "javascriptreact", "typescript", "typescriptreact"];
 const SCHEME = "tessri"; // the pages a command opens: read-only documents the editor can preview as Markdown
 const MEMO_MS = 60_000; // a file's facts are asked again after this, or at once after a save in its folder
+const PROBLEMS_DELAY_MS = 1500; // how long after a save (or activation) the structure of the change is checked again
+const SEVERITY = { block: "Error", warn: "Warning", info: "Information" }; // the check's words, the editor's levels
 const INSTALL = "https://github.com/tianyi-zhang-02/tessri#install";
 
 function settings() {
@@ -28,15 +33,23 @@ function relative(uri) {
   return vscode.workspace.asRelativePath(uri, false);
 }
 
+/** The `since` argument of the change commands: the configured base, or nothing (the default branch). */
+function sinceArgs() {
+  const given = settings().get("since");
+  return typeof given === "string" && given.trim() ? { since: given.trim() } : {};
+}
+
 /** One server per workspace folder, started on the first question and kept until the window closes. */
 class Servers {
   constructor(output) {
     this.output = output;
     this.clients = new Map();
     this.warned = false;
+    this.disposed = false;
   }
 
   for(folder) {
+    if (this.disposed) throw new ServerError("the extension is shutting down", "EXIT"); // a late timer must not start a server nobody will stop
     const key = folder.uri.toString();
     let client = this.clients.get(key);
     if (!client) {
@@ -80,6 +93,7 @@ class Servers {
 
   dispose() {
     this.restart();
+    this.disposed = true;
   }
 }
 
@@ -128,6 +142,131 @@ class FileFacts {
   forget(folder) {
     const prefix = folder ? `${folder.uri.toString()}\n` : "";
     for (const key of [...this.memo.keys()]) if (key.startsWith(prefix)) this.memo.delete(key);
+  }
+}
+
+/** What the uncommitted work did to the structure, as problems on the files concerned, and one status bar item. */
+class Problems {
+  constructor(servers, output) {
+    this.servers = servers;
+    this.output = output;
+    this.collection = vscode.languages.createDiagnosticCollection("tessri");
+    this.status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
+    this.status.name = "Tessri";
+    this.status.command = "tessri.check";
+    this.timers = new Map(); // folder key -> timeout
+    this.running = new Map(); // folder key -> promise of the refresh under way
+    this.shown = new Map(); // folder key -> {uris, items, since}
+  }
+
+  static key(folder) {
+    return folder.uri.toString();
+  }
+
+  /** Check the folder again shortly; a second request in the meantime moves the moment, it does not double the work. */
+  schedule(folder, delay = PROBLEMS_DELAY_MS) {
+    const key = Problems.key(folder);
+    clearTimeout(this.timers.get(key));
+    this.timers.set(
+      key,
+      setTimeout(() => {
+        this.timers.delete(key);
+        this.refresh(folder).catch(() => {});
+      }, delay),
+    );
+  }
+
+  scheduleAll(delay) {
+    for (const folder of vscode.workspace.workspaceFolders || []) this.schedule(folder, delay);
+  }
+
+  refresh(folder) {
+    const key = Problems.key(folder);
+    const under = this.running.get(key);
+    if (under) return under.then(() => this.refresh(folder)); // a check is under way: ask again when it is done, on the newer tree
+    const run = this._refresh(folder).finally(() => this.running.delete(key));
+    this.running.set(key, run);
+    return run;
+  }
+
+  async _refresh(folder) {
+    if (!settings().get("problems")) {
+      this.clear(folder);
+      return;
+    }
+    let result;
+    try {
+      result = await this.servers.call(folder, "tessri_check", sinceArgs());
+    } catch (_) {
+      this.clear(folder); // the server is not there; the warning was shown once
+      return;
+    }
+    if (result.isError) {
+      this.output.appendLine(`${folder.name}: problems: ${result.content.map((c) => c.text).join(" ")}`);
+      this.clear(folder);
+      return;
+    }
+    const check = result.structuredContent || {};
+    const items = problems.problems(check);
+    const byFile = new Map();
+    for (const item of items) {
+      if (!byFile.has(item.path)) byFile.set(item.path, []);
+      byFile.get(item.path).push(item);
+    }
+    const previous = this.shown.get(Problems.key(folder));
+    const uris = [];
+    for (const [rel, list] of byFile) {
+      const uri = vscode.Uri.file(path.join(folder.uri.fsPath, ...rel.split("/")));
+      let text = "";
+      try {
+        text = (await vscode.workspace.openTextDocument(uri)).getText();
+      } catch (_) {
+        // a file the editor cannot open: the problems stay on its first line
+      }
+      const lines = text.split(/\r?\n/);
+      const diagnostics = list.map((item) => {
+        const line = problems.lineOf(text, item.needles);
+        const range = new vscode.Range(line, 0, line, (lines[line] || "").length);
+        const diagnostic = new vscode.Diagnostic(range, item.message, vscode.DiagnosticSeverity[SEVERITY[item.severity]]);
+        diagnostic.source = "Tessri";
+        diagnostic.code = item.kind;
+        return diagnostic;
+      });
+      this.collection.set(uri, diagnostics);
+      uris.push(uri.toString());
+    }
+    for (const old of (previous && previous.uris) || []) if (!uris.includes(old)) this.collection.delete(vscode.Uri.parse(old));
+    const since = check.change && typeof check.change.since === "string" && check.change.since ? check.change.since : null; // the base by the name it was asked for
+    this.shown.set(Problems.key(folder), { uris, items, since });
+    this.output.appendLine(`${folder.name}: problems: ${problems.summary(items)} in ${byFile.size} file${byFile.size === 1 ? "" : "s"}${since ? ` since ${since}` : ""}`);
+    this.updateStatus();
+  }
+
+  clear(folder) {
+    const previous = this.shown.get(Problems.key(folder));
+    for (const old of (previous && previous.uris) || []) this.collection.delete(vscode.Uri.parse(old));
+    this.shown.delete(Problems.key(folder));
+    this.updateStatus();
+  }
+
+  updateStatus() {
+    const all = [...this.shown.values()];
+    if (!all.length) {
+      this.status.hide();
+      return;
+    }
+    const items = all.flatMap((s) => s.items);
+    const bases = [...new Set(all.map((s) => s.since).filter(Boolean))];
+    this.status.text = `Tessri: ${problems.summary(items)}`;
+    this.status.tooltip = `What the uncommitted work did to the structure${bases.length ? `, since ${bases.join(", ")}` : ""}: ${problems.summary(items)}. Click for the page.`;
+    this.status.show();
+  }
+
+  dispose() {
+    for (const timer of this.timers.values()) clearTimeout(timer);
+    this.timers.clear();
+    this.collection.dispose();
+    this.status.dispose();
   }
 }
 
@@ -274,6 +413,7 @@ function activate(context) {
   const pages = new Pages();
   const hover = new HoverProvider(fileFacts);
   const lenses = new LensProvider(fileFacts);
+  const structure = new Problems(servers, output);
   const selector = LANGUAGES.map((language) => ({ language, scheme: "file" }));
 
   async function page(folder, name, args, title, ext) {
@@ -298,11 +438,6 @@ function activate(context) {
     await vscode.window.showTextDocument(document, { preview: true, viewColumn: vscode.ViewColumn.Beside, preserveFocus: true });
   }
 
-  const since = () => {
-    const given = settings().get("since");
-    return typeof given === "string" && given.trim() ? { since: given.trim() } : {};
-  };
-
   const commands = {
     "tessri.why": async (arg) => {
       const t = target(arg);
@@ -314,20 +449,21 @@ function activate(context) {
     },
     "tessri.triage": async (arg) => {
       const t = target(arg);
-      if (t) await page(t.folder, "tessri_triage", since(), "triage", "md");
+      if (t) await page(t.folder, "tessri_triage", sinceArgs(), "triage", "md");
     },
     "tessri.check": async (arg) => {
       const t = target(arg);
-      if (t) await page(t.folder, "tessri_check", since(), "check", "md");
+      if (t) await page(t.folder, "tessri_check", sinceArgs(), "check", "md");
     },
     "tessri.brief": async (arg) => {
       const t = target(arg);
-      if (t) await page(t.folder, "tessri_brief", since(), "brief", "md");
+      if (t) await page(t.folder, "tessri_brief", sinceArgs(), "brief", "md");
     },
     "tessri.restart": () => {
       servers.restart();
       fileFacts.forget(null);
       lenses.refresh();
+      structure.scheduleAll(0);
     },
     "tessri.showLog": () => output.show(true),
   };
@@ -335,25 +471,34 @@ function activate(context) {
   context.subscriptions.push(
     output,
     servers,
+    structure,
     vscode.workspace.registerTextDocumentContentProvider(SCHEME, pages),
     vscode.languages.registerHoverProvider(selector, hover),
     vscode.languages.registerCodeLensProvider(selector, lenses),
     ...Object.entries(commands).map(([id, run]) => vscode.commands.registerCommand(id, run)),
     vscode.workspace.onDidSaveTextDocument((document) => {
-      fileFacts.forget(vscode.workspace.getWorkspaceFolder(document.uri) || null);
+      const folder = vscode.workspace.getWorkspaceFolder(document.uri) || null;
+      fileFacts.forget(folder);
       lenses.refresh();
+      if (folder && document.uri.scheme === "file") structure.schedule(folder);
     }),
     vscode.workspace.onDidChangeWorkspaceFolders((event) => {
       for (const folder of event.removed) {
         servers.drop(folder);
         fileFacts.forget(folder);
+        structure.clear(folder);
       }
+      for (const folder of event.added) structure.schedule(folder);
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("tessri.command")) commands["tessri.restart"]();
-      else if (event.affectsConfiguration("tessri")) lenses.refresh();
+      else if (event.affectsConfiguration("tessri")) {
+        lenses.refresh();
+        if (event.affectsConfiguration("tessri.since") || event.affectsConfiguration("tessri.problems")) structure.scheduleAll(0);
+      }
     }),
   );
+  structure.scheduleAll();
 
   if (vscode.lm && typeof vscode.lm.registerTool === "function") {
     for (const tool of TOOLS) {
@@ -381,7 +526,7 @@ function activate(context) {
     }
   }
 
-  return { servers, fileFacts, pages, hover, lenses, commands, folderFor, definitionAt }; // for the tests
+  return { servers, fileFacts, pages, hover, lenses, structure, commands, folderFor, definitionAt }; // for the tests
 }
 
 function deactivate() {}

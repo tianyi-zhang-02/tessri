@@ -17,6 +17,11 @@ into the repository.
   links to the two pages below. *Named* means the identifier appears in the test's code, strings and comments apart:
   a mention, not an assertion.
 
+- **Problems on the files a change concerns**: what the uncommitted work did to the structure, from `tessri check`
+  since the base: a deleted file still imported (an error, at the import), a new file nothing reaches, the import
+  that closes a new cycle, a document or config still naming a deleted file, changed code nobody active maintains.
+  Checked again after each save; the status bar counts them (`Tessri: 1 block · 2 warn`) and opens the page.
+
 - **Commands**, from the editor's or the explorer's context menu under *Tessri*, or the command palette:
   *Why this file* (the evidence, as text), *What a change here can reach* (dependents, candidate tests, maintainers),
   *Triage the change*, *What the change did to the structure* and *Review brief* (the change since the base,
@@ -26,7 +31,8 @@ into the repository.
   `#tessriScan` and `#tessriGraph`. Agent mode picks them up by itself; a prompt can name one. Each returns the
   command's text, the same the terminal prints.
 
-Every number comes from `tessri why <file>` and `tessri impact <file>`; the editor adds no judgement of its own.
+Every number comes from `tessri why <file>` and `tessri impact <file>`, every problem from `tessri check`; the
+editor adds no judgement of its own.
 The hover's first paragraph needs a Tessri newer than 0.4.0, whose `why` JSON carries `definitions`; an older one gives the file's facts alone.
 
 ## Install
@@ -59,7 +65,8 @@ what it said.
 | `tessri.command` | `["tessri"]` | the command that runs Tessri, as a list |
 | `tessri.codeLens` | `true` | the line over each file |
 | `tessri.hover` | `true` | the hover over each definition |
-| `tessri.since` | `""` | the base for triage, check and brief; empty is the default branch |
+| `tessri.problems` | `true` | the problems on the files a change concerns, and the status bar count |
+| `tessri.since` | `""` | the base for triage, check, brief and the problems; empty is the default branch |
 
 Analysis options (what counts as active, who counts as an owner, which paths are ignored) are Tessri's own, in the
 repository's `.tessri.toml`: `tessri integration install --agent config` writes one with every option explained.
