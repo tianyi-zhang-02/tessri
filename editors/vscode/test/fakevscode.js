@@ -4,6 +4,7 @@
 // containment, URIs, event emitters, registries that remember what was registered, and a configuration the
 // test can change. Install it with `install()` before requiring the extension.
 
+const fs = require("fs");
 const path = require("path");
 const Module = require("module");
 
@@ -88,6 +89,16 @@ class CodeLens {
     this.command = command;
   }
 }
+class Diagnostic {
+  constructor(range, message, severity) {
+    this.range = range;
+    this.message = message;
+    this.severity = severity;
+  }
+}
+const DiagnosticSeverity = { Error: 0, Warning: 1, Information: 2, Hint: 3 };
+const StatusBarAlignment = { Left: 1, Right: 2 };
+
 class LanguageModelToolResult {
   constructor(parts) {
     this.parts = parts;
@@ -104,6 +115,8 @@ const SymbolKind = { File: 0, Module: 1, Namespace: 2, Package: 3, Class: 4, Met
 function make(root) {
   const disposable = { dispose: () => {} };
   const folder = { name: path.basename(root), uri: Uri.file(root), index: 0 };
+  const folders = [folder];
+  const folderOf = (uri) => (uri && uri.scheme === "file" ? folders.find((f) => uri.fsPath === f.uri.fsPath || uri.fsPath.startsWith(f.uri.fsPath + path.sep)) : undefined);
   const fake = {
     Position,
     Range,
@@ -112,12 +125,26 @@ function make(root) {
     MarkdownString,
     Hover,
     CodeLens,
+    Diagnostic,
+    DiagnosticSeverity,
+    StatusBarAlignment,
     LanguageModelToolResult,
     LanguageModelTextPart,
     SymbolKind,
     ViewColumn: { Beside: -2 },
     ProgressLocation: { Window: 10 },
-    config: { command: ["python3", "-m", "tessri"], codeLens: true, hover: true, since: "" },
+    config: { command: ["python3", "-m", "tessri"], codeLens: true, hover: true, since: "", problems: true },
+    diagnostics: new Map(), // uri string -> diagnostics, as the collection holds them
+    statusBar: null, // the one item the extension creates
+    addFolder(dir) {
+      const added = { name: path.basename(dir), uri: Uri.file(dir), index: folders.length };
+      folders.push(added);
+      return added;
+    },
+    removeFolder(f) {
+      const at = folders.indexOf(f);
+      if (at >= 0) folders.splice(at, 1);
+    },
     symbols: [], // what the symbol provider answers
     registered: { commands: {}, tools: {}, hovers: [], lenses: [], content: {}, saves: [], folderChanges: [], configChanges: [] },
     calls: [], // executeCommand calls the extension made that nobody registered
@@ -125,9 +152,9 @@ function make(root) {
     shown: [],
     folder,
     workspace: {
-      workspaceFolders: [folder],
-      getWorkspaceFolder: (uri) => (uri && uri.scheme === "file" && uri.fsPath.startsWith(root) ? folder : undefined),
-      asRelativePath: (uri) => path.relative(root, uri.fsPath).split(path.sep).join("/"),
+      workspaceFolders: folders,
+      getWorkspaceFolder: folderOf,
+      asRelativePath: (uri) => path.relative((folderOf(uri) || folder).uri.fsPath, uri.fsPath).split(path.sep).join("/"),
       getConfiguration: () => ({ get: (key) => fake.config[key] }),
       registerTextDocumentContentProvider: (scheme, provider) => {
         fake.registered.content[scheme] = provider;
@@ -145,9 +172,22 @@ function make(root) {
         fake.registered.configChanges.push(l);
         return disposable;
       },
-      openTextDocument: async (uri) => ({ uri, getText: () => fake.registered.content[uri.scheme].provideTextDocumentContent(uri) }),
+      openTextDocument: async (uri) => {
+        if (uri.scheme === "file") {
+          const text = fs.readFileSync(uri.fsPath, "utf8"); // throws like the editor does when the file is not there
+          return { uri, getText: () => text };
+        }
+        return { uri, getText: () => fake.registered.content[uri.scheme].provideTextDocumentContent(uri) };
+      },
     },
     languages: {
+      createDiagnosticCollection: () => ({
+        set: (uri, items) => (items && items.length ? fake.diagnostics.set(uri.toString(), items) : fake.diagnostics.delete(uri.toString())),
+        delete: (uri) => fake.diagnostics.delete(uri.toString()),
+        get: (uri) => fake.diagnostics.get(uri.toString()),
+        clear: () => fake.diagnostics.clear(),
+        dispose: () => {},
+      }),
       registerHoverProvider: (selector, provider) => {
         fake.registered.hovers.push({ selector, provider });
         return disposable;
@@ -185,6 +225,10 @@ function make(root) {
         return undefined;
       },
       withProgress: (_options, task) => task(),
+      createStatusBarItem: () => {
+        fake.statusBar = { text: "", tooltip: "", command: undefined, name: "", visible: false, show() { this.visible = true; }, hide() { this.visible = false; }, dispose() {} };
+        return fake.statusBar;
+      },
       showTextDocument: async (document, options) => {
         fake.shown.push({ document, options });
       },
@@ -210,4 +254,4 @@ function install(fake) {
   return fake;
 }
 
-module.exports = { make, install, Position, Range, Uri, SymbolKind };
+module.exports = { make, install, Position, Range, Uri, SymbolKind, DiagnosticSeverity };

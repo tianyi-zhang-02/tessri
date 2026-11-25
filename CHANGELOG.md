@@ -31,7 +31,11 @@ Dates are the day a version was tagged.
   the file's status, reachability, maintainers, history, dependents and tests, both from `tessri why` and
   `tessri impact`; `why`, `impact`, `triage`, `check` and `brief` as commands that open read-only pages; the seven
   questions as tools for the chat agent (`#tessriImpact` and the rest); one `tessri mcp` server per workspace
-  folder, spoken to over the protocol's stdio transport, so the editor and the agent see the same numbers. Its tests
+  folder, spoken to over the protocol's stdio transport, so the editor and the agent see the same numbers. What the
+  uncommitted work did to the structure appears as problems on the files it concerns (a deleted file still imported,
+  at the import; a new file nothing reaches; the import that closes a new cycle; a document or config still naming a
+  deleted file; changed code nobody active maintains), with the check's severity and words, checked again after each
+  save; the status bar counts them and opens the check page, and `tessri.problems` turns it off. Its tests
   run with `node --test` against the real server on the checkout, and CI packages it. Publishing to the Marketplace
   and Open VSX (which Cursor, Windsurf and Kiro read) is a release step; the guide has [a page](docs/guide/vscode.md).
 - The brief and `triage` say which of the definitions a change touched are named by a test that reaches the file,

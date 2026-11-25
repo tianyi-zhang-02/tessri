@@ -2,24 +2,26 @@
 
 // The extension against a fake `vscode` and the real server on this repository: what activation registers, that
 // `package.json` agrees with the code, where a hover appears, what the lens and the hover say, what a chat tool
-// returns, what a command opens, and how a missing command is reported.
+// returns, what a command opens, how a missing command is reported, and, on a second folder with a change in it,
+// which problems appear on which files and lines.
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { execFileSync } = require("child_process");
 const fakevscode = require("./fakevscode");
 
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 const FOLDER = path.basename(ROOT); // the workspace folder's name: whatever the checkout is called
-const COMMAND = (process.env.TESSRI_TEST_COMMAND || "python3 -m tessri").split(/\s+/);
+const COMMAND = process.env.TESSRI_TEST_COMMAND ? process.env.TESSRI_TEST_COMMAND.split(/\s+/) : ["python3", path.join(ROOT, "bin", "tessri")]; // the checkout's Tessri, from any folder
 process.env.TESSRI_CACHE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tessri-vscode-test-"));
 
 const vscode = fakevscode.install(fakevscode.make(ROOT));
 vscode.config.command = COMMAND;
 const extension = require("../extension");
-const { Position, Range, Uri, SymbolKind } = fakevscode;
+const { Position, Range, Uri, SymbolKind, DiagnosticSeverity } = fakevscode;
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
 const token = { isCancellationRequested: false };
 
@@ -58,7 +60,36 @@ const realSymbols = [symbol("compute", SymbolKind.Function, lineOf("def compute(
 
 const context = { subscriptions: [] };
 const api = extension.activate(context);
-test.after(() => api.servers.dispose());
+test.after(() => {
+  api.structure.dispose(); // its timers would otherwise start a server after the next line
+  api.servers.dispose();
+});
+
+/** A repository with one commit and an uncommitted change that `check` has four things to say about. */
+function changedRepository() {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "tessri-vscode-change-")));
+  const write = (rel, text) => {
+    fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+    fs.writeFileSync(path.join(root, rel), text);
+  };
+  const git = (...args) => execFileSync("git", ["-C", root, "-c", "user.name=T", "-c", "user.email=t@example.com", ...args], { stdio: "pipe" });
+  write("main.py", "import pkg.a\nimport svc.x\n");
+  write(".tessri.toml", 'entry = ["main.py"]\n');
+  write("pkg/__init__.py", "");
+  write("pkg/a.py", "import pkg.b\n\n\ndef a():\n    return pkg.b.b()\n");
+  write("pkg/b.py", "def b():\n    return 1\n");
+  write("svc/__init__.py", "");
+  write("svc/x.py", "import pkg.a\n\n\ndef x():\n    return pkg.a.a()\n");
+  write("tests/test_a.py", "import pkg.a\n");
+  write("docs/notes.md", "# Notes\n\nSee pkg/b.py for the helper.\n");
+  git("init", "-q");
+  git("add", ".");
+  git("commit", "-q", "-m", "init");
+  fs.unlinkSync(path.join(root, "pkg", "b.py")); // still imported by pkg/a.py and named by docs/notes.md
+  write("pkg/__init__.py", "import svc.x\n"); // pkg and svc now depend on each other
+  write("pkg/orphan.py", "x = 1\n"); // nothing reaches it
+  return root;
+}
 
 test("activation registers the commands, the two providers for the five languages, the page scheme and the tools", () => {
   assert.deepEqual(Object.keys(vscode.registered.commands).sort(), ["tessri.brief", "tessri.check", "tessri.impact", "tessri.restart", "tessri.showLog", "tessri.triage", "tessri.why"]);
@@ -165,6 +196,56 @@ test("a command opens a page under the tessri scheme and asks for the Markdown p
   vscode.window.activeTextEditor = undefined;
   await vscode.registered.commands["tessri.brief"]();
   assert.equal(vscode.messages.info[vscode.messages.info.length - 1], "Tessri: open a file of the repository first.");
+});
+
+test("the structure of the change appears as problems on the files concerned, at the line that names what is gone", async () => {
+  for (const timer of api.structure.timers.values()) clearTimeout(timer); // activation scheduled a check of this checkout: not what this test is about
+  api.structure.timers.clear();
+  await Promise.all([...api.structure.running.values()].map((p) => p.catch(() => {})));
+  api.structure.clear(vscode.folder);
+  assert.equal(vscode.statusBar.visible, false);
+  const changed = vscode.addFolder(changedRepository());
+  vscode.config.since = "HEAD";
+  try {
+    await api.structure.refresh(changed);
+    const at = (rel) => vscode.diagnostics.get(Uri.file(path.join(changed.uri.fsPath, ...rel.split("/"))).toString()) || [];
+    const [dangling] = at("pkg/a.py");
+    assert.equal(dangling.severity, DiagnosticSeverity.Error);
+    assert.equal(dangling.code, "dangling-import");
+    assert.equal(dangling.source, "Tessri");
+    assert.deepEqual([dangling.range.start.line, dangling.range.end.character], [0, "import pkg.b".length]);
+    assert.equal(dangling.message, "`pkg/b.py` was deleted, and this file still imports it. Restore the file, or update the import in the same change.");
+    const [orphan] = at("pkg/orphan.py");
+    assert.deepEqual([orphan.severity, orphan.code, orphan.range.start.line], [DiagnosticSeverity.Warning, "new-orphan", 0]);
+    const [cycle] = at("pkg/__init__.py");
+    assert.deepEqual([cycle.severity, cycle.code, cycle.range.start.line], [DiagnosticSeverity.Warning, "new-cycle", 0]);
+    assert.match(cycle.message, /^This import closes a cycle: modules `pkg`, `svc` now depend on each other, through `svc\/x\.py`\./);
+    const [note] = at("docs/notes.md");
+    assert.deepEqual([note.severity, note.code, note.range.start.line], [DiagnosticSeverity.Information, "dangling-reference", 2]);
+    assert.match(note.message, /^`pkg\/b\.py` was deleted, and this document still names it/);
+    assert.deepEqual(at("svc/x.py"), []); // untouched, and nothing about it changed
+    assert.equal(vscode.statusBar.text, "Tessri: 1 block · 2 warn · 1 info");
+    assert.ok(vscode.statusBar.visible);
+    assert.equal(vscode.statusBar.command, "tessri.check");
+    assert.match(vscode.statusBar.tooltip, /^What the uncommitted work did to the structure, since HEAD: 1 block · 2 warn · 1 info\. Click for the page\.$/);
+
+    fs.writeFileSync(path.join(changed.uri.fsPath, "pkg", "b.py"), "def b():\n    return 1\n"); // the file is back
+    await api.structure.refresh(changed);
+    assert.deepEqual(at("pkg/a.py"), []); // the problem went with its cause
+    assert.deepEqual(at("docs/notes.md"), []);
+    assert.equal(vscode.statusBar.text, "Tessri: 2 warn");
+
+    vscode.config.problems = false;
+    await api.structure.refresh(changed);
+    assert.deepEqual([at("pkg/orphan.py"), at("pkg/__init__.py")], [[], []]);
+    assert.equal(vscode.statusBar.visible, false);
+  } finally {
+    vscode.config.problems = true;
+    vscode.config.since = "";
+    api.structure.clear(changed);
+    api.servers.drop(changed);
+    vscode.removeFolder(changed);
+  }
 });
 
 test("a command that is not installed is reported once, and the editor stays quiet", async () => {

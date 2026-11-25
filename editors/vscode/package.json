@@ -157,6 +157,11 @@
           "default": true,
           "description": "Over the name of a function, class or method: the same facts for its file, with links to the evidence."
         },
+        "tessri.problems": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "What the uncommitted work did to the structure, as problems on the files concerned: a deleted file still imported, a new file nothing reaches, a new cycle, changed code nobody active maintains. From `tessri check` since `#tessri.since#`, checked again after each save; the status bar counts them."
+        },
         "tessri.since": {
           "type": "string",
           "default": "",
