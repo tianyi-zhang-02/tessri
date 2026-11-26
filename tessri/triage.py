@@ -17,7 +17,7 @@ from collections import defaultdict, deque
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import __version__, gitlog, inventory, mentions, meta, symbols
+from . import companions, gitlog, inventory, mentions, meta, symbols, __version__
 from . import since as since_mod
 from .analyze import Analysis, analyze
 from .config import Config
@@ -222,6 +222,8 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         by_path[path]["symbols"] = s
     # and which of the tests that reach each file use the names of those definitions in their code
     mentions.compute(root, rows, test_reach, {t: a.records[t].language if t in a.records else None for near in test_reach.values() for t in near})
+    # and what usually changes with each file, that this change leaves untouched
+    usually = companions.compute(root, base, a.now, rows, set(diff), a.records)
 
     # who can look: the people, other than the authors, who committed to the changed files in the last year or hold a share of
     # them, most commits first: on two repositories' pull requests that count matched who reviewed better than the share did
@@ -278,6 +280,8 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
         "the change's own commits do not count as trouble and its authors do not count as owners.",
         "A definition is named in a test when the identifier appears in the test's code, strings and comments apart; that is a mention, not an "
         "assertion, and a test can exercise code without naming it.",
+        f"A companion is a file that changed in at least half of a changed file's commits in the last {gitlog.COMPANION_DAYS} days (three at least; merges and bulk commits apart), "
+        "read up to the base under the name each file has now, and that this change leaves untouched: a prompt to check whether it should have changed too, not a rule that it must.",
     ]
     if not a.activity.files:
         notes.append("The repository has little history, so the ordering falls back to the size of the change.")
@@ -304,8 +308,10 @@ def compute(root: Path, cfg: Config, since: str | None = None, now: float | None
             "ripple": {"direct": sum(1 for d in ripple.values() if d == 1), "second": sum(1 for d in ripple.values() if d == 2)},
             "tests": len(tests),
             "definitions": mentions.summary(rows),
+            "companions": len(usually),
         },
         "files": rows,
+        "companions": usually,
         "areas": [{"path": k, **v} for k, v in sorted(areas.items(), key=lambda kv: (-kv[1]["lines"], kv[0]))],
         "ripple": [{"module": k, **v} for k, v in sorted(by_module.items(), key=lambda kv: (-(kv[1]["direct"] + kv[1]["second"]), kv[0]))],
         "ripple_examples": sorted(ripple, key=lambda p: (ripple[p], p))[: 2 * LISTED],
@@ -416,5 +422,7 @@ def markdown(t: dict, limit: int = 20, active_days: int = 90) -> str:
         out += ["Tests that reach it, nearest first: " + ", ".join(f"`{p}`" for p in t["tests"]["nearest"][:5]) + (f" and {t['tests']['count'] - 5} more" if t["tests"]["count"] > 5 else ""), ""]
     if named := mentions.line(t["files"]):
         out += [named, ""]
+    if usual := companions.line(t.get("companions") or []):
+        out += [usual, ""]
     out += ["## Read this with care", ""] + [f"- {n}" for n in t["notes"]] + [""]
     return "\n".join(out)

@@ -163,7 +163,7 @@ the question; without `--since`, a branch is judged against the default branch.
 | The question | The command | Read |
 |---|---|---|
 | What can a change to this file affect, which tests reach it, who maintains that? | `tessri impact <path>` | [impact](docs/guide/impact.md) |
-| Which of the changed files deserve a person first? | `tessri triage --since <base>` | [triage](docs/guide/triage.md) |
+| Which of the changed files deserve a person first, and what usually changes with them but did not? | `tessri triage --since <base>` | [triage](docs/guide/triage.md) |
 | What did the change do to the structure? | `tessri check --since <base>` | [check](docs/guide/check.md) |
 | Hand the change over, on one page | `tessri brief --since <base>` | [brief](docs/guide/brief.md) |
 | What is the evidence behind what it said about this file? | `tessri why <path>` | [scan](docs/guide/scan.md) |

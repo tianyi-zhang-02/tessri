@@ -24,7 +24,7 @@ or too common to search; `tests`, how many reach the file, the same set `impact`
 definitions reader) and `advice`; `git`, `owners` and `graph` are `null` when the analysis had nothing to say, and
 `definitions` for a file that is not code. `tessri brief --format json`
 prints `kind: "brief"`: its own sections (`change` with the full base and head, the commits on the way and the
-uncommitted files in scope; `attention`; `consequences`, with `not_analysed`; `validation`, with `candidates`,
+uncommitted files in scope; `attention`, with `companions`; `consequences`, with `not_analysed`; `validation`, with `candidates`,
 `ran`, `report` and `coverage`; `people`; `open`) and, whole, the `triage` and `check` objects it was composed from.
 
 The [MCP server](mcp.md) returns these same objects as each tool's `structuredContent`, unchanged.

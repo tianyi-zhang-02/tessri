@@ -21,7 +21,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Sequence
 
-from . import __version__, coverage, inventory, mentions, meta, since, symbols, triage
+from . import companions, coverage, inventory, mentions, meta, since, symbols, triage, __version__
 from . import runs as testruns
 from .analyze import analyze
 from .config import Config
@@ -43,7 +43,8 @@ NOTES = [
     "a name in a string or a dynamic import is a guess, and the one finding that rests on it, `dangling-reference`, says so. Runtime wiring, "
     "registries and consumers outside the repository are invisible, and no finding is proof that the rest is fine.",
     "History is read up to the base, so the change's own commits do not count as activity and its authors do not count as owners. "
-    "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches.",
+    "The commit subjects are the authors' words; the intent behind a change is not inferred from the files it touches. "
+    "A file usually changed together with a changed file (half or more of its commits in the last year, three at least) and untouched here is a prompt to check, not a rule.",
     "Candidate tests are paths that reach the change, never executions; only what `--ran` records, or a test or coverage report the host wrote and `--report` or `--coverage` reads, was run. "
     "A definition *named* in a test appears as an identifier in its code, strings and comments apart: a mention, not an assertion, and a test can exercise code without naming it. "
     "A coverage report says which statements ran, not what any test asserted about them, and its line numbers are those of the files when the host ran the tests.",
@@ -144,6 +145,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "files": paths,
         })
     open_items += mentions.open_items(t["files"])
+    open_items += companions.open_items(t["companions"])
     if held and held["failed"]:
         open_items.append({"kind": "candidate-failed", "text": f"{_named(held['failed'])} failed in the report: the tests that reach the change do not pass.", "files": held["failed"]})
     if held and held["not_run"]:
@@ -181,7 +183,7 @@ def compute(root: Path, cfg: Config, since_ref: str | None = None, ran: Sequence
             "other_files": cs["other_files"],
             "other_lines": s["other_lines"],
         },
-        "attention": {"files": shown, "shown": len(shown), "total": len(t["files"]), "window_days": cfg.active_days, "inactive_days": t["inactive_days"]},
+        "attention": {"files": shown, "shown": len(shown), "total": len(t["files"]), "window_days": cfg.active_days, "inactive_days": t["inactive_days"], "companions": t["companions"]},
         "consequences": {
             "counts": cs["findings"],
             "findings": c["findings"],
@@ -271,6 +273,8 @@ def markdown(b: dict) -> str:
         out += _table(["#", "File", "Why", "This change", "Owners", "Flags"], rows, {0})
         if named := symbols.lines(a["files"]):
             out += [*named, ""]
+        if usual := companions.line(a.get("companions") or []):
+            out += [usual, ""]
         if a["total"] > a["shown"]:
             out += [f"{a['total'] - a['shown']} more files, in order, under `triage.files`.", ""]
         if p["reviewers"]:

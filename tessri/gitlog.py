@@ -21,6 +21,8 @@ _BOT = re.compile(r"\[bot\]|^(?:dependabot|renovate|github-actions|pre-commit-ci
 # Judged from the subject alone, so a repository that writes no such subjects simply shows no fix history.
 FIX_SUBJECT = re.compile(r"^(?:fix(?:es|ed)?|bug-?fix|hotfix|revert)\b", re.I)
 FIX_WINDOW_DAYS = 90
+COMPANION_DAYS = 365  # how far back co-changes are read
+COMPANION_COMMITS = 50  # the latest commits of each changed file that count
 
 
 @dataclass
@@ -383,6 +385,53 @@ def load(root: Path, now: float, active_days: int, ignore_authors: Sequence[str]
         credit=credit,
         recent=recent,
     )
+
+
+@dataclass
+class CoChange:
+    """The commits that touched one file lately, and how many of them touched each other file too."""
+
+    commits: int = 0
+    together: dict[str, int] = field(default_factory=dict)
+
+
+def co_changes(root: Path, rev: str, paths: Sequence[str], now: float, days: int = COMPANION_DAYS, limit: int = COMPANION_COMMITS, ignore_authors: Sequence[str] = ()) -> dict[str, CoChange] | None:
+    """For each of `paths`, its commits up to `rev` in the last `days` days (the latest `limit` of them) and how many
+    of those touched each other file: what usually changes together. Merge commits, bulk commits (BULK_FILES files
+    or more) and ignored authors' commits are left out; files are read under the names the working tree has, like
+    `load`, and a path is selected by its current name only. None when git cannot answer."""
+    out = {p: CoChange() for p in paths}
+    if not paths:
+        return out
+    listing = _git_text(root, "log", "--no-merges", "--format=%H%x09%at", rev, "--", *paths)
+    if listing is None:
+        return None
+    cut = now - days * 86400
+    inside = [sha for sha, _, stamp in (line.partition("\t") for line in listing.splitlines()) if stamp.isdigit() and int(stamp) >= cut]
+    if not inside:
+        return out
+    body = _git_text(root, "log", "--no-walk=unsorted", "--stdin", "--relative", "-M", "--name-status", "--format=%x1e%at%x09%aN%x09%aE%x09%s", stdin="\n".join(inside) + "\n")
+    if body is None:
+        return None
+    names = _Names()
+    for old, new in renames(root, rev).items():
+        names.renamed(old, new)
+    wanted = set(paths)
+    for _when, who, email, _subject, entries in _commits(body.split("\n")):  # newest first, as listed; not splitlines(), which would eat the \x1e marks
+        if is_ignored(who, email, ignore_authors):
+            continue
+        files = {name for name, _ in _touched(entries, names)}
+        if len(files) >= BULK_FILES:
+            continue
+        for path in files & wanted:
+            entry = out[path]
+            if entry.commits >= limit:
+                continue
+            entry.commits += 1
+            for other in files:
+                if other != path:
+                    entry.together[other] = entry.together.get(other, 0) + 1
+    return out
 
 
 def _git_text(root: Path, *args: str, stdin: str | None = None) -> str | None:

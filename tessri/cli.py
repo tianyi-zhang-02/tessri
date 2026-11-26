@@ -269,7 +269,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_analysis_options(impact)
     impact.set_defaults(func=_cmd_impact)
 
-    triage = sub.add_parser("triage", help="which files of a change deserve a human first, what it can ripple into, who can look")
+    triage = sub.add_parser("triage", help="which files of a change deserve a human first, what it can ripple into, what usually changes with them but did not, who can look")
     triage.add_argument("--since", metavar="REF", help=SINCE_HELP)
     _add_root(triage)
     triage.add_argument("--format", choices=("md", "json"), default="md")
