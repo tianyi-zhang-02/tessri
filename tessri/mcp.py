@@ -263,7 +263,7 @@ TOOLS: tuple[Tool, ...] = (
         (),
         _graph,
     ),
-    Tool("tessri_triage", "Triage", "Which files of a change deserve a person first, what the change can ripple into, and who can look.", {"root": ROOT, "since": _SINCE}, (), _triage),
+    Tool("tessri_triage", "Triage", "Which files of a change deserve a person first, what the change can ripple into, what usually changes with them but did not, and who can look.", {"root": ROOT, "since": _SINCE}, (), _triage),
     Tool(
         "tessri_check",
         "Check",

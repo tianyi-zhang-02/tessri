@@ -182,7 +182,10 @@ why the page says so. Everything structural rests on static imports between file
 `not_measured` as path to its changed lines, the totals `changed`, `statements`, `ran` and `not_run`, and `unmatched`),
 `people` (`reviewers`, each with `files` and `commits`, `regulars`, `nobody_else_can_look`, `no_active_owner`), `open` (each
 with `kind`, `text`, `files`; the kinds
-are the finding kinds that need a person, `only-the-author`, `not-analysed`, `candidate-failed`, `candidates-not-run`,
+are the finding kinds that need a person, `only-the-author`, `not-analysed`, `definitions-unnamed`, `removed-still-named`,
+`companions-untouched` (the files that usually change with the changed files, half or more of their commits in the last
+year, three at least, and are not in this change; `attention.companions` holds them grouped by companion, as
+[triage](triage.md) explains), `candidate-failed`, `candidates-not-run`,
 `changed-lines-not-run`, `changed-files-not-measured` and `no-checks-recorded`), then
 `triage` and `check` whole, and `notes`. `meta` is the [shared block](json.md) with `meta.change` and `meta.analysis`,
 which says `skipped` with reason `no-code-changes` when there was nothing to compare. A bad base, or a directory that

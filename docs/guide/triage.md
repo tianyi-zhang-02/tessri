@@ -97,6 +97,19 @@ them under `definitions`. A name in a test is a mention, not an assertion: the t
 checking what it does, and a test can exercise a definition without naming it, through a caller, a fixture or a
 dynamic call; test files in the change and deleted files are not searched.
 
+After it, when there are any, one sentence names the files that usually change with the changed files and are not in
+this change: "Usually changed together, not in this change: `docs/guide/brief.md` (with `tessri/brief.py` 9 of 10;
+`tessri/triage.py` 6 of 10 commits), `tests/test_brief.py` (with `tessri/brief.py` 5 of 10 commits)." For each
+changed code file, the commits that touched it in the last 365 days up to the base are read (the latest 50, under
+the name each file has now; merge commits, bulk commits of 300 files or more and ignored authors apart), and a
+*companion* is another file in at least half of them, three at least, that still exists and that the change leaves
+untouched. Each row carries `companions` (`commits` in the window, `window_days`, `usually_with` with `together`),
+the JSON a `companions` list grouped by companion (`with`: the changed file, `together`, `of`), surest first, and the
+summary the count. On this repository it names the guide pages, the skill and the README that an edit to `brief.py`
+usually comes with; on a repository with a short history, the test file beside the module. It is a prompt to check
+whether the file should have changed too, not a rule that it must, and a change that brings its companions has none
+to name.
+
 History is read up to the base of the change, so the change's own commits count neither as activity nor as making its
 author an owner. A file the change adds has no history and sorts by its size; a file it moves keeps the history of its
 old name (`from` names it, the flag reads `moved`) and its lines are the edits made on the way. *Who can look* lists the

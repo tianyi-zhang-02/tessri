@@ -4,6 +4,17 @@ Dates are the day a version was tagged.
 
 ## Unreleased
 
+- `triage` and the brief name the files that usually change with the changed files and are not in this change: for
+  each changed code file, the commits that touched it in the last 365 days up to the base (the latest 50, under the
+  name each file has now; merges, bulk commits and ignored authors apart), and the other files in at least half of
+  them, three at least, that still exist and the change leaves untouched. Each row carries `companions` (`commits`,
+  `window_days`, `usually_with` with `together`), the triage JSON a `companions` list grouped by companion
+  (`with`: changed file, `together`, `of`) and `summary.companions`; the page prints one sentence ("Usually changed
+  together, not in this change: `docs/guide/brief.md` (with `tessri/brief.py` 9 of 10 commits) ..."), the brief
+  repeats it under *Look first* and opens an item for a person (`companions-untouched`). On this repository the
+  sentence named the guide pages, the skill and the README that an edit to `brief.py` and `triage.py` usually comes
+  with; on a 13-commit repository it named the test files beside the code. A companion is a prompt to check, not a
+  rule, and the notes say so. `gitlog.co_changes` reads the history in two `git log` calls.
 - The repository is an installable plugin for Claude Code and for Codex: `claude plugin marketplace add
   tianyi-zhang-02/tessri` and `claude plugin install tessri@tessri`, or `codex plugin marketplace add
   tianyi-zhang-02/tessri` and `codex plugin add tessri@tessri`, bring the skill, the eight tools and the two hooks to

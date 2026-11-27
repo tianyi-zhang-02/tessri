@@ -153,7 +153,10 @@ change that imports the changed files, `tests.nearest` are candidate tests, `rev
 authors, who committed to the changed files in the last year, most commits first, then those who maintain them,
 `regulars` are the repository's busiest committers of the last 90 days with their share of its commits (where a few
 people review everything, they are the reviewers whatever the files), and `nobody_else_can_look` lists files only the
-author maintains. A flag
+author maintains. `companions` (and each row's `companions.usually_with`) are the files that changed in half or more
+of a changed file's commits in the last year, three at least, but are not in this change, such as the test beside the
+module or the changelog: ask whether they should be, and say so where the change is described; a companion is a prompt
+to check, not a rule. A flag
 `no active owner` means nobody who maintains the file has committed lately: say so where the change is described, so
 a person can decide who looks, and do not pick a reviewer from its last maintainers; whether that pauses the work is
 the team's policy, not the tool's. History is read up to the base, so the change's own commits do not count. It is a
